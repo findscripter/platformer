@@ -1,0 +1,75 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 3
+  tags:
+  - TutorialRequirement
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - Ground
+  - Platform
+  - Player
+  - Enemy
+  - Trigger
+  - Collectible
+  - Mechanism
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: Background
+    uniqueID: 926371872
+    locked: 0
+  - name: Midground
+    uniqueID: 1089238171
+    locked: 0
+  - name: InteractiveDown
+    uniqueID: 2864746450
+    locked: 0
+  - name: Player
+    uniqueID: 2793592669
+    locked: 0
+  - name: InteractiveUp
+    uniqueID: 1111669549
+    locked: 0
+  - name: Foreground
+    uniqueID: 1205230033
+    locked: 0
+  - name: UI
+    uniqueID: 3512460218
+    locked: 0
+  m_RenderingLayers:
+  - Default
+  - Light Layer 1
+  - Light Layer 2
+  - Light Layer 3
+  - Light Layer 4
+  - Light Layer 5
+  - Light Layer 6
+  - Light Layer 7
+  m_MigratedRenderPipelines: []

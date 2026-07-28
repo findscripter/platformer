@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 064023deb6016384891d5bed58d5d6e4, type: 3}
+  m_Name: BubbleLayoutConfig
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerGuideBubbleLayoutConfig
+  mediumCount: 5
+  smallCount: 0
+  mediumMinOrbitRadius: 300
+  mediumMaxOrbitRadius: 500
+  smallMinOrbitRadius: 420
+  smallMaxOrbitRadius: 830
+  bubblePadding: 16
+  boundsPadding: 24
+  placementAttemptsPerBubble: 96
+  randomSeed: 0
+  bubblesNodeName: bubbles_node
+  mainBubbleName: bubbles_main
+  mediumBubbleNamePrefix: bubbles_other_1
+  smallBubbleNamePrefix: bubbles_other_2
+  mainBubbleSize: {x: 280, y: 274}
+  mediumBubbleSize: {x: 147, y: 146}
+  smallBubbleSize: {x: 65, y: 65}

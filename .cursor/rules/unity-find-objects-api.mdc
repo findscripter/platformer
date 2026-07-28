@@ -1,0 +1,35 @@
+---
+description: Unity 6 对象查找 API，避免 FindObjectsSortMode 等已弃用用法
+globs: Assets/**/*.cs
+alwaysApply: false
+---
+
+# Unity 6 对象查找 API
+
+本项目使用 Unity 6。生成或修改 C# 代码时，**不要**使用带 `FindObjectsSortMode` 的重载（CS0618）。
+
+## FindObjectsByType
+
+```csharp
+// ❌ BAD — FindObjectsSortMode 已弃用
+Object.FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+Object.FindObjectsByType<Button>(FindObjectsSortMode.InstanceID);
+
+// ✅ GOOD — 使用不带 FindObjectsSortMode 的重载
+Object.FindObjectsByType<Button>(FindObjectsInactive.Include);
+Object.FindObjectsByType<Button>(); // 仅包含激活对象时
+```
+
+## 相关替换
+
+优先使用 Unity 6 新 API，避免旧版 `FindObjectOfType` / `FindObjectsOfType`：
+
+```csharp
+// ❌ 旧 API
+Object.FindObjectOfType<T>();
+Object.FindObjectsOfType<T>();
+
+// ✅ Unity 6
+Object.FindFirstObjectByType<T>();
+Object.FindObjectsByType<T>();
+```
