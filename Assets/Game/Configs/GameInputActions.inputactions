@@ -292,6 +292,17 @@
                 },
                 {
                     "name": "",
+                    "id": "ab123456-789c-def0-1234-567890abcdef",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "Confirm",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
                     "id": "b6c7d8e9-f0a1-2345-9012-456789012345",
                     "path": "<Keyboard>/escape",
                     "interactions": "",

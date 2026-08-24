@@ -12,6 +12,7 @@ public class PlayerGuideState : IGameState
         UnityEngine.Time.timeScale = 1f;
 
         context.UIManager.HideAll();
+        context.InputManager.EnableGameplayInput();
         context.InputManager.EnableUIInput();
         context.ResetRuntimeFlags();
     }

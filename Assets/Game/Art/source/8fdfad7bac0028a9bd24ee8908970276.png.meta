@@ -41,6 +41,33 @@ TextureImporter:
   - first:
       213: 6100982156457961245
     second: 8fdfad7bac0028a9bd24ee8908970276_12
+  - first:
+      213: 8948830164465978326
+    second: bubble_large
+  - first:
+      213: 7150781115982590700
+    second: bubble_medium
+  - first:
+      213: -8420695048082280166
+    second: bubble_small
+  - first:
+      213: 5543033940370519282
+    second: feifei_character
+  - first:
+      213: -866954148409496159
+    second: feifei_reflection
+  - first:
+      213: 9131414250979974256
+    second: tarot_card_back
+  - first:
+      213: 2062372846372030073
+    second: ui_bar_top
+  - first:
+      213: 1067223075658721792
+    second: ui_bar_bottom
+  - first:
+      213: -415936205569115563
+    second: dream_core
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -60,7 +87,7 @@ TextureImporter:
     heightScale: 0.25
     normalMapFilter: 0
     flipGreenChannel: 0
-  isReadable: 0
+  isReadable: 1
   streamingMipmaps: 0
   streamingMipmapsPriority: 0
   vTOnly: 0
@@ -111,7 +138,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -136,265 +163,199 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_0
+      name: bubble_large
       rect:
         serializedVersion: 2
         x: 10
-        y: 774
+        y: 789
         width: 280
-        height: 289
-      alignment: 0
+        height: 274
+      alignment: 9
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: 0
+      tessellationDetail: -1
       bones: []
-      spriteID: 3ab6cda095eb16a4c910c23ea2342acc
-      internalID: 505596664
+      spriteID: 6db8b442f91a03c70800000000000000
+      internalID: 8948830164465978326
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_1
+      name: bubble_medium
       rect:
         serializedVersion: 2
         x: 343
         y: 816
         width: 147
         height: 146
-      alignment: 0
+      alignment: 9
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: 0
+      tessellationDetail: -1
       bones: []
-      spriteID: 1d160f3e4b39d8b4b99b7239a9b6b9df
-      internalID: 2111302316
+      spriteID: ce2b6bcd98dac3360800000000000000
+      internalID: 7150781115982590700
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_2
+      name: bubble_small
       rect:
         serializedVersion: 2
         x: 552
         y: 839
         width: 65
         height: 65
-      alignment: 0
+      alignment: 9
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: 0
+      tessellationDetail: -1
       bones: []
-      spriteID: c0ebc2d2d4c672f4f9ac5453dc173796
-      internalID: -611265961
+      spriteID: a113a21f77ea32b80800000000000000
+      internalID: -8420695048082280166
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_3
-      rect:
-        serializedVersion: 2
-        x: 830
-        y: 639
-        width: 163
-        height: 284
-      alignment: 7
-      pivot: {x: 0.5, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: b55ecf51d2ae9fc43b5f72f41ee29af9
-      internalID: 546951812
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_4
-      rect:
-        serializedVersion: 2
-        x: 1234
-        y: 565
-        width: 260
-        height: 420
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 08871d7ba7df7944c8b130aeb0e6c93c
-      internalID: -290188499
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_5
-      rect:
-        serializedVersion: 2
-        x: 73
-        y: 664
-        width: 312
-        height: 53
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 53, y: 0, z: 62, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 9a8ece2ee67d7ce4492b36b9896bd92e
-      internalID: -1268217545
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_6
-      rect:
-        serializedVersion: 2
-        x: 1018
-        y: 626
-        width: 135
-        height: 130
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 1eddc6453a0b3024a993234a83af5db4
-      internalID: 1095728452
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_7
-      rect:
-        serializedVersion: 2
-        x: 73
-        y: 562
-        width: 312
-        height: 53
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: d96ef15224f759f48b556548627aeffa
-      internalID: -910671939
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_8
+      name: feifei_character
       rect:
         serializedVersion: 2
         x: 826
         y: 524
         width: 168
-        height: 97
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+        height: 399
+      alignment: 9
+      pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: 0
+      tessellationDetail: -1
       bones: []
-      spriteID: 20fd5b4d48139614faa6daa98ae60644
-      internalID: 1997797053
+      spriteID: 2f4f7b12000dcec40800000000000000
+      internalID: 5543033940370519282
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_9
+      name: feifei_reflection
       rect:
         serializedVersion: 2
-        x: 1021
-        y: 553
-        width: 130
-        height: 49
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+        x: 828
+        y: 523
+        width: 164
+        height: 96
+      alignment: 9
+      pivot: {x: 0.5, y: 1}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: 0
+      tessellationDetail: -1
       bones: []
-      spriteID: 3b961db55170ac24c9dc53755bd7770f
-      internalID: 1743184379
+      spriteID: 1ad208b9bc5f7f3f0800000000000000
+      internalID: -866954148409496159
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_10
+      name: dream_core
       rect:
         serializedVersion: 2
-        x: 50
-        y: 55
-        width: 391
-        height: 405
-      alignment: 0
+        x: 1018
+        y: 626
+        width: 135
+        height: 169
+      alignment: 9
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: 0
+      tessellationDetail: -1
       bones: []
-      spriteID: 9d65b29b03f2dbf499b26399c4824403
-      internalID: 1278532676
+      spriteID: 55a34d9893c4a3af0800000000000000
+      internalID: -415936205569115563
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 8fdfad7bac0028a9bd24ee8908970276_12
+      name: tarot_card_back
       rect:
         serializedVersion: 2
-        x: 473
-        y: 31
-        width: 317
-        height: 312
-      alignment: 0
+        x: 1234
+        y: 554
+        width: 260
+        height: 420
+      alignment: 9
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: 0
+      tessellationDetail: -1
       bones: []
-      spriteID: 1fde20c5dd2af8d4f9a57a0951410c4f
-      internalID: -923532570
+      spriteID: 07cd99681ec49be70800000000000000
+      internalID: 9131414250979974256
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ui_bar_top
+      rect:
+        serializedVersion: 2
+        x: 71
+        y: 662
+        width: 316
+        height: 57
+      alignment: 9
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9768a664d250f9c10800000000000000
+      internalID: 2062372846372030073
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ui_bar_bottom
+      rect:
+        serializedVersion: 2
+        x: 71
+        y: 560
+        width: 316
+        height: 57
+      alignment: 9
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 00aecb0abb98fce00800000000000000
+      internalID: 1067223075658721792
       vertices: []
       indices: 
       edges: []
@@ -428,6 +389,15 @@ TextureImporter:
       8fdfad7bac0028a9bd24ee8908970276_7: -910671939
       8fdfad7bac0028a9bd24ee8908970276_8: 1997797053
       8fdfad7bac0028a9bd24ee8908970276_9: 1743184379
+      bubble_large: 8948830164465978326
+      bubble_medium: 7150781115982590700
+      bubble_small: -8420695048082280166
+      dream_core: -415936205569115563
+      feifei_character: 5543033940370519282
+      feifei_reflection: -866954148409496159
+      tarot_card_back: 9131414250979974256
+      ui_bar_bottom: 1067223075658721792
+      ui_bar_top: 2062372846372030073
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

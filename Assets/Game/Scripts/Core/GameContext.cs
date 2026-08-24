@@ -24,11 +24,21 @@ public class GameContext
     public float DeadStateTimer;
     public float LevelClearTimer;
 
+    // Player Guide Runtime Data
+    public string PlayerDreamInput;
+    public TarotResultData TarotResult;
+
     public void ResetRuntimeFlags()
     {
         IsPlayerDead = false;
         IsLevelClear = false;
         DeadStateTimer = 0f;
         LevelClearTimer = 0f;
+    }
+
+    public void ClearPlayerGuideData()
+    {
+        PlayerDreamInput = null;
+        TarotResult = null;
     }
 }

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "unityMCP": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp"
+    },
+    "figma": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@vkhanhqui/figma-mcp-go"
+      ]
+    }
+  }
+}

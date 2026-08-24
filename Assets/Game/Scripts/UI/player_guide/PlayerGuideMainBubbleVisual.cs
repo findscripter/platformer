@@ -55,7 +55,12 @@ public class PlayerGuideMainBubbleVisual : MonoBehaviour
             visualImage.maskable = rootImage.maskable;
             visualImage.type = rootImage.type;
             visualImage.preserveAspect = rootImage.preserveAspect;
+
+            #if UNITY_EDITOR
+            DestroyImmediate(rootImage);
+            #else
             Destroy(rootImage);
+            #endif
         }
 
         var childrenToMove = new Transform[mainBubbleRoot.transform.childCount];

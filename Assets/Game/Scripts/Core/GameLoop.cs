@@ -35,6 +35,7 @@ public class GameLoop : MonoBehaviour
     public LevelManager LevelManager => levelManager;
     public bool IsSceneTransitioning => isSceneTransitioning;
     public SaveSystem SaveSystem => saveSystem;
+    public GameContext Context => context;
 
     private void Awake()
     {
@@ -155,7 +156,7 @@ public class GameLoop : MonoBehaviour
 
     private void Update()
     {
-        if (!hasBegun)
+        if (!hasBegun || stateMachine == null)
         {
             return;
         }
@@ -166,7 +167,7 @@ public class GameLoop : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (!hasBegun)
+        if (!hasBegun || stateMachine == null)
         {
             return;
         }

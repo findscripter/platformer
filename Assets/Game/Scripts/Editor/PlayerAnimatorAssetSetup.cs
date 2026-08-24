@@ -19,24 +19,6 @@ public static class PlayerAnimatorAssetSetup
         "Landing"
     };
 
-    private static readonly string[] RequiredClipNames =
-    {
-        "player_idle",
-        "player_run",
-        "player_up",
-        "player_down",
-        "PlayerLanding"
-    };
-
-    private const string IdleSheet =
-        "Assets/Game/Art/Characters/images/player_idle.png";
-    private const string RunSheet =
-        "Assets/Game/Art/Characters/images/player_run.png";
-    private const string JumpUpSheet =
-        "Assets/Game/Art/Characters/images/player_up.png";
-    private const string JumpDownSheet =
-        "Assets/Game/Art/Characters/images/player_down.png";
-
     private static bool isBuilding;
 
     static PlayerAnimatorAssetSetup()
@@ -84,18 +66,21 @@ public static class PlayerAnimatorAssetSetup
 
     private static void BuildAnimatorAssets(bool forceRebuildController)
     {
-        AnimationClip idle = CreateClip("player_idle", IdleSheet, 6f, true);
-        AnimationClip run = CreateClip("player_run", RunSheet, 10f, true);
-        AnimationClip jumpUp = CreateClip("player_up", JumpUpSheet, 12f, false);
+        // 使用新生成的动画（来自 CharacterAnimationGenerator）
+        AnimationClip idle = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Game/Animations/Player/player_idle.anim");
+        AnimationClip run = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Game/Animations/Player/player_run.anim");
+        AnimationClip jumpClip = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Game/Animations/Player/player_jump.anim");
+        AnimationClip attack = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Game/Animations/Player/player_attack.anim");
 
-        if (!TryCreateJumpDownAndLandingClips(out AnimationClip jumpDown, out AnimationClip landing))
-            return;
-
-        if (idle == null || run == null || jumpUp == null || jumpDown == null || landing == null)
+        if (idle == null || run == null || jumpClip == null)
         {
-            Debug.LogError("Player Animator 创建失败：一个或多个序列图没有可用 Sprite。");
+            Debug.LogError("Player animations not found! Run 'Generate Character Animations' first.");
             return;
         }
+
+        // 从 jump 动画中分离 Up/Down/Landing
+        if (!TryCreateJumpVariants(jumpClip, out AnimationClip jumpUp, out AnimationClip jumpDown, out AnimationClip landing))
+            return;
 
         AnimatorController controller =
             AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
@@ -142,27 +127,89 @@ public static class PlayerAnimatorAssetSetup
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        Debug.Log("Player Animator 已生成：Idle / Run / Jump Up / Jump Down / Landing。");
+        Debug.Log("Player Animator rebuilt using new sprite sequences!");
     }
 
-    private static bool TryCreateJumpDownAndLandingClips(
+    private static bool TryCreateJumpVariants(
+        AnimationClip sourceJump,
+        out AnimationClip jumpUp,
         out AnimationClip jumpDown,
         out AnimationClip landing)
     {
-        Sprite[] jumpDownSprites = LoadSprites(JumpDownSheet);
-        if (jumpDownSprites.Length < 2)
+        // 获取 jump 动画的所有帧
+        EditorCurveBinding binding = new EditorCurveBinding
         {
-            Debug.LogError(
-                "Player Animator 创建失败：Jump Down 序列图至少需要 2 帧（第 1 帧用于下落静止，其余帧用于 Landing）。");
-            jumpDown = null;
-            landing = null;
+            type = typeof(SpriteRenderer),
+            path = string.Empty,
+            propertyName = "m_Sprite"
+        };
+
+        ObjectReferenceKeyframe[] keyframes =
+            AnimationUtility.GetObjectReferenceCurve(sourceJump, binding);
+
+        if (keyframes == null || keyframes.Length < 3)
+        {
+            Debug.LogError("Jump animation doesn't have enough frames!");
+            jumpUp = jumpDown = landing = null;
             return false;
         }
 
-        // Jump Down: hold first frame only. Landing: play remaining frames.
-        jumpDown = CreateClip("player_down", JumpDownSheet, 12f, false, 0, 1);
-        landing = CreateClip("PlayerLanding", JumpDownSheet, 12f, false, 1);
-        return jumpDown != null && landing != null;
+        float frameRate = sourceJump.frameRate;
+
+        // 分配帧数：前 2 帧 JumpUp，第 3 帧静止 JumpDown，后续帧 Landing
+        int upFrames = Mathf.Min(2, keyframes.Length / 3);
+        int downFrame = upFrames;
+        int landingStart = downFrame + 1;
+
+        // JumpUp: 前 2 帧循环
+        jumpUp = CreateClipFromKeyframes("player_up", keyframes.Take(upFrames).ToArray(), frameRate, true);
+
+        // JumpDown: 单帧静止
+        jumpDown = CreateClipFromKeyframes("player_down", new[] { keyframes[downFrame] }, frameRate, false);
+
+        // Landing: 剩余帧
+        landing = CreateClipFromKeyframes("PlayerLanding", keyframes.Skip(landingStart).ToArray(), frameRate, false);
+
+        return jumpUp != null && jumpDown != null && landing != null;
+    }
+
+    private static AnimationClip CreateClipFromKeyframes(
+        string clipName,
+        ObjectReferenceKeyframe[] keyframes,
+        float frameRate,
+        bool loop)
+    {
+        if (keyframes == null || keyframes.Length == 0)
+            return null;
+
+        string clipPath = $"{OutputFolder}/{clipName}.anim";
+        AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(clipPath);
+        if (clip == null)
+        {
+            clip = new AnimationClip { name = clipName };
+            AssetDatabase.CreateAsset(clip, clipPath);
+        }
+
+        clip.frameRate = frameRate;
+
+        EditorCurveBinding binding = new EditorCurveBinding
+        {
+            type = typeof(SpriteRenderer),
+            path = string.Empty,
+            propertyName = "m_Sprite"
+        };
+
+        // 重新计算时间轴
+        var retimedKeyframes = keyframes.Select((kf, index) => new ObjectReferenceKeyframe
+        {
+            time = index / frameRate,
+            value = kf.value
+        }).ToArray();
+
+        AnimationUtility.SetObjectReferenceCurve(clip, binding, retimedKeyframes);
+        SetLoopTime(clip, loop);
+        EditorUtility.SetDirty(clip);
+        return clip;
     }
 
     private static AnimatorState AddState(
@@ -187,75 +234,6 @@ public static class PlayerAnimatorAssetSetup
         transition.duration = 0.05f;
         transition.canTransitionToSelf = false;
         transition.AddCondition(AnimatorConditionMode.Equals, stateValue, StateParameter);
-    }
-
-    private static AnimationClip CreateClip(
-        string clipName,
-        string spriteSheetPath,
-        float frameRate,
-        bool loop,
-        int startFrame = 0,
-        int frameCount = int.MaxValue)
-    {
-        Sprite[] sprites = LoadSprites(spriteSheetPath, startFrame, frameCount);
-        if (sprites.Length == 0)
-            return null;
-
-        return CreateClipFromSprites(clipName, sprites, frameRate, loop);
-    }
-
-    private static AnimationClip CreateClipFromSprites(
-        string clipName,
-        Sprite[] sprites,
-        float frameRate,
-        bool loop)
-    {
-        if (sprites == null || sprites.Length == 0)
-            return null;
-
-        string clipPath = $"{OutputFolder}/{clipName}.anim";
-        AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(clipPath);
-        if (clip == null)
-        {
-            clip = new AnimationClip { name = clipName };
-            AssetDatabase.CreateAsset(clip, clipPath);
-        }
-
-        clip.frameRate = frameRate;
-
-        EditorCurveBinding binding = new EditorCurveBinding
-        {
-            type = typeof(SpriteRenderer),
-            path = string.Empty,
-            propertyName = "m_Sprite"
-        };
-
-        ObjectReferenceKeyframe[] keyframes = sprites
-            .Select((sprite, index) => new ObjectReferenceKeyframe
-            {
-                time = index / frameRate,
-                value = sprite
-            })
-            .ToArray();
-
-        AnimationUtility.SetObjectReferenceCurve(clip, binding, keyframes);
-        SetLoopTime(clip, loop);
-        EditorUtility.SetDirty(clip);
-        return clip;
-    }
-
-    private static Sprite[] LoadSprites(
-        string spriteSheetPath,
-        int startFrame = 0,
-        int frameCount = int.MaxValue)
-    {
-        return AssetDatabase.LoadAllAssetsAtPath(spriteSheetPath)
-            .OfType<Sprite>()
-            .Where(sprite => sprite.rect.width >= 64f && sprite.rect.height >= 64f)
-            .OrderBy(sprite => sprite.rect.x)
-            .Skip(startFrame)
-            .Take(frameCount)
-            .ToArray();
     }
 
     private static void SetLoopTime(AnimationClip clip, bool loop)
@@ -290,16 +268,7 @@ public static class PlayerAnimatorAssetSetup
     {
         AnimatorController controller =
             AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
-        if (controller == null || !HasAllRequiredStates(controller))
-            return false;
-
-        foreach (string clipName in RequiredClipNames)
-        {
-            if (!IsClipValid($"{OutputFolder}/{clipName}.anim"))
-                return false;
-        }
-
-        return true;
+        return controller != null && HasAllRequiredStates(controller);
     }
 
     private static bool HasAllRequiredStates(AnimatorController controller)
@@ -311,24 +280,6 @@ public static class PlayerAnimatorAssetSetup
         }
 
         return true;
-    }
-
-    private static bool IsClipValid(string clipPath)
-    {
-        AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(clipPath);
-        if (clip == null)
-            return false;
-
-        EditorCurveBinding binding = new EditorCurveBinding
-        {
-            type = typeof(SpriteRenderer),
-            path = string.Empty,
-            propertyName = "m_Sprite"
-        };
-
-        ObjectReferenceKeyframe[] keyframes =
-            AnimationUtility.GetObjectReferenceCurve(clip, binding);
-        return keyframes != null && keyframes.Length > 0;
     }
 
     private static bool HasState(AnimatorController controller, string stateName)
