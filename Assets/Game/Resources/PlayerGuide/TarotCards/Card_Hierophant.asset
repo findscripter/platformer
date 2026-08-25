@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 489d762f3e8958647963e977da661730, type: 3}
-  m_Name: Card_WheelFortune
+  m_Name: Card_Hierophant
   m_EditorClassIdentifier: Assembly-CSharp::TarotCardData
-  cardId: Card_WheelFortune
-  displayName: "\u547D\u8FD0\u4E4B\u8F6E"
-  tarotName: "\u547D\u8FD0\u4E4B\u8F6E"
-  cardFace: {fileID: 21300000, guid: c9787e2764c8dea42a10d93c9ef2f8d2, type: 3}
+  cardId: Card_Hierophant
+  displayName: "\u6559\u7687"
+  tarotName: "\u6559\u7687"
+  cardFace: {fileID: 21300000, guid: a81577fdba639f342b5cea0c08b48ee2, type: 3}
   isMainCard: 0

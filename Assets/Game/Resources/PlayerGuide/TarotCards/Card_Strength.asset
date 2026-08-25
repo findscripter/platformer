@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 489d762f3e8958647963e977da661730, type: 3}
-  m_Name: Card_ChangXi
+  m_Name: Card_Strength
   m_EditorClassIdentifier: Assembly-CSharp::TarotCardData
-  cardId: Card_ChangXi
-  displayName: "\u5E38\u7FB2\xB7\u661F\u6708\u7948\u613F"
-  tarotName: "\u661F\u661F"
-  cardFace: {fileID: 21300000, guid: 5378ab3858f74814a8b602a55c4892d1, type: 3}
+  cardId: Card_Strength
+  displayName: "\u529B\u91CF"
+  tarotName: "\u529B\u91CF"
+  cardFace: {fileID: 21300000, guid: 012cd01f84d034d48a6e2bac4c16bcda, type: 3}
   isMainCard: 0

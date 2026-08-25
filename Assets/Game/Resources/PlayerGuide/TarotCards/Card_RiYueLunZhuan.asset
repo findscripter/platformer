@@ -15,6 +15,5 @@ MonoBehaviour:
   cardId: Card_RiYueLunZhuan
   displayName: "\u65E5\u6708\u8F6E\u8F6C"
   tarotName: "\u547D\u8FD0\u4E4B\u8F6E"
-  cardFace: {fileID: 9131414250979974256, guid: 4a21d316a13e0ed4897cacb1b315d637,
-    type: 3}
+  cardFace: {fileID: 21300000, guid: c9787e2764c8dea42a10d93c9ef2f8d2, type: 3}
   isMainCard: 0

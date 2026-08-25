@@ -15,6 +15,5 @@ MonoBehaviour:
   cardId: Card_ChanChuJingPo
   displayName: "\u87FE\u870D\u7CBE\u9B44"
   tarotName: "\u6708\u4EAE"
-  cardFace: {fileID: 9131414250979974256, guid: 4a21d316a13e0ed4897cacb1b315d637,
-    type: 3}
+  cardFace: {fileID: 21300000, guid: 9f7d9427919ac8049841f7ba39f78ea5, type: 3}
   isMainCard: 0

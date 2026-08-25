@@ -15,6 +15,5 @@ MonoBehaviour:
   cardId: Card_YingLong
   displayName: "\u5E94\u9F99"
   tarotName: "\u6218\u8F66"
-  cardFace: {fileID: 9131414250979974256, guid: 4a21d316a13e0ed4897cacb1b315d637,
-    type: 3}
+  cardFace: {fileID: 21300000, guid: 10f757af09f5a964184719e932e518cb, type: 3}
   isMainCard: 1
