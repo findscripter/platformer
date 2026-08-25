@@ -5984,7 +5984,9 @@ MonoBehaviour:
   stateBFadeDuration: 0.4
   cardFlipDuration: 0.3
   cardMoveDuration: 0.5
-  stateFDisplayDuration: 2
+  mainCardEmphasisHold: 0.6
+  stateFDisplayDuration: 1.35
+  remainingFadeDuration: 0.3
   stateGFadeDuration: 1.5
 --- !u!114 &788960327
 MonoBehaviour:

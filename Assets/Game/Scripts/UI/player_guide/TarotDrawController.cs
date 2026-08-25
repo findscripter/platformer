@@ -5,14 +5,15 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Frame 9 塔罗抽牌控制器 - 7 状态流程（A-G）
-/// 状态 A: 腓腓引导对话
+/// Frame 9 塔罗抽牌控制器 - 6 状态流程（A-D、F、G）
+/// 状态 A: 腓腓引导对话（4 句）
 /// 状态 B: 腓腓与对话淡出
-/// 状态 C: 第一张牌抽取（固定：应龙/战车）
-/// 状态 D: 继续选择提示
-/// 状态 E: 第二至第四张牌（从剩余 3 张中随机）
-/// 状态 F: 4 张牌完整展示
+/// 状态 C: 第一次抽牌（任意点击，固定翻出应龙/战车，上移并强调）
+/// 状态 D: 继续选择第 2-4 张（剩余牌原位可点击，出牌顺序随机）
+/// 状态 F: 4 张牌完整展示（剩余 18 张淡出）
 /// 状态 G: Fade 到教学关
+/// 注：设计稿的状态 E（第二至第四张）已与状态 D 合并——两者共用同一套
+/// "原位点击 → 普通翻牌 → 上移填槽"流程，拆成两个协程会造成状态重复。
 /// </summary>
 public class TarotDrawController : MonoBehaviour
 {
@@ -22,7 +23,6 @@ public class TarotDrawController : MonoBehaviour
         B_FadeOutDialogue,
         C_FirstCardDraw,
         D_ContinuePrompt,
-        E_RemainingCards,
         F_FullDisplay,
         G_FadeToLevel
     }
@@ -60,7 +60,12 @@ public class TarotDrawController : MonoBehaviour
     [SerializeField] private float stateBFadeDuration = 0.4f;
     [SerializeField] private float cardFlipDuration = 0.3f;
     [SerializeField] private float cardMoveDuration = 0.5f;
-    [SerializeField] private float stateFDisplayDuration = 2f;
+    [Tooltip("主牌放大后的停顿时长（设计稿：约 0.6s）")]
+    [SerializeField] private float mainCardEmphasisHold = 0.6f;
+    [Tooltip("四张展示保持时长（设计稿：1.2-1.5s）")]
+    [SerializeField] private float stateFDisplayDuration = 1.35f;
+    [Tooltip("剩余 18 张牌淡出时长（设计稿：0.3s）")]
+    [SerializeField] private float remainingFadeDuration = 0.3f;
     [SerializeField] private float stateGFadeDuration = 1.5f;
 
     #endregion
@@ -77,13 +82,16 @@ public class TarotDrawController : MonoBehaviour
     private bool isWaitingForCardClick;
     private int clickedCardIndex = -1;
 
+    /// <summary>已被抽走的牌阵下标，用于防止重复点击同一张牌。</summary>
+    private readonly List<int> drawnCardIndices = new();
+
     // 状态 A 的 4 行对话
     private readonly string[] stateADialogues = new[]
     {
-        "每一个梦核，都藏着主人的秘密。",
-        "如果你想了解它……",
-        "就得用塔罗，来问问看。",
-        "来吧，选一张最吸引你的牌。"
+        "嗯……我听见一些了。",
+        "不过，它说得很轻。",
+        "来，先选一张。",
+        "看看哪一张，会先回应你。"
     };
 
     #endregion
@@ -116,7 +124,6 @@ public class TarotDrawController : MonoBehaviour
         yield return RunState(TarotState.B_FadeOutDialogue);
         yield return RunState(TarotState.C_FirstCardDraw);
         yield return RunState(TarotState.D_ContinuePrompt);
-        yield return RunState(TarotState.E_RemainingCards);
         yield return RunState(TarotState.F_FullDisplay);
         yield return RunState(TarotState.G_FadeToLevel);
     }
@@ -127,9 +134,19 @@ public class TarotDrawController : MonoBehaviour
 
     private void InitializeUI()
     {
+        // 重置流程状态，支持重复进入
+        drawnCardIndices.Clear();
+        selectedEmotionCards.Clear();
+        selectedMainCard = null;
+        isWaitingForCardClick = false;
+        clickedCardIndex = -1;
+
         SetPanelActive(dialoguePanel, false);
         SetPanelActive(cardArrayContainer, false);
         SetPanelActive(mainCardSlot, false);
+
+        if (mainCardSlot != null)
+            mainCardSlot.transform.localScale = Vector3.one;
 
         foreach (var slot in emotionCardSlots)
         {
@@ -163,10 +180,6 @@ public class TarotDrawController : MonoBehaviour
 
             case TarotState.D_ContinuePrompt:
                 yield return State_D_ContinuePrompt();
-                break;
-
-            case TarotState.E_RemainingCards:
-                yield return State_E_RemainingCards();
                 break;
 
             case TarotState.F_FullDisplay:
@@ -244,17 +257,58 @@ public class TarotDrawController : MonoBehaviour
 
         // 无论点击哪张，翻出的都是第 0 张（应龙/战车）
         selectedMainCard = fixedCards[0];
+        int mainCardIndex = clickedCardIndex;
+        drawnCardIndices.Add(mainCardIndex);
 
-        // 翻牌动画
-        yield return FlipCard(clickedCardIndex, selectedMainCard);
+        // 原位翻牌
+        yield return FlipCard(mainCardIndex, selectedMainCard);
 
         // TODO: 播放音效 "main_card_flip"（共鸣感）
 
-        // 将翻开的牌移动到主卡槽
-        yield return MoveCardToMainSlot(clickedCardIndex);
+        // 上移到中上方主卡槽（设计稿状态 C：所选牌原位翻开 → 上移到中上方第 1 位）
+        yield return MoveCardToMainSlot(mainCardIndex);
 
-        // 其余 21 张牌淡出
-        yield return FadeOutRemainingCards(clickedCardIndex);
+        // 主牌强调：轻微放大 105% + 淡光 + 停顿 0.6s
+        yield return EmphasizeMainCard();
+
+        // 设计稿状态 D：剩余牌仍在中下方原位可点击，牌阵不销毁
+    }
+
+    /// <summary>
+    /// 主牌强调效果：轻微放大到 105% 后回落，并停顿约 0.6s（设计稿状态 C）。
+    /// </summary>
+    private IEnumerator EmphasizeMainCard()
+    {
+        if (mainCardSlot == null)
+            yield break;
+
+        Transform slot = mainCardSlot.transform;
+        Vector3 baseScale = Vector3.one;
+        Vector3 upScale = baseScale * 1.05f;
+
+        const float scaleDuration = 0.18f;
+        float elapsed = 0f;
+        while (elapsed < scaleDuration)
+        {
+            float t = EaseOutCubic(elapsed / scaleDuration);
+            slot.localScale = Vector3.Lerp(baseScale, upScale, t);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        slot.localScale = upScale;
+        yield return new WaitForSeconds(mainCardEmphasisHold);
+
+        elapsed = 0f;
+        while (elapsed < scaleDuration)
+        {
+            float t = EaseOutCubic(elapsed / scaleDuration);
+            slot.localScale = Vector3.Lerp(upScale, baseScale, t);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        slot.localScale = baseScale;
     }
 
     private void SpawnCardArray()
@@ -309,6 +363,10 @@ public class TarotDrawController : MonoBehaviour
     private void OnCardClicked(int index)
     {
         if (!isWaitingForCardClick)
+            return;
+
+        // 已被抽走的位置不可再点（设计稿程序需求：防止重复点击）
+        if (drawnCardIndices.Contains(index))
             return;
 
         clickedCardIndex = index;
@@ -387,17 +445,22 @@ public class TarotDrawController : MonoBehaviour
             mainCardImage.sprite = selectedMainCard.CardFace;
         }
 
-        // 销毁临时卡牌对象
+        // 销毁临时卡牌对象，并在列表中置空，避免后续淡出访问已销毁对象
+        instantiatedCards[index] = null;
         Destroy(cardObj);
     }
 
-    private IEnumerator FadeOutRemainingCards(int excludeIndex)
+    /// <summary>
+    /// 淡出并销毁牌阵中剩余的未抽牌（设计稿状态 F：剩余 18 张牌淡出 0.3s）。
+    /// 已抽走的牌在上移到槽位时已被销毁并在列表中置 null，此处自然跳过。
+    /// </summary>
+    private IEnumerator FadeOutRemainingCards()
     {
         List<CanvasGroup> groups = new();
 
         for (int i = 0; i < instantiatedCards.Count; i++)
         {
-            if (i == excludeIndex || instantiatedCards[i] == null)
+            if (instantiatedCards[i] == null)
                 continue;
 
             CanvasGroup group = instantiatedCards[i].GetComponent<CanvasGroup>();
@@ -408,9 +471,9 @@ public class TarotDrawController : MonoBehaviour
         }
 
         float elapsed = 0f;
-        while (elapsed < 0.5f)
+        while (elapsed < remainingFadeDuration)
         {
-            float t = elapsed / 0.5f;
+            float t = elapsed / remainingFadeDuration;
             foreach (var group in groups)
             {
                 if (group != null)
@@ -421,12 +484,12 @@ public class TarotDrawController : MonoBehaviour
             yield return null;
         }
 
-        // 销毁淡出的牌
         for (int i = 0; i < instantiatedCards.Count; i++)
         {
-            if (i != excludeIndex && instantiatedCards[i] != null)
+            if (instantiatedCards[i] != null)
             {
                 Destroy(instantiatedCards[i]);
+                instantiatedCards[i] = null;
             }
         }
 
@@ -437,36 +500,15 @@ public class TarotDrawController : MonoBehaviour
 
     #region State D: Continue Prompt
 
+    /// <summary>
+    /// 设计稿状态 D + E：第 1 张保持在中上方，剩余牌仍在中下方原位可点击；
+    /// 玩家依次点第 2、3、4 张，每张用同一普通翻牌 + 上移动效填入情绪卡槽。
+    /// 后三张出牌顺序随机（设计稿：后三张顺序随机）。
+    /// 设计稿明确不加"情绪牌"标签、也不增加引导对白。
+    /// </summary>
     private IEnumerator State_D_ContinuePrompt()
     {
-        // 显示"继续选择"提示
-        SetPanelActive(dialoguePanel, true);
-
-        if (dialogueCanvasGroup != null)
-        {
-            yield return FadeCanvasGroup(dialogueCanvasGroup, 0f, 1f, 0.3f);
-        }
-
-        if (dialogueContentText != null)
-            dialogueContentText.text = "继续选择...";
-
-        yield return new WaitForSeconds(1.5f);
-
-        if (dialogueCanvasGroup != null)
-        {
-            yield return FadeCanvasGroup(dialogueCanvasGroup, 1f, 0f, 0.3f);
-        }
-
-        SetPanelActive(dialoguePanel, false);
-    }
-
-    #endregion
-
-    #region State E: Remaining Cards
-
-    private IEnumerator State_E_RemainingCards()
-    {
-        // 从剩余 3 张牌（索引 1, 2, 3）中随机抽取 3 张作为情绪牌
+        // 后三张的出牌顺序随机，与玩家点击的具体位置无关
         List<TarotCardData> remainingCards = new()
         {
             fixedCards[1],
@@ -474,91 +516,89 @@ public class TarotDrawController : MonoBehaviour
             fixedCards[3]
         };
 
-        // 打乱顺序
         for (int i = 0; i < remainingCards.Count; i++)
         {
             int randomIndex = Random.Range(i, remainingCards.Count);
             (remainingCards[i], remainingCards[randomIndex]) = (remainingCards[randomIndex], remainingCards[i]);
         }
 
-        selectedEmotionCards.AddRange(remainingCards);
-
-        // 依次抽取并放置到 3 个情绪卡槽
-        for (int i = 0; i < 3; i++)
+        // 依次等待玩家点击三张未抽过的牌
+        for (int slot = 0; slot < 3; slot++)
         {
-            yield return DrawEmotionCard(i, selectedEmotionCards[i]);
-            yield return new WaitForSeconds(0.5f);
+            isWaitingForCardClick = true;
+            clickedCardIndex = -1;
+
+            yield return new WaitUntil(() => !isWaitingForCardClick);
+
+            int index = clickedCardIndex;
+            drawnCardIndices.Add(index);
+
+            TarotCardData card = remainingCards[slot];
+            selectedEmotionCards.Add(card);
+
+            // 原位普通翻牌
+            yield return FlipCard(index, card);
+
+            // TODO: 播放音效 "normal_card_flip"（轻量普通翻牌声）
+
+            // 上移填入中上方对应情绪卡槽
+            yield return MoveCardToEmotionSlot(index, slot, card);
         }
     }
 
-    private IEnumerator DrawEmotionCard(int slotIndex, TarotCardData cardData)
+    /// <summary>
+    /// 把抽中的牌从牌阵原位上移到指定情绪卡槽，到位后销毁临时牌、由槽位承接牌面。
+    /// </summary>
+    private IEnumerator MoveCardToEmotionSlot(int index, int slotIndex, TarotCardData cardData)
     {
+        if (index < 0 || index >= instantiatedCards.Count)
+            yield break;
         if (slotIndex < 0 || slotIndex >= emotionCardSlots.Length)
             yield break;
 
+        GameObject cardObj = instantiatedCards[index];
         Transform slot = emotionCardSlots[slotIndex];
-        if (slot == null)
+        if (cardObj == null || slot == null)
             yield break;
 
         slot.gameObject.SetActive(true);
 
-        // 生成临时卡牌
-        GameObject cardObj = Instantiate(cardPrefab, slot);
-        cardObj.transform.localPosition = Vector3.zero;
-        cardObj.transform.localRotation = Quaternion.identity;
+        Vector3 startPos = cardObj.transform.position;
+        Vector3 endPos = slot.position;
+        Quaternion startRot = cardObj.transform.rotation;
+        Quaternion endRot = Quaternion.identity;
 
-        // 翻牌动画
-        Image cardImage = cardObj.GetComponent<Image>();
-        if (cardImage != null && cardData != null && cardData.CardFace != null)
-        {
-            yield return FlipCardSimple(cardObj.transform, cardImage, cardData.CardFace);
-        }
-
-        // TODO: 播放音效 "normal_card_flip"
-    }
-
-    private IEnumerator FlipCardSimple(Transform cardTransform, Image cardImage, Sprite faceSprite)
-    {
         float elapsed = 0f;
-        Quaternion startRot = cardTransform.localRotation;
-        Quaternion midRot = startRot * Quaternion.Euler(0f, 90f, 0f);
-        Quaternion endRot = startRot * Quaternion.Euler(0f, 180f, 0f);
-
-        // 前半段：0 → 90 度
-        while (elapsed < cardFlipDuration / 2f)
+        while (elapsed < cardMoveDuration)
         {
-            float t = elapsed / (cardFlipDuration / 2f);
-            cardTransform.localRotation = Quaternion.Lerp(startRot, midRot, t);
+            float t = EaseOutCubic(elapsed / cardMoveDuration);
+            cardObj.transform.position = Vector3.Lerp(startPos, endPos, t);
+            cardObj.transform.rotation = Quaternion.Lerp(startRot, endRot, t);
             elapsed += Time.deltaTime;
             yield return null;
         }
 
-        // 切换图片
-        if (cardImage != null && faceSprite != null)
+        // 槽位承接牌面，避免临时牌残留在牌阵父节点下影响后续淡出
+        var slotImage = slot.GetComponentInChildren<Image>();
+        if (slotImage != null && cardData != null && cardData.CardFace != null)
         {
-            cardImage.sprite = faceSprite;
+            slotImage.sprite = cardData.CardFace;
         }
 
-        // 后半段：90 → 180 度
-        elapsed = 0f;
-        while (elapsed < cardFlipDuration / 2f)
-        {
-            float t = elapsed / (cardFlipDuration / 2f);
-            cardTransform.localRotation = Quaternion.Lerp(midRot, endRot, t);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        cardTransform.localRotation = endRot;
+        instantiatedCards[index] = null;
+        Destroy(cardObj);
     }
 
     #endregion
+
 
     #region State F: Full Display
 
     private IEnumerator State_F_FullDisplay()
     {
-        // 展示所有 4 张牌（1 主牌 + 3 情绪牌）
+        // 设计稿状态 F：剩余 18 张牌淡出 0.3s，四张结果保持在中上方完整展示 1.2-1.5s
+        yield return FadeOutRemainingCards();
+
         yield return new WaitForSeconds(stateFDisplayDuration);
 
         // 保存结果到 GameContext
