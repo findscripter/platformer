@@ -22,6 +22,20 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private LayerMask groundLayer;
     [SerializeField, Range(0f, 1f)] private float minimumGroundNormalY = 0.5f;
 
+    [Header("Health")]
+    [SerializeField, Min(1)] private int maxHealth = 3;
+    [SerializeField, Min(0f)] private float invulnerabilityDuration = 1f;
+
+    [Header("Attack")]
+    [SerializeField] private Vector2 attackHitboxSize = new Vector2(1.1f, 0.9f);
+    [SerializeField] private float attackHitboxForwardOffset = 0.7f;
+    [SerializeField] private Vector2 attackHitboxCenterOffset = Vector2.zero;
+    [SerializeField, Min(1)] private int attackDamage = 1;
+    [SerializeField, Range(0f, 1f)] private float attackHitTimeNormalized = 0.4f;
+    // 敌人 prefab 根节点与 Visual 均在 Enemy 层（index 9）
+    [SerializeField] private LayerMask attackTargetLayers = 1 << 9;
+    [SerializeField, Min(0f)] private float attackCooldown = 0.1f;
+
     private Rigidbody2D rb;
     private Collider2D bodyCollider;
     private PlayerAnimationStateController animationController;
@@ -35,9 +49,18 @@ public class PlayerController : MonoBehaviour
     private bool leftGroundAfterJump;
     private float fallingTime;
 
+    private int currentHealth;
+    private float invulnerabilityRemaining;
+    private float attackCooldownRemaining;
+    private readonly Collider2D[] attackHits = new Collider2D[8];
+    private ContactFilter2D attackFilter;
+
     public bool IsGrounded { get; private set; }
     public bool IsDead { get; private set; }
     public bool IsInputEnabled { get; private set; } = true;
+    public int CurrentHealth => currentHealth;
+    public int MaxHealth => maxHealth;
+    public bool IsInvulnerable => invulnerabilityRemaining > 0f;
 
     private void Awake()
     {
@@ -47,6 +70,13 @@ public class PlayerController : MonoBehaviour
         groundFilter = new ContactFilter2D();
         groundFilter.SetLayerMask(groundLayer);
         groundFilter.useTriggers = false;
+
+        // 敌人碰撞体是 trigger，命中检测必须允许 trigger 参与。
+        attackFilter = new ContactFilter2D();
+        attackFilter.SetLayerMask(attackTargetLayers);
+        attackFilter.useTriggers = true;
+
+        currentHealth = maxHealth;
 
         if (animationController == null)
         {
@@ -77,6 +107,11 @@ public class PlayerController : MonoBehaviour
             jumpBufferTimeRemaining = jumpBufferTime;
         }
 
+        if (input.AttackPressed && attackCooldownRemaining <= 0f && animationController.TryStartAttack())
+        {
+            attackCooldownRemaining = attackCooldown;
+        }
+
         if (animationController.IsMovementLocked)
         {
             moveX = 0f;
@@ -91,6 +126,8 @@ public class PlayerController : MonoBehaviour
         if (IsDead || !IsInputEnabled)
             return;
 
+        UpdateCombatTimers(fixedDeltaTime);
+
         CheckGround();
         UpdateFallingTime(fixedDeltaTime);
         UpdateJumpAvailability();
@@ -98,6 +135,12 @@ public class PlayerController : MonoBehaviour
 
         float effectiveMoveX = GetEffectiveMoveX();
         animationController.UpdateAnimation(effectiveMoveX, fixedDeltaTime);
+
+        // 动画状态在 UpdateAnimation 里推进，故命中窗口查询紧随其后。
+        if (animationController.ConsumeAttackHitWindow(attackHitTimeNormalized))
+        {
+            PerformAttackHitDetection();
+        }
 
         if (animationController.IsMovementLocked)
         {
@@ -261,6 +304,31 @@ public class PlayerController : MonoBehaviour
         jumpBufferTimeRemaining = 0f;
     }
 
+    /// <summary>
+    /// 对玩家造成伤害。无敌帧期间被忽略。血量归零时自动调用 <see cref="TryKill"/>。
+    /// </summary>
+    /// <returns>是否真正造成了伤害（无敌帧或已死返回 false）。</returns>
+    public bool TakeDamage(int amount)
+    {
+        if (IsDead || IsInvulnerable || amount <= 0)
+            return false;
+
+        currentHealth = Mathf.Max(0, currentHealth - amount);
+        invulnerabilityRemaining = invulnerabilityDuration;
+
+        Debug.Log($"Player took {amount} damage, health: {currentHealth}/{maxHealth}");
+
+        if (currentHealth <= 0)
+        {
+            TryKill();
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 立即致死，忽略血量与无敌帧。用于坠落深渊等环境即死。
+    /// </summary>
     public bool TryKill()
     {
         if (IsDead)
@@ -290,8 +358,69 @@ public class PlayerController : MonoBehaviour
         jumpConsumed = false;
         leftGroundAfterJump = false;
         fallingTime = 0f;
+        currentHealth = maxHealth;
+        invulnerabilityRemaining = 0f;
+        attackCooldownRemaining = 0f;
         animationController.ResetState();
         animationController.UpdateAnimation(0f);
+    }
+
+    private void UpdateCombatTimers(float fixedDeltaTime)
+    {
+        if (invulnerabilityRemaining > 0f)
+        {
+            invulnerabilityRemaining = Mathf.Max(0f, invulnerabilityRemaining - fixedDeltaTime);
+        }
+
+        if (attackCooldownRemaining > 0f)
+        {
+            attackCooldownRemaining = Mathf.Max(0f, attackCooldownRemaining - fixedDeltaTime);
+        }
+    }
+
+    private Vector2 GetAttackHitboxCenter()
+    {
+        float facing = animationController != null && animationController.IsFacingRight ? 1f : -1f;
+        Vector2 offset = new Vector2(
+            (attackHitboxForwardOffset * facing) + (attackHitboxCenterOffset.x * facing),
+            attackHitboxCenterOffset.y);
+
+        return (Vector2)transform.position + offset;
+    }
+
+    private void PerformAttackHitDetection()
+    {
+        Vector2 center = GetAttackHitboxCenter();
+        int count = Physics2D.OverlapBox(center, attackHitboxSize, 0f, attackFilter, attackHits);
+
+        for (int i = 0; i < count; i++)
+        {
+            Collider2D hit = attackHits[i];
+            if (hit == null)
+                continue;
+
+            // 跳过自己身上的碰撞体，避免自伤。
+            if (hit.transform.IsChildOf(transform))
+                continue;
+
+            PatrolEnemy enemy = hit.GetComponentInParent<PatrolEnemy>();
+            if (enemy != null)
+            {
+                enemy.TakeDamage(attackDamage);
+            }
+        }
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (groundCheck != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+        }
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireCube(GetAttackHitboxCenter(), attackHitboxSize);
     }
 
     public void StopMovement()

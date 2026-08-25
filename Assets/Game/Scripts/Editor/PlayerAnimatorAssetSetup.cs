@@ -16,7 +16,8 @@ public static class PlayerAnimatorAssetSetup
         "Run",
         "Jump Up",
         "Jump Down",
-        "Landing"
+        "Landing",
+        "Attack"
     };
 
     private static bool isBuilding;
@@ -66,9 +67,9 @@ public static class PlayerAnimatorAssetSetup
 
     private static void BuildAnimatorAssets(bool forceRebuildController)
     {
-        // 使用新生成的动画（来自 CharacterAnimationGenerator）
-        AnimationClip idle = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Game/Animations/Player/player_idle.anim");
-        AnimationClip run = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Game/Animations/Player/player_run.anim");
+        // 使用 Resources 目录下的动画
+        AnimationClip idle = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Game/Resources/Player/player_idle.anim");
+        AnimationClip run = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Game/Resources/Player/player_run.anim");
         AnimationClip jumpClip = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Game/Animations/Player/player_jump.anim");
         AnimationClip attack = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Game/Animations/Player/player_attack.anim");
 
@@ -81,6 +82,12 @@ public static class PlayerAnimatorAssetSetup
         // 从 jump 动画中分离 Up/Down/Landing
         if (!TryCreateJumpVariants(jumpClip, out AnimationClip jumpUp, out AnimationClip jumpDown, out AnimationClip landing))
             return;
+
+        // attack clip 的真源在 Animations/ 下，这里派生一份到 Resources 供运行时 Resources.Load 读取
+        if (attack != null)
+        {
+            attack = MirrorClipToResources(attack, "PlayerAttack");
+        }
 
         AnimatorController controller =
             AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
@@ -117,6 +124,20 @@ public static class PlayerAnimatorAssetSetup
             AddAnyStateTransition(stateMachine, jumpUpState, 2);
             AddAnyStateTransition(stateMachine, jumpDownState, 3);
             AddAnyStateTransition(stateMachine, landingState, 4);
+
+            // Attack 状态值须与 PlayerAnimationStateController.PlayerAnimState.Attack 一致
+            if (attack != null)
+            {
+                AnimatorState attackState =
+                    AddState(stateMachine, "Attack", attack, new Vector3(750f, 20f));
+                AddAnyStateTransition(stateMachine, attackState, 5);
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "player_attack.anim not found — Attack state skipped. " +
+                    "Run 'Generate Character Animations' then rebuild.");
+            }
 
             EditorUtility.SetDirty(controller);
         }
@@ -210,6 +231,39 @@ public static class PlayerAnimatorAssetSetup
         SetLoopTime(clip, loop);
         EditorUtility.SetDirty(clip);
         return clip;
+    }
+
+    /// <summary>
+    /// 把 Animations/ 下的源 clip 复刻到 Resources/Player/，保持源文件为唯一真源。
+    /// 运行时 PlayerAnimationStateController 通过 Resources.Load 读取复刻件测量时长。
+    /// </summary>
+    private static AnimationClip MirrorClipToResources(AnimationClip source, string clipName)
+    {
+        EditorCurveBinding binding = new EditorCurveBinding
+        {
+            type = typeof(SpriteRenderer),
+            path = string.Empty,
+            propertyName = "m_Sprite"
+        };
+
+        ObjectReferenceKeyframe[] keyframes =
+            AnimationUtility.GetObjectReferenceCurve(source, binding);
+
+        if (keyframes == null || keyframes.Length == 0)
+        {
+            Debug.LogWarning(
+                $"{source.name} has no sprite keyframes on the root SpriteRenderer — " +
+                "using source clip directly instead of mirroring to Resources.");
+            return source;
+        }
+
+        AnimationClip mirrored = CreateClipFromKeyframes(
+            clipName,
+            keyframes,
+            source.frameRate > 0f ? source.frameRate : 20f,
+            loop: false);
+
+        return mirrored ?? source;
     }
 
     private static AnimatorState AddState(

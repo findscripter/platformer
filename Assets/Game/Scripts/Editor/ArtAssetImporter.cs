@@ -198,9 +198,9 @@ public static class ArtAssetImporter
         Debug.Log("配置动画Sprite...");
 
         // 角色动画 - 单张模式，无过滤，像素对齐
-        ConfigureSpritesInFolder("Assets/Art/Characters/Player", TextureImporterType.Sprite,
+        ConfigureSpritesInFolder("Assets/Game/Art/Characters/player", TextureImporterType.Sprite,
             FilterMode.Point, TextureImporterCompression.Uncompressed, 100);
-        ConfigureSpritesInFolder("Assets/Art/Characters/Monster", TextureImporterType.Sprite,
+        ConfigureSpritesInFolder("Assets/Game/Art/Characters/monster", TextureImporterType.Sprite,
             FilterMode.Point, TextureImporterCompression.Uncompressed, 100);
         ConfigureSpritesInFolder("Assets/Art/Characters/Feifei", TextureImporterType.Sprite,
             FilterMode.Point, TextureImporterCompression.Uncompressed, 100);

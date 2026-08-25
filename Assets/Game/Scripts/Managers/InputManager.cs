@@ -13,12 +13,14 @@ public class InputManager : MonoBehaviour
     private InputAction moveAction;
     private InputAction jumpAction;
     private InputAction interactAction;
+    private InputAction attackAction;
     private InputAction gameplayPauseAction;
     private InputAction confirmAction;
     private InputAction cancelAction;
 
     public float MoveX { get; private set; }
     public bool JumpPressed { get; private set; }
+    public bool AttackPressed { get; private set; }
     public bool InteractPressed { get; private set; }
     public bool PausePressed { get; private set; }
     public bool ConfirmPressed { get; private set; }
@@ -40,6 +42,7 @@ public class InputManager : MonoBehaviour
         moveAction = gameplayMap.FindAction("Move");
         jumpAction = gameplayMap.FindAction("Jump");
         interactAction = gameplayMap.FindAction("Interact");
+        attackAction = gameplayMap.FindAction("Attack");
         gameplayPauseAction = gameplayMap.FindAction("Pause");
         confirmAction = uiMap.FindAction("Confirm");
         cancelAction = uiMap.FindAction("Cancel");
@@ -65,6 +68,7 @@ public class InputManager : MonoBehaviour
         {
             MoveX = moveAction.ReadValue<Vector2>().x;
             JumpPressed = jumpAction.WasPressedThisFrame();
+            AttackPressed = attackAction != null && attackAction.WasPressedThisFrame();
             if (interactAction != null)
                 InteractPressed = interactAction.WasPressedThisFrame();
             PausePressed = gameplayPauseAction.WasPressedThisFrame();

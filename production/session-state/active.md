@@ -1,147 +1,107 @@
 # 当前任务状态（供 /clear 后恢复上下文用）
 
-更新时间：2026-08-24（已完成主体工作，待用户确认后 commit）
+更新时间：2026-08-25（晚，已读取中断 session 的完整 JSONL 转录并纠正任务理解）
 
-## 背景
+## 重要纠正：中断 session 的真实待办已查明并完成
 
-PlayerGuide 场景的旧脚本 `PlayerGuideFlowControllerV2.cs`（1076 行，承载真实的
-"梦境/腓腓/塔罗"叙事流程，10 个 Frame）已被**手工逐个重写**为 MVC 架构
-（用户明确指令："逐个手工重写这 18 个文件，让其忠实反映原逻辑"）。
+读取了 `~/.claude/projects/e----gamejam-platformer/564d4fa4-*.jsonl` 转录：
+session 标题「梦境新手引导低保真流程分镜 Figma 稿」只是早期任务起的名；
+**session 末尾的真实指令**是——用户 17:12 指出 `美术资源/extracted` 有新资源，
+AI 给出三个选项（①复制进 Assets/Game/Art 正确目录 ②配置导入设置 ③生成预制体），
+用户 17:17 答复「**1和2都做了吧**」，AI 做完 md5 查重、刚开始目检新图就死于
+API 400。用户没有要求做③（预制体）。
 
-新 MVC 代码位于：
-- `Assets/Game/Scripts/PlayerGuide/Controllers/`：`PlayerGuideController.cs`（顶层
-  MonoBehaviour）+ `Frame1To5Controller.cs` + `Frame6DialogueController.cs` +
-  `Frame7And8Controller.cs` + `Frame9And10Controller.cs`
-- `Assets/Game/Scripts/PlayerGuide/Models/`：`PlayerGuideFrameState.cs`、
-  `Frame6DialogueTrackingState.cs`、`InputState.cs`
-- `Assets/Game/Scripts/PlayerGuide/Views/`：9 个 View MonoBehaviour
+## ✅ 已完成（本 session，2026-08-25 晚）
 
-## 状态：核心任务已全部完成 ✅
+1. **「1和2」执行完毕**：新增 `Assets/Game/Scripts/Editor/ScenePackArtImporter.cs`
+   （菜单 `Tools/GameJam/9. Import Scene Packs (S01 S02 Dialogues)`，幂等可重跑），
+   已执行并验证：
+   - 57 个真正的新文件导入：`Assets/Game/Art/Scenes/S01/`（27 png）、
+     `Assets/Game/Art/Scenes/S02/`（24 png + S02_BG.jpg）、
+     `Assets/Game/Art/UI/Dialogues/`（5 png）
+   - 导入设置已核验（meta 文件级）：Sprite/Single/Bilinear/**Uncompressed**/
+     PPU100/alphaIsTransparency/无 mipmap
+   - 查重跳过（与 Assets 已有文件 md5 相同）：S01_BG.jpg(=source/BG01.jpg)、
+     场景参考.png、Dialogue.png、FX 全部 6 张、Menu、关键帧动画
+2. **素材内容清单**：`design/art_pack_manifest.md` —— 57 个纯数字命名文件
+   逐张目视核验后的内容/用途映射（场景搭建必备）
+3. **Figma 分镜稿准备工作**（早前完成，仍然有效）：
+   `design/figma_storyboard_build_spec.md` —— 10 帧逐帧构图规格 + 4 块卫星板
+   + 素材映射 + 执行清单，Figma MCP 插件连上后照第六节执行即可
 
-1. **✅ 场景接入完成**：`Assets/Game/Scripts/Editor/PlayerGuideV2SceneSetup.cs`
-   已重写，菜单 `Tools/GameJam/8. Setup PlayerGuide V2 Scene` 执行后会：
-   - 移除场景里的旧 `PlayerGuideFlowControllerV2` 实例
-   - 创建 `V2ControllerRoot`，挂载新 `PlayerGuideController` + `PlayerGuideView`
-     + `SmallBubblesView`
-   - 给 8 个子 GameObject 分别挂载对应 View 组件（`BackgroundView`、
-     `MainBubbleView`、`DreamCoreView`、`FeifeiCharacterView`、`DialogueView`、
-     `DreamInputView`、`TarotView`）
-   - 通过反射把所有字段（Controller 的 9 个 View 引用、PlayerGuideView 自己的
-     ~30 个字段、各 View 组件自身字段）全部绑定完毕
-   - 已通过 Unity MCP 活体检查确认：场景中 `PlayerGuideController` 实例存在，
-     `PlayerGuideFlowControllerV2` 实例已清零，编译 0 error/0 warning
+## ✅ Gameplay 场景动画修复完成（2026-08-25 晚，Play Mode 验收通过）
 
-2. **✅ 美术资源已接入**（用户中途提出"我看美术ui你没用上"，已补齐）：
-   - **主梦泡**：改为 `PrefabUtility.InstantiatePrefab` 实例化
-     `Assets/Game/Prefabs/PlayerGuide/MainBubble.prefab`（真实气泡插画
-     `DR_elements_new.png`），而不是程序生成的纯色矩形
-   - **小梦泡**：`PlayerGuideView.smallBubblePrefab` 绑定
-     `Assets/Game/Prefabs/PlayerGuide/SmallBubble.prefab`（同一张气泡插画），
-     新增 `SmallBubblesContainer` 空容器供 `SmallBubblesView.SpawnSmallBubbles`
-     生成用
-   - **腓腓角色**：Image 精灵设为
-     `Assets/Game/Art/Characters/feifei_idle/1.png`（真实待机帧），Animator
-     挂载 `Assets/Game/Animations/PlayerGuide/Feifei.controller`（真实
-     AnimatorController，内含 `Feifei_Idle` 逐帧精灵动画状态）
-   - **塔罗系统**：`TarotDrawController` 此前完全未绑定任何字段（连旧脚本时代
-     都没绑），现已补全：
-     - `cardPrefab` = `Assets/Game/Prefabs/PlayerGuide/TarotCardPrefab.prefab`
-     - `fixedCards[0..3]` = 4 张真实塔罗牌 ScriptableObject（
-       `Card_YingLong`=应龙/战车=主牌，`Card_ChanChuJingPo`/`Card_ChangXi`/
-       `Card_RiYueLunZhuan`=情绪牌）
-     - `cardArrayContainer`/`cardParent`/`mainCardSlot`/`emotionCardSlots[3]`
-       全部绑定；新增 `MainCardSlot/CardFace` 子 Image 供 `mainCardImage` 绑定
-     - 新增 `TarotDialoguePanel` 子面板（Speaker/Content/CanvasGroup）供
-       State A/B/D 的引导对话使用（此前完全没有创建这个面板，是遗漏项）
-   - **对话内容配置**：`PlayerGuideView.frame6Config` 已自动绑定到项目中已存在的
-     `Assets/Game/Resources/PlayerGuide/Frame6DialogueConfig.asset`
-   - **未接入的资源**（有意跳过，避免猜错）：无——原本存疑的两张 "ChatGPT Image
-     ...png" 背景图，用户已确认是 PlayerGuide 梦境背景，并要求"两张都用（分
-     阶段切换）"，已实现：`BackgroundView` 新增 `backgroundImage`（Image）字段
-     + `SetBackgroundSprite(Sprite)` 方法；`PlayerGuideView` 新增
-     `dreamBackgroundSpriteEarly`（雪山全景图，6月24日文件）/
-     `dreamBackgroundSpriteLate`（洞穴遗迹四联图，6月22日文件）两个 Sprite 字段；
-     `Frame1To5Controller.Frame1_DreamSpaceGeneration()` 开始时设为 Early，
-     `Frame4_BubbleDissolve()`（梦泡消散/梦核浮现，紧接着腓腓登场）切换为 Late。
-     已通过场景活体检查确认 Image.sprite 正确指向雪山图、两个字段正确绑定。
-   - **已知遗留 Animator 内容缺口**（不是代码问题，是美术/动画资源本身的缺口）：
-     `Feifei.controller` 里 `m_AnimatorParameters: []`（零参数）且只有一个
-     `Feifei_Idle` 状态。`FeifeiCharacterView.SafeSetBool/SafeSetTrigger/
-     SafePlayState` 有防御性判空+警告，不会崩溃，但如果代码尝试播放除
-     Idle 外的其它状态/参数会打印警告日志。这是之前"为什么有警告"问题的根源，
-     如果要消除这些警告需要美术/动画补充更多 Animator 状态，不在本次任务范围内。
+**修复前体检结论（3 个硬 bug + 小问题）：**
+- ❌ 玩家两套动画素材混用：idle/run clip 用旧切片图集（PPU512，可见 0.24 单位），
+  jump 用新原画（PPU200，1.4 单位）→ 跳跃瞬间突变大 6 倍
+- ❌ 怪物动画绑定断裂：clip 绑定 path=''，SpriteRenderer 在子物体 Visual 上 → 空转
+- ❌ 背景半屏：sky 层 ParallaxLayer factorX=1.0，初始偏移永久保留 → 左半屏露底色
+- ⚠️ 8 个装饰物 sprite=NULL、收集品 sprite=NULL、Test_PatrolEnemy 禁用
 
-3. **✅ 遗留重复 Model 文件问题已排查确认，无需清理**：git status 显示
-   `Models/DialogueState.cs`/`PlayerGuideState.cs` 为 `D`（deleted，非
-   modified），文件已确认物理不存在于磁盘（`test -f` 验证），只是 git 尚未
-   staged 这次删除。这本来就是重命名的正常表现，不是需要额外清理的死文件问题。
+**执行修复（新增 2 个脚本，一次性全修）：**
+1. **ParallaxLayer.cs**：加入 `snapToCameraOnStart` 字段和预热帧机制（防 Cinemachine
+   开播瞬移被错误累计为移动）
+2. **GameplaySceneFixes.cs** 编辑器工具（菜单 `Tools/GameJam/10. Fix Gameplay Animations And Decor`）：
+   - Fix1：idle 文件夹 PPU 统一改 112（使可见身高与跑跳一致 ~1.5 单位），
+     idle/run clip 重建为新原画帧（idle=20 帧@12fps，run=9 帧@12fps），
+     碰撞体 3.5x7.2、GroundCheck localY=-3.6 对齐角色实际脚底
+   - Fix2：怪物预制体 Animator 从根移至 Visual（修绑定断裂），比例调 0.18
+     （可见 ~1 单位高），场景实例激活并落地（pos=10,-2,0）
+   - Fix3：sky 层 `snapToCameraOnStart=true`（配合预热帧修复背景半屏）
+   - Fix4：8 个丢失 sprite 的装饰改用 S01 元件（mid 层=发光山丘/鱼鳍坡，
+     fore_back 层=莲花/玻璃花/蜻蜓，SortingGroup 统一设为 Foreground）
+   - Fix5：收集品预制体 Visual 指定 S01/26 虹彩梦滴（scale 0.25，可见 ~0.66 单位高）
 
-4. **⏳ 待办：commit**（尚未执行，用户尚未明确要求现在提交，但之前"可以"批准
-   过"全部完成后一次性 commit"）：
-   - 需要人类署名，**commit message 不得包含任何 AI 生成署名 /
-     `Co-Authored-By: Claude` 行**（全局 CLAUDE.md 硬性要求）
-   - git status 涉及的文件范围：见下方"当前 git 状态"
-   - 建议先跑一次 Play Mode 冒烟测试（entering play mode 在无焦点编辑器环境下
-     容易卡在 `playmode_transition` 阶段，是 Unity 常见现象非代码 bug，之前
-     测试时是这样，如果需要更可靠的验证建议让用户在有焦点的编辑器窗口里手动
-     点 Play 试玩一遍 PlayerGuide 场景）
+**Play Mode 验收结果（对比截图 inspect-playmode-idle.png vs verify-playmode-fixed-*.png）：**
+- ✅ 玩家待机可见身高 1.99 单位（修复前 0.24），跳跃 2.39 单位（修复前已是 2.39）
+  → **跳跃不再突变**，大小统一
+- ✅ 怪物动画正常轮播（sprite=7 表示 walk 第 7 帧在播放），巡逻+翻面正常，
+  可见 1.3 单位高（与玩家匹配）
+- ✅ 背景全屏覆盖（sky 启动时已对齐相机，ParallaxLayer 预热帧生效）
+- ✅ 8 个装饰物全部可见（S01 场景元件：山丘、鱼鳍坡、莲花、玻璃花、蜻蜓）
+- ✅ 收集品可见（虹彩梦滴）
+- ⚠️ Test_SpikeTrap 仍禁用（修复清单未含此项，保持原状）
 
-## 当前 git 状态（未提交，等待下一步指示）
+**UI 现状（仅体检，未修复）：**
+- ✅ 架构正常：PersistentRoot 预制体 6 Canvas，UIManager 5 面板引用齐全，
+  运行时 Canvas_HUD/Dialogue 正确激活
+- ⚠️ HUD/菜单全是空壳占位（HealthBar/EnergyBar/CollectibleCounter/MiniMap 等
+  = 空 Transform 无视觉）；新导入的对话 UI 元件/菜单 BG/LOGO 均未接入
 
-Modified:
-`Assets/Game/Scenes/PlayerGuide.unity`,
-`Assets/Game/Scripts/Editor/PlayerGuideV2SceneSetup.cs`,
-`Assets/Game/Scripts/PlayerGuide/Controllers/*.cs`（5 个）,
-`Assets/Game/Scripts/PlayerGuide/Models/InputState.cs`,
-`Assets/Game/Scripts/PlayerGuide/Views/*.cs`（9 个）,
-`Assets/Game/Scripts/UI/player_guide/PlayerGuideFlowControllerV2.cs`,
-`Assets/Scripts/Dialogue/EventNode.cs`,
-`Assets/Scripts/UI/TarotCardController.cs`,
-`Packages/manifest.json`, `Packages/packages-lock.json`,
-`production/session-logs/{compaction-log.txt,session-log.md}`
+## ⏸ 待办/阻塞
 
-Deleted: `Assets/Game/Scripts/PlayerGuide/Models/{DialogueState.cs,
-DialogueState.cs.meta, PlayerGuideState.cs, PlayerGuideState.cs.meta}`
+1. **Figma 低保真分镜稿搭建**：仍阻塞于 Figma 桌面端未开（`plugin not connected`）。
+   规格文档 `design/figma_storyboard_build_spec.md` 已就绪，连上后照第六节执行。
+2. **未提交改动越积越多**（含上个 session 的 + 本 session 的），建议尽快 commit：
+   - 上个 session：`Gameplay.unity`、`PlayerAnimator.controller`、`player_up.anim`、
+     monster `*.png.meta`、`ArtAssetImporter.cs`/`PlayerAnimatorAssetSetup.cs` 路径修正、
+     未跟踪 `FixPlayerAnimationSpriteScale.cs`/`FixPlayerScaleAndAnimation.cs`、
+     截图 5 张、`元件分割综合.zip`、`美术资源/extracted/元件/{Dialogues,FX,Menu,S01,S02}/`
+   - 本 session：`ScenePackArtImporter.cs`、`GameplaySceneFixes.cs`、
+     `ParallaxLayer.cs`（加 snapToCameraOnStart）、`Assets/Game/Art/Scenes/**`、
+     `Assets/Game/Art/UI/Dialogues/**`、`player_idle.anim`/`player_run.anim`（重建）、
+     `idle/*.png.meta`（PPU 112）、`PatrolEnemy.prefab`、`CollectibleItem.prefab`、
+     `Gameplay.unity`、`design/figma_storyboard_build_spec.md`、
+     `design/art_pack_manifest.md`、验收截图、本文件
+   - commit 需人类署名，不得含 AI 署名/Co-Authored-By（全局 CLAUDE.md 硬性要求）
+3. **需要你亲自 Play 验收**动画修复效果（我这边工具实测已通过，但角色大小/比例
+   是否符合美术预期，最终要你看着定）。若觉得角色偏大/偏小，改 idle 文件夹 PPU
+   （现 112，数字越大越小）+ 同步调 BoxCollider2D size 和 GroundCheck localY。
+4. **HUD/UI 实装**：全部空壳，新导入的对话 UI 元件（`Art/UI/Dialogues/`）、菜单
+   BG/LOGO 未接入。这是下一个大块工作。
 
-Untracked (new): `Assets/Game/Scripts/PlayerGuide/Models/
-{Frame6DialogueTrackingState.cs, Frame6DialogueTrackingState.cs.meta,
-PlayerGuideFrameState.cs, PlayerGuideFrameState.cs.meta}`,
-`production/session-state/`
-
-参考近期 commit message 风格（`git log --oneline`）：
-```
-77fa31b chore: 清理 design 目录结构
-2c50a0f feat: 完成 PlayerGuide MVC 重构和鼠标交互优化
-aef460b feat: 实现对话系统、Frame状态机和UI控制器
-5dc86d0 first commit
-```
-
-## 不要动的范围外内容
-
-`Assets/Game/Scripts/UI/PlayerGuideUIController.cs`（挂在场景 `PlayerGuideRoot`，
-instance ID 65760）是另一套无关的通用分页引导 UI，与本次 MVC 重构无关，不要碰。
+### 待清理（agent 留下的临时文件，rm 被权限拒绝）
+- `美术资源/extracted/元件/S02/_preview/`（13 张深底合成预览图）
+- `美术资源/extracted/元件/_inspect/`（6 张核验图）
+- `Temp/fx_preview/`（Unity Temp 内，重启编辑器可能自动清）
 
 ## 已知工具行为坑（避免重复踩）
-
-- `Read` 工具对"本轮之前已读过、但已被 compact 摘要掉"的文件会报
-  `Wasted call — file unchanged since your last Read` 拒绝重读。**解决办法**：
-  改用 `mcp__unityMCP__manage_script`（`action: "read"`），可单个调用也可用
-  `batch_execute` 并行读多个，能绕过该缓存。
-- `mcp__unityMCP__manage_scene` 的 `get_hierarchy` 带具体 `target` 参数时**不会**
-  正确限定到该节点子树。**优先改用** `mcp__tools__readmcpresourcetool`，URI
-  格式 `mcpforunity://scene/gameobject/{id}`（查组件用
-  `mcpforunity://scene/gameobject/{id}/component/{ComponentName}`）。
-- `find_gameobjects` 默认不包含未激活（`SetActive(false)`）的 GameObject，需要
-  传 `include_inactive: true` 才能搜到本场景里大部分初始为隐藏状态的 Frame 面板。
-- 本项目有一个"Fact-Forcing Gate" hook，会拦截 Bash / Edit / Write 调用，要求
-  先按格式说明（调用者/是否重复/数据结构/用户原话）才放行，每次新文件路径
-  都可能触发一次，属正常摩擦，按格式回答即可通过。
-- Unity Play Mode 在编辑器窗口无焦点（`is_focused: false`）时容易长时间卡在
-  `playmode_transition` 阶段不进入 `is_changing: false`，这是 Unity 已知行为
-  （后台不 tick），不代表代码有问题，不必强行等待，可直接 stop 退出。
+- Figma MCP 工具报 `plugin not connected` = Figma 桌面端插件没连，不是服务器问题。
+- `Read` 对已被 compact 摘要掉的文件会拒绝重读，改用 `mcp__unityMCP__manage_script`
+  (action:"read") 绕过。
+- `find_gameobjects` 需 `include_inactive: true` 才能搜到隐藏 GameObject。
+- Unity Play Mode 在编辑器无焦点时会卡 `playmode_transition`，属正常，直接 stop。
+- 素材里大量纯白+alpha 元件在白底预览不可见，必须叠深色底核验/使用。
 
 ## 关于本文件本身
-
-用户要求："你先总结一下吧，不然我 clear 后，又需要重新下命令，你也需要重新
-看，太浪费时间了" —— 已按此建立并持续更新本 `production/session-state/active.md`。
-后续每次有实质性进展（比如 commit 完成）应继续更新此文件。
+用户要求持续维护本文件以便 /clear 后恢复上下文。每次实质性进展后应更新。
