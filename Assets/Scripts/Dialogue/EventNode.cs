@@ -26,12 +26,10 @@ namespace DreamGame.Dialogue
 
         // 运行时状态
         private bool isComplete = false;
-        private float timer = 0f;
 
         public override void Execute(DialogueManager manager)
         {
             isComplete = false;
-            timer = 0f;
 
             if (delay <= 0f)
             {
@@ -76,7 +74,6 @@ namespace DreamGame.Dialogue
         {
             base.Reset();
             isComplete = false;
-            timer = 0f;
         }
     }
 }

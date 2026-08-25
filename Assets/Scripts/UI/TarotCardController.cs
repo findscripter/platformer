@@ -35,7 +35,6 @@ namespace DreamGame.UI
 
         [Header("动画")]
         [SerializeField] private float cardRevealDelay = 0.2f;
-        [SerializeField] private float cardScaleOnHover = 1.1f;
 
         private int selectedCardIndex = -1;
 

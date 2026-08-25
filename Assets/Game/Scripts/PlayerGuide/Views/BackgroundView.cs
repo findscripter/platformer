@@ -1,133 +1,64 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
-namespace Game.PlayerGuide
+/// <summary>
+/// 背景视图（背景 CanvasGroup 淡入淡出、音频残响播放、背景图切换）。
+/// 忠实复刻 PlayerGuideFlowControllerV2 中 backgroundCanvasGroup / dreamEchoAudioSource 的逻辑。
+/// </summary>
+public class BackgroundView : MonoBehaviour
 {
-    /// <summary>
-    /// Manages background visual effects for the player guide UI,
-    /// including fade transitions and particle effects.
-    /// </summary>
-    public class BackgroundView : MonoBehaviour
+    [SerializeField] private CanvasGroup backgroundCanvasGroup;
+    [SerializeField] private AudioSource dreamEchoAudioSource;
+    [SerializeField] private Image backgroundImage;
+
+    public void SetAlpha(float alpha)
     {
-        [Header("Visual Components")]
-        [SerializeField] private CanvasGroup backgroundCanvasGroup;
-        [SerializeField] private ParticleSystem dreamSpaceParticles;
-
-        [Header("Fade Settings")]
-        [SerializeField] private float fadeDuration = 0.5f;
-
-        private Coroutine currentFadeCoroutine;
-
-        /// <summary>
-        /// Fades the background in over the specified duration.
-        /// </summary>
-        /// <param name="duration">Duration of the fade. Uses default if not specified.</param>
-        public void FadeIn(float? duration = null)
+        if (backgroundCanvasGroup != null)
         {
-            float actualDuration = duration ?? fadeDuration;
-            if (currentFadeCoroutine != null)
-            {
-                StopCoroutine(currentFadeCoroutine);
-            }
-            currentFadeCoroutine = StartCoroutine(FadeInCoroutine(actualDuration));
+            backgroundCanvasGroup.alpha = alpha;
+        }
+    }
+
+    public void SetBackgroundSprite(Sprite sprite)
+    {
+        if (backgroundImage != null && sprite != null)
+        {
+            backgroundImage.sprite = sprite;
+        }
+    }
+
+    public IEnumerator FadeCanvasGroup(float from, float to, float duration)
+    {
+        if (backgroundCanvasGroup == null)
+            yield break;
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            backgroundCanvasGroup.alpha = Mathf.Lerp(from, to, t);
+            elapsed += Time.deltaTime;
+            yield return null;
         }
 
-        /// <summary>
-        /// Fades the background out over the specified duration.
-        /// </summary>
-        /// <param name="duration">Duration of the fade. Uses default if not specified.</param>
-        public void FadeOut(float? duration = null)
+        backgroundCanvasGroup.alpha = to;
+    }
+
+    public void PlayDreamEcho()
+    {
+        if (dreamEchoAudioSource != null && dreamEchoAudioSource.clip != null)
         {
-            float actualDuration = duration ?? fadeDuration;
-            if (currentFadeCoroutine != null)
-            {
-                StopCoroutine(currentFadeCoroutine);
-            }
-            currentFadeCoroutine = StartCoroutine(FadeOutCoroutine(actualDuration));
+            dreamEchoAudioSource.volume = 0.7f;
+            dreamEchoAudioSource.Play();
         }
+    }
 
-        /// <summary>
-        /// Starts playing the dream space particle effect.
-        /// </summary>
-        public void PlayParticles()
+    public void StopDreamEcho()
+    {
+        if (dreamEchoAudioSource != null && dreamEchoAudioSource.isPlaying)
         {
-            if (dreamSpaceParticles != null && !dreamSpaceParticles.isPlaying)
-            {
-                dreamSpaceParticles.Play();
-            }
-        }
-
-        /// <summary>
-        /// Stops playing the dream space particle effect.
-        /// </summary>
-        public void StopParticles()
-        {
-            if (dreamSpaceParticles != null && dreamSpaceParticles.isPlaying)
-            {
-                dreamSpaceParticles.Stop();
-            }
-        }
-
-        /// <summary>
-        /// Coroutine that smoothly fades the background alpha from current to 1.
-        /// </summary>
-        private IEnumerator FadeInCoroutine(float duration)
-        {
-            if (backgroundCanvasGroup == null)
-            {
-                Debug.LogWarning("BackgroundView: CanvasGroup is not assigned.");
-                yield break;
-            }
-
-            float startAlpha = backgroundCanvasGroup.alpha;
-            float elapsed = 0f;
-
-            while (elapsed < duration)
-            {
-                elapsed += Time.deltaTime;
-                float t = elapsed / duration;
-                backgroundCanvasGroup.alpha = Mathf.Lerp(startAlpha, 1f, t);
-                yield return null;
-            }
-
-            backgroundCanvasGroup.alpha = 1f;
-            currentFadeCoroutine = null;
-        }
-
-        /// <summary>
-        /// Coroutine that smoothly fades the background alpha from current to 0.
-        /// </summary>
-        private IEnumerator FadeOutCoroutine(float duration)
-        {
-            if (backgroundCanvasGroup == null)
-            {
-                Debug.LogWarning("BackgroundView: CanvasGroup is not assigned.");
-                yield break;
-            }
-
-            float startAlpha = backgroundCanvasGroup.alpha;
-            float elapsed = 0f;
-
-            while (elapsed < duration)
-            {
-                elapsed += Time.deltaTime;
-                float t = elapsed / duration;
-                backgroundCanvasGroup.alpha = Mathf.Lerp(startAlpha, 0f, t);
-                yield return null;
-            }
-
-            backgroundCanvasGroup.alpha = 0f;
-            currentFadeCoroutine = null;
-        }
-
-        private void OnDisable()
-        {
-            // Clean up coroutine if component is disabled
-            if (currentFadeCoroutine != null)
-            {
-                StopCoroutine(currentFadeCoroutine);
-                currentFadeCoroutine = null;
-            }
+            dreamEchoAudioSource.Stop();
         }
     }
 }

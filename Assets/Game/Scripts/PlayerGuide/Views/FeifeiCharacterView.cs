@@ -1,180 +1,107 @@
-using UnityEngine;
 using System.Collections;
+using UnityEngine;
 
-namespace Game.PlayerGuide.Views
+/// <summary>
+/// 腓腓角色视图。
+/// 忠实复刻 PlayerGuideFlowControllerV2 中 feifeiCharacter / feifeiAnimator 的移动与动画控制逻辑。
+/// </summary>
+public class FeifeiCharacterView : MonoBehaviour
 {
-    public class FeifeiCharacterView : MonoBehaviour
+    [SerializeField] private GameObject feifeiCharacter;
+    [SerializeField] private Animator feifeiAnimator;
+
+    public void SetActive(bool active)
     {
-        [Header("References")]
-        [SerializeField] private GameObject feifeiCharacter;
-        [SerializeField] private Animator animator;
-        [SerializeField] private Transform characterTransform;
-
-        [Header("Movement Settings")]
-        [SerializeField] private float moveSpeed = 2f;
-        [SerializeField] private AnimationCurve movementCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
-
-        private Coroutine currentMoveCoroutine;
-
-        private void Awake()
+        if (feifeiCharacter != null)
         {
-            if (feifeiCharacter == null)
-                feifeiCharacter = gameObject;
+            feifeiCharacter.SetActive(active);
+        }
+    }
 
-            if (characterTransform == null)
-                characterTransform = transform;
+    public void SetLocalPosition(Vector3 position)
+    {
+        if (feifeiCharacter != null)
+        {
+            feifeiCharacter.transform.localPosition = position;
+        }
+    }
 
-            if (animator == null)
-                animator = GetComponentInChildren<Animator>();
+    public IEnumerator MoveLocalPosition(Vector3 from, Vector3 to, float duration)
+    {
+        if (feifeiCharacter == null)
+            yield break;
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            t = EaseOutCubic(t);
+            feifeiCharacter.transform.localPosition = Vector3.Lerp(from, to, t);
+            elapsed += Time.deltaTime;
+            yield return null;
         }
 
-        public void SetAnimatorSpeed(float speed)
+        feifeiCharacter.transform.localPosition = to;
+    }
+
+    public void SetAnimatorSpeed(float speed)
+    {
+        if (feifeiAnimator != null)
         {
-            if (animator != null)
+            feifeiAnimator.speed = speed;
+        }
+    }
+
+    public void SafeSetBool(string paramName, bool value)
+    {
+        if (feifeiAnimator == null) return;
+
+        foreach (var param in feifeiAnimator.parameters)
+        {
+            if (param.name == paramName && param.type == AnimatorControllerParameterType.Bool)
             {
-                animator.speed = speed;
+                feifeiAnimator.SetBool(paramName, value);
+                return;
             }
         }
 
-        public void PlayAnimation(string stateName, int layer = 0)
+        Debug.LogWarning($"[PlayerGuide] Animator parameter '{paramName}' (Bool) not found");
+    }
+
+    public void SafeSetTrigger(string paramName)
+    {
+        if (feifeiAnimator == null) return;
+
+        foreach (var param in feifeiAnimator.parameters)
         {
-            if (animator != null && !string.IsNullOrEmpty(stateName))
+            if (param.name == paramName && param.type == AnimatorControllerParameterType.Trigger)
             {
-                animator.Play(stateName, layer);
+                feifeiAnimator.SetTrigger(paramName);
+                return;
             }
         }
 
-        public void SetBool(string parameterName, bool value)
+        Debug.LogWarning($"[PlayerGuide] Animator parameter '{paramName}' (Trigger) not found");
+    }
+
+    public void SafePlayState(string stateName)
+    {
+        if (feifeiAnimator == null || string.IsNullOrWhiteSpace(stateName)) return;
+
+        for (int i = 0; i < feifeiAnimator.layerCount; i++)
         {
-            if (animator != null && !string.IsNullOrEmpty(parameterName))
+            if (feifeiAnimator.HasState(i, Animator.StringToHash(stateName)))
             {
-                if (HasParameter(parameterName, AnimatorControllerParameterType.Bool))
-                {
-                    animator.SetBool(parameterName, value);
-                }
+                feifeiAnimator.Play(stateName);
+                return;
             }
         }
 
-        public void SetTrigger(string parameterName)
-        {
-            if (animator != null && !string.IsNullOrEmpty(parameterName))
-            {
-                if (HasParameter(parameterName, AnimatorControllerParameterType.Trigger))
-                {
-                    animator.SetTrigger(parameterName);
-                }
-            }
-        }
+        Debug.LogWarning($"[PlayerGuide] Animator state '{stateName}' not found");
+    }
 
-        public void SetFloat(string parameterName, float value)
-        {
-            if (animator != null && !string.IsNullOrEmpty(parameterName))
-            {
-                if (HasParameter(parameterName, AnimatorControllerParameterType.Float))
-                {
-                    animator.SetFloat(parameterName, value);
-                }
-            }
-        }
-
-        public void SetInteger(string parameterName, int value)
-        {
-            if (animator != null && !string.IsNullOrEmpty(parameterName))
-            {
-                if (HasParameter(parameterName, AnimatorControllerParameterType.Int))
-                {
-                    animator.SetInteger(parameterName, value);
-                }
-            }
-        }
-
-        public void MoveTo(Vector3 targetPosition, float duration = -1f)
-        {
-            if (currentMoveCoroutine != null)
-            {
-                StopCoroutine(currentMoveCoroutine);
-            }
-
-            float actualDuration = duration > 0 ? duration : Vector3.Distance(characterTransform.position, targetPosition) / moveSpeed;
-            currentMoveCoroutine = StartCoroutine(MoveToCoroutine(targetPosition, actualDuration));
-        }
-
-        public void StopMovement()
-        {
-            if (currentMoveCoroutine != null)
-            {
-                StopCoroutine(currentMoveCoroutine);
-                currentMoveCoroutine = null;
-            }
-        }
-
-        public void SetPosition(Vector3 position)
-        {
-            StopMovement();
-            if (characterTransform != null)
-            {
-                characterTransform.position = position;
-            }
-        }
-
-        public void SetActive(bool active)
-        {
-            if (feifeiCharacter != null)
-            {
-                feifeiCharacter.SetActive(active);
-            }
-        }
-
-        public void FlipCharacter(bool faceRight)
-        {
-            if (characterTransform != null)
-            {
-                Vector3 scale = characterTransform.localScale;
-                scale.x = faceRight ? Mathf.Abs(scale.x) : -Mathf.Abs(scale.x);
-                characterTransform.localScale = scale;
-            }
-        }
-
-        private IEnumerator MoveToCoroutine(Vector3 targetPosition, float duration)
-        {
-            Vector3 startPosition = characterTransform.position;
-            float elapsed = 0f;
-
-            while (elapsed < duration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / duration);
-                float curveValue = movementCurve.Evaluate(t);
-                characterTransform.position = Vector3.Lerp(startPosition, targetPosition, curveValue);
-                yield return null;
-            }
-
-            characterTransform.position = targetPosition;
-            currentMoveCoroutine = null;
-        }
-
-        private bool HasParameter(string parameterName, AnimatorControllerParameterType type)
-        {
-            if (animator == null || animator.runtimeAnimatorController == null)
-                return false;
-
-            foreach (AnimatorControllerParameter param in animator.parameters)
-            {
-                if (param.name == parameterName && param.type == type)
-                    return true;
-            }
-
-            return false;
-        }
-
-        public Vector3 GetPosition()
-        {
-            return characterTransform != null ? characterTransform.position : Vector3.zero;
-        }
-
-        public bool IsMoving()
-        {
-            return currentMoveCoroutine != null;
-        }
+    private static float EaseOutCubic(float t)
+    {
+        return 1f - Mathf.Pow(1f - t, 3f);
     }
 }

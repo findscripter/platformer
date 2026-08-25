@@ -1,520 +1,169 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.UI;
 
-namespace Game.PlayerGuide.Controllers
+/// <summary>
+/// Frame 1-5 流程控制器：梦境空间生成 → 主梦泡 → 梦境残响 → 梦泡消散 → 腓腓入场。
+/// 忠实复刻 PlayerGuideFlowControllerV2 的 Frame1_DreamSpaceGenerationRoutine 至 Frame5_FeifeiEnterRoutine。
+/// </summary>
+public class Frame1To5Controller
 {
-    /// <summary>
-    /// Handles Frames 1-5 of PlayerGuide: dream space generation through Feifei entrance.
-    /// Frame 1: Dream Space Generation (spawn bubbles, fade in background)
-    /// Frame 2: Main Bubble Appear (show bubble, hint system)
-    /// Frame 3: Dream Echo Play (audio + vibration)
-    /// Frame 4: Bubble Dissolve (bubble fade, core appear)
-    /// Frame 5: Feifei Enter (walk in, pick up core)
-    /// </summary>
-    public class Frame1To5Controller : MonoBehaviour
+    private readonly PlayerGuideView view;
+    private readonly SmallBubblesView smallBubblesView;
+    private readonly MainBubbleView mainBubbleView;
+    private readonly BackgroundView backgroundView;
+    private readonly DreamCoreView dreamCoreView;
+    private readonly FeifeiCharacterView feifeiView;
+    private readonly MonoBehaviour coroutineHost;
+
+    public Frame1To5Controller(
+        PlayerGuideView view,
+        SmallBubblesView smallBubblesView,
+        MainBubbleView mainBubbleView,
+        BackgroundView backgroundView,
+        DreamCoreView dreamCoreView,
+        FeifeiCharacterView feifeiView,
+        MonoBehaviour coroutineHost)
     {
-        private readonly PlayerGuideView _view;
-        private readonly MonoBehaviour _coroutineHost;
-
-    // Cached references
-    private Transform _smallBubblesContainer;
-    private GameObject _smallBubblePrefab;
-    private CanvasGroup _backgroundCanvasGroup;
-    private ParticleSystem _dreamSpaceParticles;
-    private PlayerGuideMainBubbleVisual _mainBubbleVisual;
-    private Button _mainBubbleButton;
-    private AudioSource _dreamEchoAudioSource;
-    private GameObject _dreamCoreObject;
-    private Image _dreamCoreGlow;
-    private GameObject _feifeiCharacter;
-    private Animator _feifeiAnimator;
-
-    // Duration config
-    private float _frame1Duration;
-    private float _frame3Duration;
-    private float _frame4DissolveDuration;
-    private float _frame4CoreStabilizeDuration;
-    private float _frame5WalkDuration;
-    private float _frame5PickupDuration;
-
-    // Frame 2 hint config
-    private float _frame2HintDelayFirst;
-    private float _frame2HintDelayRepeat;
-    private float _frame2HintGlowIntensity;
-
-    // Runtime state
-    private Coroutine _currentHintCoroutine;
-
-    public Frame1To5Controller(PlayerGuideView view, MonoBehaviour coroutineHost)
-    {
-        _view = view;
-        _coroutineHost = coroutineHost;
-
-        // Cache all references
-        _smallBubblesContainer = view.SmallBubblesContainer;
-        _smallBubblePrefab = view.SmallBubblePrefab;
-        _backgroundCanvasGroup = view.BackgroundCanvasGroup;
-        _dreamSpaceParticles = view.DreamSpaceParticles;
-        _mainBubbleVisual = view.MainBubbleVisual;
-        _mainBubbleButton = view.MainBubbleButton;
-        _dreamEchoAudioSource = view.DreamEchoAudioSource;
-        _dreamCoreObject = view.DreamCoreObject;
-        _dreamCoreGlow = view.DreamCoreGlow;
-        _feifeiCharacter = view.FeifeiCharacter;
-        _feifeiAnimator = view.FeifeiAnimator;
-
-        // Cache duration config
-        _frame1Duration = view.Frame1Duration;
-        _frame3Duration = view.Frame3Duration;
-        _frame4DissolveDuration = view.Frame4DissolveDuration;
-        _frame4CoreStabilizeDuration = view.Frame4CoreStabilizeDuration;
-        _frame5WalkDuration = view.Frame5WalkDuration;
-        _frame5PickupDuration = view.Frame5PickupDuration;
-
-        // Cache Frame 2 hint config
-        _frame2HintDelayFirst = view.Frame2HintDelayFirst;
-        _frame2HintDelayRepeat = view.Frame2HintDelayRepeat;
-        _frame2HintGlowIntensity = view.Frame2HintGlowIntensity;
+        this.view = view;
+        this.smallBubblesView = smallBubblesView;
+        this.mainBubbleView = mainBubbleView;
+        this.backgroundView = backgroundView;
+        this.dreamCoreView = dreamCoreView;
+        this.feifeiView = feifeiView;
+        this.coroutineHost = coroutineHost;
     }
 
-    /// <summary>
-    /// Frame 1: Dream Space Generation
-    /// - Spawn small floating bubbles
-    /// - Fade in background
-    /// - Start particle system
-    /// </summary>
     public IEnumerator Frame1_DreamSpaceGeneration()
     {
-        // Initialize background alpha to 0
-        if (_backgroundCanvasGroup != null)
-            _backgroundCanvasGroup.alpha = 0f;
+        Debug.Log("[PlayerGuide] Frame 1: 梦境空间生成开始");
 
-        // Spawn small bubbles
-        SpawnSmallBubbles();
+        backgroundView.SetBackgroundSprite(view.DreamBackgroundSpriteEarly);
 
-        // Start particle system
-        if (_dreamSpaceParticles != null)
-            _dreamSpaceParticles.Play();
-
-        // Fade in background over Frame1Duration
-        float elapsed = 0f;
-        while (elapsed < _frame1Duration)
+        if (view.DreamSpaceParticles != null)
         {
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / _frame1Duration);
-
-            if (_backgroundCanvasGroup != null)
-                _backgroundCanvasGroup.alpha = Mathf.Lerp(0f, 1f, t);
-
-            yield return null;
+            view.DreamSpaceParticles.Play();
         }
 
-        // Ensure final state
-        if (_backgroundCanvasGroup != null)
-            _backgroundCanvasGroup.alpha = 1f;
-    }
-
-    /// <summary>
-    /// Frame 2: Main Bubble Appear
-    /// - Show main bubble with scale-up animation
-    /// - Start hint system (glow pulses to guide user interaction)
-    /// </summary>
-    public IEnumerator Frame2_MainBubbleAppear()
-    {
-        if (_mainBubbleVisual == null)
-            yield break;
-
-        // Ensure bubble is active
-        _mainBubbleVisual.gameObject.SetActive(true);
-
-        // Get scale target
-        RectTransform scaleTarget = _mainBubbleVisual.ScaleTarget;
-        if (scaleTarget == null)
+        if (view.SmallBubblesContainer != null && view.SmallBubblePrefab != null)
         {
-            Debug.LogWarning("Frame2_MainBubbleAppear: ScaleTarget is null, using root transform");
-            scaleTarget = _mainBubbleVisual.transform as RectTransform;
+            smallBubblesView.SpawnSmallBubbles(
+                view.SmallBubblesContainer,
+                view.SmallBubblePrefab,
+                view.SmallBubbleCount,
+                view.SmallBubbleSizeRange,
+                view.SmallBubbleFloatSpeed,
+                view.SmallBubbleFloatAmplitude);
         }
 
-        // Animate scale from 0 to 1
-        scaleTarget.localScale = Vector3.zero;
-
-        float duration = 0.8f;
-        float elapsed = 0f;
-
-        while (elapsed < duration)
+        if (view.BackgroundCanvasGroup != null)
         {
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / duration);
-
-            // Elastic ease-out for bounce effect
-            float scale = ElasticEaseOut(t);
-            scaleTarget.localScale = Vector3.one * scale;
-
-            yield return null;
-        }
-
-        // Ensure final scale
-        scaleTarget.localScale = Vector3.one;
-
-        // Start hint system
-        StartHintSystem();
-    }
-
-    /// <summary>
-    /// Frame 3: Dream Echo Play
-    /// - Play audio
-    /// - Trigger vibration (if supported)
-    /// - Visual feedback on bubble
-    /// </summary>
-    public IEnumerator Frame3_DreamEchoPlay()
-    {
-        // Play audio
-        if (_dreamEchoAudioSource != null && _dreamEchoAudioSource.clip != null)
-            _dreamEchoAudioSource.Play();
-
-        // Trigger haptic feedback
-        TriggerHapticFeedback();
-
-        // Visual pulse on main bubble
-        if (_mainBubbleVisual != null)
-        {
-            RectTransform scaleTarget = _mainBubbleVisual.ScaleTarget;
-            Vector3 originalScale = scaleTarget.localScale;
-
-            float elapsed = 0f;
-            while (elapsed < _frame3Duration)
-            {
-                elapsed += Time.deltaTime;
-                float t = elapsed / _frame3Duration;
-
-                // Pulse: scale up then back down
-                float pulse = Mathf.Sin(t * Mathf.PI);
-                float scaleFactor = 1f + pulse * 0.1f;
-                scaleTarget.localScale = originalScale * scaleFactor;
-
-                yield return null;
-            }
-
-            // Restore original scale
-            scaleTarget.localScale = originalScale;
+            yield return backgroundView.FadeCanvasGroup(0f, 1f, view.Frame1Duration);
         }
         else
         {
-            yield return new WaitForSeconds(_frame3Duration);
+            yield return new WaitForSeconds(view.Frame1Duration);
         }
+
+        // TODO: 播放音效 "dream_space_generate"
+
+        Debug.Log("[PlayerGuide] Frame 1 完成，进入 Frame 2");
     }
 
-    /// <summary>
-    /// Frame 4: Bubble Dissolve
-    /// - Fade out main bubble
-    /// - Reveal dream core with glow effect
-    /// </summary>
-    public IEnumerator Frame4_BubbleDissolve()
+    public IEnumerator Frame2_MainBubbleAppear()
     {
-        // Stop hint system
-        StopHintSystem();
-
-        // Phase 1: Dissolve bubble
-        if (_mainBubbleVisual != null)
-        {
-            CanvasGroup bubbleCanvasGroup = _mainBubbleVisual.GetComponent<CanvasGroup>();
-            if (bubbleCanvasGroup == null)
-                bubbleCanvasGroup = _mainBubbleVisual.gameObject.AddComponent<CanvasGroup>();
-
-            float elapsed = 0f;
-            while (elapsed < _frame4DissolveDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / _frame4DissolveDuration);
-
-                bubbleCanvasGroup.alpha = Mathf.Lerp(1f, 0f, t);
-
-                yield return null;
-            }
-
-            bubbleCanvasGroup.alpha = 0f;
-            _mainBubbleVisual.gameObject.SetActive(false);
-        }
-
-        // Phase 2: Reveal and stabilize dream core
-        if (_dreamCoreObject != null)
-        {
-            _dreamCoreObject.SetActive(true);
-
-            // Initialize core with glow
-            if (_dreamCoreGlow != null)
-            {
-                Color glowColor = _dreamCoreGlow.color;
-                glowColor.a = 0f;
-                _dreamCoreGlow.color = glowColor;
-            }
-
-            // Fade in core glow
-            float elapsed = 0f;
-            while (elapsed < _frame4CoreStabilizeDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / _frame4CoreStabilizeDuration);
-
-                if (_dreamCoreGlow != null)
-                {
-                    Color glowColor = _dreamCoreGlow.color;
-                    glowColor.a = Mathf.Lerp(0f, 1f, t);
-                    _dreamCoreGlow.color = glowColor;
-                }
-
-                yield return null;
-            }
-
-            // Ensure final state
-            if (_dreamCoreGlow != null)
-            {
-                Color glowColor = _dreamCoreGlow.color;
-                glowColor.a = 1f;
-                _dreamCoreGlow.color = glowColor;
-            }
-        }
+        yield return mainBubbleView.PlayAppearAnimation(0.5f);
+        mainBubbleView.EnableClick();
     }
 
-    /// <summary>
-    /// Frame 5: Feifei Enter
-    /// - Feifei walks onto screen
-    /// - Picks up dream core
-    /// - Core responds with glow pulse
-    /// </summary>
-    public IEnumerator Frame5_FeifeiEnter()
+    public IEnumerator Frame2_HintLoop(System.Func<bool> isStillInFrame2)
     {
-        if (_feifeiCharacter == null)
-            yield break;
+        float elapsedSinceLastHint = 0f;
+        float nextHintTime = view.Frame2HintDelayFirst;
+        bool hintActive = false;
 
-        // Ensure Feifei is active
-        _feifeiCharacter.SetActive(true);
-
-        // Phase 1: Walk in
-        if (_feifeiAnimator != null)
-            _feifeiAnimator.SetBool("isWalking", true);
-
-        RectTransform feifeiRect = _feifeiCharacter.GetComponent<RectTransform>();
-        if (feifeiRect != null)
+        while (isStillInFrame2())
         {
-            Vector2 startPos = feifeiRect.anchoredPosition;
-            Vector2 targetPos = Vector2.zero; // Walk to center
+            elapsedSinceLastHint += Time.deltaTime;
 
-            float elapsed = 0f;
-            while (elapsed < _frame5WalkDuration)
+            if (elapsedSinceLastHint >= nextHintTime && !hintActive)
             {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / _frame5WalkDuration);
+                coroutineHost.StartCoroutine(mainBubbleView.PlayHintGlow(view.Frame2HintGlowIntensity));
+                hintActive = true;
 
-                feifeiRect.anchoredPosition = Vector2.Lerp(startPos, targetPos, t);
+                // TODO: 播放提示音效
 
-                yield return null;
+                elapsedSinceLastHint = 0f;
+                nextHintTime = view.Frame2HintDelayRepeat;
+                hintActive = false;
             }
-
-            feifeiRect.anchoredPosition = targetPos;
-        }
-
-        // Stop walking animation
-        if (_feifeiAnimator != null)
-            _feifeiAnimator.SetBool("isWalking", false);
-
-        // Phase 2: Pick up core
-        if (_feifeiAnimator != null)
-            _feifeiAnimator.SetTrigger("pickup");
-
-        // Wait for pickup animation
-        yield return new WaitForSeconds(_frame5PickupDuration);
-
-        // Core responds with glow pulse
-        if (_dreamCoreGlow != null)
-        {
-            Color originalColor = _dreamCoreGlow.color;
-            float pulseDuration = 1f;
-            float elapsed = 0f;
-
-            while (elapsed < pulseDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = elapsed / pulseDuration;
-
-                float pulse = Mathf.Sin(t * Mathf.PI);
-                Color glowColor = originalColor;
-                glowColor.a = Mathf.Lerp(originalColor.a, 1.5f, pulse);
-                _dreamCoreGlow.color = glowColor;
-
-                yield return null;
-            }
-
-            _dreamCoreGlow.color = originalColor;
-        }
-    }
-
-    /// <summary>
-    /// Stops the hint system (called when Frame 2 ends)
-    /// </summary>
-    public void StopHintSystem()
-    {
-        if (_currentHintCoroutine != null)
-        {
-            _coroutineHost.StopCoroutine(_currentHintCoroutine);
-            _currentHintCoroutine = null;
-        }
-
-        // Reset main bubble glow
-        if (_mainBubbleVisual != null)
-        {
-            Image bubbleImage = _mainBubbleVisual.GetComponentInChildren<Image>();
-            if (bubbleImage != null)
-            {
-                Color originalColor = bubbleImage.color;
-                originalColor.a = 1f;
-                bubbleImage.color = originalColor;
-            }
-        }
-    }
-
-    #region Private Helper Methods
-
-    private void SpawnSmallBubbles()
-    {
-        if (_smallBubblesContainer == null || _smallBubblePrefab == null)
-            return;
-
-        int count = _view.SmallBubbleCount;
-        Vector2 sizeRange = _view.SmallBubbleSizeRange;
-
-        for (int i = 0; i < count; i++)
-        {
-            GameObject bubble = Object.Instantiate(_smallBubblePrefab, _smallBubblesContainer);
-
-            // Randomize size
-            float size = Random.Range(sizeRange.x, sizeRange.y);
-            RectTransform rect = bubble.GetComponent<RectTransform>();
-            if (rect != null)
-                rect.sizeDelta = new Vector2(size, size);
-
-            // Randomize position
-            if (rect != null)
-            {
-                float x = Random.Range(-400f, 400f);
-                float y = Random.Range(-300f, 300f);
-                rect.anchoredPosition = new Vector2(x, y);
-            }
-
-            // Add floating animation component
-            SmallBubbleFloater floater = bubble.AddComponent<SmallBubbleFloater>();
-            floater.Initialize(_view.SmallBubbleFloatSpeed, _view.SmallBubbleFloatAmplitude);
-        }
-    }
-
-    private void StartHintSystem()
-    {
-        if (_currentHintCoroutine != null)
-            _coroutineHost.StopCoroutine(_currentHintCoroutine);
-
-        _currentHintCoroutine = _coroutineHost.StartCoroutine(HintCoroutine());
-    }
-
-    private IEnumerator HintCoroutine()
-    {
-        // Wait for first hint
-        yield return new WaitForSeconds(_frame2HintDelayFirst);
-
-        // Loop hints
-        while (true)
-        {
-            yield return PlayHintAnimation();
-            yield return new WaitForSeconds(_frame2HintDelayRepeat);
-        }
-    }
-
-    private IEnumerator PlayHintAnimation()
-    {
-        if (_mainBubbleVisual == null)
-            yield break;
-
-        Image bubbleImage = _mainBubbleVisual.GetComponentInChildren<Image>();
-        if (bubbleImage == null)
-            yield break;
-
-        Color originalColor = bubbleImage.color;
-        float duration = 0.8f;
-        float elapsed = 0f;
-
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / duration;
-
-            // Pulse alpha
-            float pulse = Mathf.Sin(t * Mathf.PI);
-            Color glowColor = originalColor;
-            glowColor.a = Mathf.Lerp(1f, _frame2HintGlowIntensity, pulse);
-            bubbleImage.color = glowColor;
 
             yield return null;
         }
-
-        bubbleImage.color = originalColor;
     }
 
-    private void TriggerHapticFeedback()
+    public IEnumerator Frame3_DreamEchoPlay()
     {
-        #if UNITY_ANDROID || UNITY_IOS
-        if (UnityEngine.iOS.Device.generation != UnityEngine.iOS.DeviceGeneration.Unknown)
+        backgroundView.PlayDreamEcho();
+
+        if (view.MainBubbleVisual != null)
         {
-            // iOS haptic
-            Handheld.Vibrate();
+            yield return mainBubbleView.PlayVibration(view.Frame3Duration);
         }
-        else if (Application.platform == RuntimePlatform.Android)
+        else
         {
-            // Android vibration (requires VIBRATE permission)
-            Handheld.Vibrate();
+            yield return new WaitForSeconds(view.Frame3Duration);
         }
-        #endif
     }
 
-    private float ElasticEaseOut(float t)
+    public IEnumerator Frame4_BubbleDissolve()
     {
-        if (t == 0f || t == 1f)
-            return t;
+        if (view.MainBubbleVisual != null)
+        {
+            yield return mainBubbleView.PlayDissolve(view.Frame4DissolveDuration);
+        }
 
-        float p = 0.3f;
-        float s = p / 4f;
-        return Mathf.Pow(2f, -10f * t) * Mathf.Sin((t - s) * (2f * Mathf.PI) / p) + 1f;
+        // TODO: 播放音效 "bubble_dissolve"
+
+        backgroundView.SetBackgroundSprite(view.DreamBackgroundSpriteLate);
+
+        if (view.DreamCoreObject != null)
+        {
+            dreamCoreView.SetActive(true);
+            yield return dreamCoreView.FadeIn(1.5f);
+        }
+
+        yield return new WaitForSeconds(view.Frame4CoreStabilizeDuration);
     }
 
-    #endregion
-}
-
-/// <summary>
-/// Component for animating small background bubbles with floating motion
-/// </summary>
-public class SmallBubbleFloater : MonoBehaviour
-{
-    private float _speed;
-    private float _amplitude;
-    private float _phase;
-    private Vector2 _startPos;
-    private RectTransform _rect;
-
-    public void Initialize(float speed, float amplitude)
+    public IEnumerator Frame5_FeifeiEnter()
     {
-        _speed = speed;
-        _amplitude = amplitude;
-        _phase = Random.Range(0f, Mathf.PI * 2f);
-        _rect = GetComponent<RectTransform>();
-        _startPos = _rect.anchoredPosition;
-    }
+        if (view.FeifeiCharacter == null)
+            yield break;
 
-    private void Update()
-    {
-        if (_rect == null)
-            return;
+        feifeiView.SetActive(true);
 
-        float offset = Mathf.Sin(Time.time * _speed + _phase) * _amplitude;
-        _rect.anchoredPosition = _startPos + Vector2.up * offset;
-    }
+        Vector3 startPos = new Vector3(800f, 0f, 0f);
+        Vector3 endPos = Vector3.zero;
+        feifeiView.SetLocalPosition(startPos);
+
+        // TODO: 播放脚步声音效（循环）
+
+        feifeiView.SafeSetBool("IsWalking", true);
+
+        yield return feifeiView.MoveLocalPosition(startPos, endPos, view.Frame5WalkDuration);
+
+        feifeiView.SafeSetBool("IsWalking", false);
+
+        // TODO: 停止脚步声
+
+        yield return new WaitForSeconds(0.5f);
+
+        feifeiView.SafeSetTrigger("PickUpCore");
+
+        // TODO: 播放拾取音效 "core_pickup"
+
+        yield return new WaitForSeconds(view.Frame5PickupDuration);
+
+        yield return new WaitForSeconds(1f);
     }
 }

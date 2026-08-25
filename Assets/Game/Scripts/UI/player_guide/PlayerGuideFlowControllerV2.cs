@@ -95,9 +95,6 @@ public class PlayerGuideFlowControllerV2 : MonoBehaviour
     private int currentDialogueIndex;
     private bool isWaitingForDialogueAdvance;
 
-    // Frame 8 state
-    private bool isInFollowUpState;
-
     #endregion
 
     #region Unity Lifecycle
@@ -747,7 +744,6 @@ public class PlayerGuideFlowControllerV2 : MonoBehaviour
         if (DreamInputValidator.NeedsFollowUp(userInput))
         {
             // 状态 B：腓腓补问
-            isInFollowUpState = true;
 
             // 显示对话面板
             SetPanelActive(dialoguePanel, true);

@@ -1,272 +1,121 @@
 using System.Collections;
 using UnityEngine;
-using TMPro;
 
-namespace Platformer.PlayerGuide
+/// <summary>
+/// Frame 7-8 控制器：输入梦 → 写梦与必要补问。
+/// 忠实复刻 PlayerGuideFlowControllerV2.Frame7_DreamInputRoutine / Frame8_WriteDreamRoutine，
+/// 并复用已有的 DreamInputValidator 判定逻辑（不重新发明校验规则）。
+/// </summary>
+public class Frame7And8Controller
 {
-    /// <summary>
-    /// Handles Frame 7-8: Dream input collection and follow-up dialogue system.
-    /// Frame 7: Show input panel and wait for user submission
-    /// Frame 8: Validate input, show follow-up dialogue if needed, re-prompt
-    /// </summary>
-    public class Frame7And8Controller : MonoBehaviour
+    private readonly PlayerGuideView view;
+    private readonly DreamInputView dreamInputView;
+    private readonly DialogueView dialogueView;
+    private readonly GameContext gameContext;
+    private readonly InputState inputState;
+
+    private bool isWaitingForSubmit;
+    private bool isWaitingForReInput;
+
+    public Frame7And8Controller(
+        PlayerGuideView view,
+        DreamInputView dreamInputView,
+        DialogueView dialogueView,
+        GameContext gameContext,
+        InputState inputState)
     {
-        [Header("View References")]
-        [SerializeField] private DreamInputView dreamInputView;
-        [SerializeField] private DialogueView dialogueView;
+        this.view = view;
+        this.dreamInputView = dreamInputView;
+        this.dialogueView = dialogueView;
+        this.gameContext = gameContext;
+        this.inputState = inputState;
+    }
 
-        [Header("Input Validation")]
-        [SerializeField] private int minCharacterCount = 5;
-        [SerializeField] private string[] requiredKeywords = { "梦", "想", "愿望", "希望" };
-        [SerializeField] private float followUpDisplayDuration = 3f;
+    public IEnumerator Frame7_DreamInput()
+    {
+        dreamInputView.SetPanelActive(true);
 
-        private GameContext context;
-        private InputState inputState;
-        private bool isWaitingForInput;
-        private bool needsFollowUp;
-
-        public void Initialize(GameContext gameContext, InputState state)
+        if (view.InputCanvasGroup != null)
         {
-            context = gameContext;
-            inputState = state;
-
-            if (dreamInputView != null)
-            {
-                dreamInputView.OnInputSubmitted += HandleInputSubmitted;
-            }
-
-            if (dialogueView != null)
-            {
-                dialogueView.OnDialogueComplete += HandleDialogueComplete;
-            }
+            yield return dreamInputView.FadeIn(0.3f);
         }
 
-        private void OnDestroy()
-        {
-            if (dreamInputView != null)
-            {
-                dreamInputView.OnInputSubmitted -= HandleInputSubmitted;
-            }
+        dreamInputView.SetPlaceholder("写下你的梦境...");
+        dreamInputView.ClearAndActivate();
 
-            if (dialogueView != null)
-            {
-                dialogueView.OnDialogueComplete -= HandleDialogueComplete;
-            }
+        isWaitingForSubmit = true;
+        dreamInputView.OnSubmit += HandleSubmit;
+        dreamInputView.BindSubmit();
+
+        yield return new WaitUntil(() => !isWaitingForSubmit);
+
+        dreamInputView.OnSubmit -= HandleSubmit;
+        dreamInputView.UnbindSubmit();
+    }
+
+    private void HandleSubmit()
+    {
+        string userInput = dreamInputView.GetInputText();
+
+        if (gameContext != null)
+        {
+            gameContext.PlayerDreamInput = userInput;
         }
 
-        /// <summary>
-        /// Frame 7: Show input panel and wait for user to submit their dream
-        /// </summary>
-        public IEnumerator Frame7_ShowInput()
+        isWaitingForSubmit = false;
+    }
+
+    public IEnumerator Frame8_WriteDreamAndFollowUp()
+    {
+        string userInput = gameContext?.PlayerDreamInput ?? "";
+
+        if (DreamInputValidator.NeedsFollowUp(userInput))
         {
-            Debug.Log("[Frame7] Showing dream input panel");
+            inputState.IsInFollowUpState = true;
 
-            // Reset state
-            isWaitingForInput = true;
-            needsFollowUp = false;
-            inputState.ClearInput();
-
-            // Show input view
-            if (dreamInputView != null)
+            dialogueView.SetPanelActive(true);
+            if (view.DialogueCanvasGroup != null)
             {
-                dreamInputView.Show();
-                dreamInputView.ClearInput();
-            }
-            else
-            {
-                Debug.LogError("[Frame7] DreamInputView is null!");
-                yield break;
+                yield return dialogueView.FadeIn(0.3f);
             }
 
-            // Wait for user to submit input
-            while (isWaitingForInput)
-            {
-                yield return null;
-            }
+            dialogueView.SetSpeaker("腓腓");
+            dialogueView.SetContent("能再多说一点吗？");
 
-            // Hide input view
-            if (dreamInputView != null)
-            {
-                dreamInputView.Hide();
-            }
+            yield return new WaitForSeconds(2f);
 
-            Debug.Log($"[Frame7] Input received: {inputState.UserInput}");
+            if (view.DialogueCanvasGroup != null)
+            {
+                yield return dialogueView.FadeOut(0.3f);
+            }
+            dialogueView.SetPanelActive(false);
+
+            dreamInputView.ClearAndActivate();
+
+            isWaitingForReInput = true;
+            dreamInputView.UnbindSubmit();
+            dreamInputView.OnSubmit += HandleReInputSubmit;
+            dreamInputView.BindSubmit();
+
+            yield return new WaitUntil(() => !isWaitingForReInput);
+
+            dreamInputView.OnSubmit -= HandleReInputSubmit;
         }
 
-        /// <summary>
-        /// Frame 8: Check if follow-up is needed, show dialogue, and re-prompt if necessary
-        /// </summary>
-        public IEnumerator Frame8_HandleFollowUp()
+        if (view.InputCanvasGroup != null)
         {
-            Debug.Log("[Frame8] Checking if follow-up is needed");
-
-            // Validate input
-            needsFollowUp = RequiresFollowUp(inputState.UserInput);
-
-            if (needsFollowUp)
-            {
-                Debug.Log("[Frame8] Follow-up required, showing dialogue");
-
-                // Show follow-up dialogue
-                if (dialogueView != null)
-                {
-                    string followUpMessage = GenerateFollowUpMessage(inputState.UserInput);
-                    dialogueView.Show();
-                    dialogueView.SetDialogueText(followUpMessage);
-
-                    // Wait for follow-up display duration
-                    yield return new WaitForSeconds(followUpDisplayDuration);
-
-                    dialogueView.Hide();
-                }
-
-                // Re-prompt for input
-                Debug.Log("[Frame8] Re-prompting for better input");
-                yield return Frame7_ShowInput();
-
-                // Recursively check again after re-prompt
-                yield return Frame8_HandleFollowUp();
-            }
-            else
-            {
-                Debug.Log("[Frame8] Input is valid, proceeding");
-                inputState.MarkAsSubmitted();
-            }
+            yield return dreamInputView.FadeOut(0.3f);
         }
+        dreamInputView.SetPanelActive(false);
+    }
 
-        /// <summary>
-        /// Handle input submission from DreamInputView
-        /// </summary>
-        private void HandleInputSubmitted(string userInput)
+    private void HandleReInputSubmit()
+    {
+        string newInput = dreamInputView.GetInputText();
+        if (gameContext != null)
         {
-            Debug.Log($"[Frame7And8Controller] Input submitted: {userInput}");
-
-            // Store input
-            inputState.SetInput(userInput);
-
-            // Stop waiting
-            isWaitingForInput = false;
+            gameContext.PlayerDreamInput = newInput;
         }
-
-        /// <summary>
-        /// Handle dialogue completion (currently unused, reserved for future)
-        /// </summary>
-        private void HandleDialogueComplete()
-        {
-            Debug.Log("[Frame7And8Controller] Dialogue complete");
-        }
-
-        /// <summary>
-        /// Determine if the input requires a follow-up prompt
-        /// </summary>
-        private bool RequiresFollowUp(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                Debug.Log("[Validation] Input is empty");
-                return true;
-            }
-
-            // Check minimum character count
-            if (input.Length < minCharacterCount)
-            {
-                Debug.Log($"[Validation] Input too short: {input.Length} < {minCharacterCount}");
-                return true;
-            }
-
-            // Check for required keywords
-            bool hasKeyword = false;
-            foreach (string keyword in requiredKeywords)
-            {
-                if (input.Contains(keyword))
-                {
-                    hasKeyword = true;
-                    break;
-                }
-            }
-
-            if (!hasKeyword)
-            {
-                Debug.Log("[Validation] Missing required keywords");
-                return true;
-            }
-
-            // Input is valid
-            return false;
-        }
-
-        /// <summary>
-        /// Generate context-specific follow-up message based on validation failure
-        /// </summary>
-        private string GenerateFollowUpMessage(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                return "请输入你的梦想...";
-            }
-
-            if (input.Length < minCharacterCount)
-            {
-                return "能再详细一点吗？告诉我更多关于你的梦想...";
-            }
-
-            // Missing keywords
-            return "你的梦想是什么？试着用"梦想"、"希望"这样的词语来描述...";
-        }
-
-        #region Inspector Utilities
-#if UNITY_EDITOR
-        [ContextMenu("Test Frame 7")]
-        private void TestFrame7()
-        {
-            if (Application.isPlaying)
-            {
-                StartCoroutine(Frame7_ShowInput());
-            }
-            else
-            {
-                Debug.LogWarning("Test Frame 7 requires Play Mode");
-            }
-        }
-
-        [ContextMenu("Test Frame 8 (Valid Input)")]
-        private void TestFrame8Valid()
-        {
-            if (Application.isPlaying)
-            {
-                inputState = new InputState();
-                inputState.SetInput("我的梦想是成为一名游戏开发者，创造有趣的游戏");
-                StartCoroutine(Frame8_HandleFollowUp());
-            }
-            else
-            {
-                Debug.LogWarning("Test Frame 8 requires Play Mode");
-            }
-        }
-
-        [ContextMenu("Test Frame 8 (Invalid Input)")]
-        private void TestFrame8Invalid()
-        {
-            if (Application.isPlaying)
-            {
-                inputState = new InputState();
-                inputState.SetInput("好的");
-                StartCoroutine(Frame8_HandleFollowUp());
-            }
-            else
-            {
-                Debug.LogWarning("Test Frame 8 requires Play Mode");
-            }
-        }
-#endif
-        #endregion
-
-        /// <summary>
-        /// Zenject 依赖注入完成后的回调
-        /// </summary>
-        public void InjectionComplete()
-        {
-            _logger.Info($"Frame7And8Controller dependencies injected: FlowController={_flowController != null}, DialogueSystem={_dialogueSystem != null}");
-        }
+        isWaitingForReInput = false;
     }
 }
