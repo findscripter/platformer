@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 489d762f3e8958647963e977da661730, type: 3}
+  m_Name: Card_Tower
+  m_EditorClassIdentifier: Assembly-CSharp::TarotCardData
+  cardId: Card_Tower
+  displayName: "\u5854"
+  tarotName: "\u5854"
+  cardFace: {fileID: 21300000, guid: cd147fcdf753cdc4f85dcecaa16db721, type: 3}
+  isMainCard: 0
