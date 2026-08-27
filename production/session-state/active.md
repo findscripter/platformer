@@ -1,6 +1,35 @@
 # 当前任务状态（供 /clear 后恢复上下文用）
 
-更新时间：2026-08-26（HUD/UI 实装完成：血量条 + 收集品计数 + 全场景中文字体）
+更新时间：2026-08-26（对话系统美术接入：金角饰横幅 + 中文字体修复）
+
+## ✅ 对话系统美术接入完成（2026-08-26，用户选「先2再1」）
+
+**范围：** 为对话 UI 接入 `Dialogue.png` 金角饰横幅 + 修复所有 UI.Text 中文字体（从
+LegacyRuntime 空壳改为 `dialogue_font.otf`）。
+
+**改动文件：**
+1. **`Assets/Game/Scripts/UI/DialogueUIArtIntegration.cs`（改）** —
+   - 新增泛型 `LoadAssetByGuid<T>` / `LoadAssetByPath<T>` 支持 Font/TMP_FontAsset 加载。
+   - 新增 `CacheFonts()` 缓存 `dialogue_font.otf`（GUID `aa708105bbd00994b8d6fe124993541f`）
+     和可选的 `dialogue_font_TMP.asset`（GUID `7e794ed8003821b4dac6b110719e0135`）。
+   - 新增 `FixAllFonts(root)` 遍历所有 `UI.Text` 和 `TMP_Text`，统一替换字体。
+   - `ApplyArt()` 调用顺序：`CacheFonts()` → 横幅 → HintDot → `FixAllFonts()`。
+   - 资源 GUID：横幅 `2033fe5a018fd9b45a37ec8c64c15755`、HintDot `41e0bc7119da43045b92e5f75de4d944`。
+
+**Play Mode 验证（通过）：**
+- DialoguePanel 下方金色装饰横条完整显示（1675×340 Sliced 9-patch）。
+- 8 个 UI.Text 全部接上 `dialogue_font`（0 个 NULL，0 个 LegacyRuntime 残留）。
+- HintDot 白色脉冲点正常显示在横幅左端。
+- 中文文本清晰渲染：右上角 "梦溢 0" + 对话框测试文本全部可读，无方块。
+- 截图：`Assets/Screenshots/dialogue_art_integration.png`。
+
+**技术细节：**
+- `LoadAssetByGuid<T>` 泛型方法支持 `Font` / `TMP_FontAsset` / `Sprite`，避免重复代码。
+- 字体加载失败时打 Warning 但不阻塞流程（降级显示白框好过崩溃）。
+- Editor 模式用 `AssetDatabase.GUIDToAssetPath` + `LoadAssetAtPath`；
+  Runtime 模式回退 `Resources.Load`（需资源在 Resources/ 文件夹）。
+
+---
 
 ## ✅ HUD/UI 实装完成（2026-08-26，本轮用户选「2 = HUD/UI 推进」）
 
