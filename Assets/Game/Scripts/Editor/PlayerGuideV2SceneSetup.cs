@@ -71,7 +71,6 @@ public static class PlayerGuideV2SceneSetup
         var smallBubblesView = v2Root.AddComponent<SmallBubblesView>();
 
         // === Frame 1-3: 梦境生成与梦泡 ===
-        var smallBubblesContainer = CreateSmallBubblesContainer(v2Root.transform);
         var smallBubblePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Game/Prefabs/PlayerGuide/SmallBubble.prefab");
         if (smallBubblePrefab == null)
         {
@@ -80,6 +79,8 @@ public static class PlayerGuideV2SceneSetup
         var dreamSpaceParticles = CreateParticleSystem(v2Root.transform, "DreamSpaceParticles");
         var backgroundGO = CreateBackgroundGroup(v2Root.transform, "BackgroundCanvasGroup");
         var mainBubble = CreateMainBubble(v2Root.transform);
+        // 容器必须在背景之后创建：UGUI 按子节点顺序渲染，容器排在不透明背景之前会被整块遮住
+        var smallBubblesContainer = CreateSmallBubblesContainer(v2Root.transform);
 
         // === Frame 4-5: 梦核与腓腓 ===
         var dreamCore = CreateDreamCore(v2Root.transform);
@@ -196,7 +197,40 @@ public static class PlayerGuideV2SceneSetup
         var btn = go.GetComponent<Button>();
         if (btn != null) btn.interactable = false;
 
-        go.AddComponent<MainBubbleView>();
+        // 创建 EchoText 子节点（Frame 3 残响台词显示）
+        var echoTextGO = new GameObject("EchoText");
+        echoTextGO.transform.SetParent(go.transform, false);
+        var echoRect = echoTextGO.AddComponent<RectTransform>();
+        echoRect.anchorMin = Vector2.zero;
+        echoRect.anchorMax = Vector2.one;
+        echoRect.sizeDelta = new Vector2(-40, -40);  // 内缩 20px 边距
+        echoRect.anchoredPosition = Vector2.zero;
+
+        var echoText = echoTextGO.AddComponent<TMP_Text>();
+        echoText.text = "";
+        echoText.fontSize = 28;
+        echoText.color = new Color(1f, 1f, 1f, 0f);  // 初始透明
+        echoText.alignment = TextAlignmentOptions.Center;
+        echoText.textWrappingMode = TextWrappingModes.Normal;
+
+        // 加载中文字体
+        var fontAsset = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Game/Art/source/dialogue_font SDF.asset");
+        if (fontAsset != null)
+        {
+            echoText.font = fontAsset;
+        }
+        else
+        {
+            Debug.LogWarning("  ⚠ 未找到 dialogue_font SDF.asset，EchoText 使用默认字体");
+        }
+
+        echoTextGO.SetActive(false);
+
+        // 添加 MainBubbleView 并通过反射接线 echoText
+        var mainBubbleView = go.AddComponent<MainBubbleView>();
+        var mainBubbleViewType = typeof(MainBubbleView);
+        var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        mainBubbleViewType.GetField("echoText", flags)?.SetValue(mainBubbleView, echoText);
 
         go.SetActive(false);
 

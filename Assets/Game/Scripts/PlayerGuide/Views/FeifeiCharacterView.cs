@@ -65,7 +65,7 @@ public class FeifeiCharacterView : MonoBehaviour
             }
         }
 
-        Debug.LogWarning($"[PlayerGuide] Animator parameter '{paramName}' (Bool) not found");
+        // Animator 参数不存在，静默跳过（腓腓目前只有 Idle 状态）
     }
 
     public void SafeSetTrigger(string paramName)
@@ -81,7 +81,7 @@ public class FeifeiCharacterView : MonoBehaviour
             }
         }
 
-        Debug.LogWarning($"[PlayerGuide] Animator parameter '{paramName}' (Trigger) not found");
+        // Animator 参数不存在，静默跳过（腓腓目前只有 Idle 状态）
     }
 
     public void SafePlayState(string stateName)
@@ -97,7 +97,7 @@ public class FeifeiCharacterView : MonoBehaviour
             }
         }
 
-        Debug.LogWarning($"[PlayerGuide] Animator state '{stateName}' not found");
+        // Animator 状态不存在，静默跳过（腓腓目前只有 Idle 状态）
     }
 
     private static float EaseOutCubic(float t)

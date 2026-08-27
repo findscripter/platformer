@@ -132,3 +132,6 @@ Desktop.ini
 # 素材清点时 agent 生成的深底合成预览图
 /美术资源/extracted/元件/_inspect/
 /美术资源/extracted/元件/*/\_preview/
+# Exclude verification screenshots (kept only in local working copy)
+Assets/Screenshots/
+

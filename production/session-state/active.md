@@ -1,6 +1,108 @@
 # 当前任务状态（供 /clear 后恢复上下文用）
 
-更新时间：2026-08-25（晚，已读取中断 session 的完整 JSONL 转录并纠正任务理解）
+更新时间：2026-08-26（HUD/UI 实装完成：血量条 + 收集品计数 + 全场景中文字体）
+
+## ✅ HUD/UI 实装完成（2026-08-26，本轮用户选「2 = HUD/UI 推进」）
+
+**范围（用户拍板）：** 只做「血量条 + 收集品计数」，不做能量条（无 energy 机制）、
+不做小地图（无房间/地图系统）；顺带修全场景中文字体。
+
+**新增/改动文件：**
+1. **`Assets/Game/Scripts/UI/GameplayHUDController.cs`（新建）** — 运行时自建 HUD，
+   挂在 Canvas_HUD 上（PersistentRoot 里唯一的空壳 Canvas），避免手工拼 YAML。
+   - 血量条：分段血格（S01/26 虹彩梦滴图标 + circle_sprite 发光圆片），
+     首次出现时 `RebuildHealthSegments(max)` 建格，之后每帧只改填充色不重建。
+     数据源 `PlayerController.CurrentHealth/MaxHealth`，显示 `"3/3"` 文本。
+   - 收集品计数：`CollectibleTracker`，显示 `"梦滴 N"`（**无假分母**——项目无
+     「目标总数」字段，`TotalValue` = 已收集价值之和 == CurrentCount）。
+   - 关键 GUID：字体 `7e794ed8003821b4dac6b110719e0135`（dialogue_font_TMP）、
+     血格图标 `d506798f8970fb645bec879362217bd6`（S01/26）、
+     圆片 `e79b4d6c863b4124e9f6b264f6d371cb`（circle_sprite）。
+   - 运行时 `FindAnyObjectByType<PlayerController>()` / `<CollectibleTracker>()` 自绑定。
+   - ⚠️ 坑：`new GameObject(name, typeof(TMP_Text))` 会挂抽象类导致 NRE，
+     必须 `typeof(TextMeshProUGUI)`（`TMP_Text` 是 abstract）。
+2. **`Assets/Game/Scripts/Managers/UIManager.cs`（改）** — `ShowGameplayUI()` 激活
+   gameplayPanel 后补挂 `GameplayHUDController`（`EnsureGameplayHUD`）。
+3. **`Assets/Game/Scenes/MainMenu.unity`（execute_code 改）** — 2 个 TMP
+   （设置/开始游戏）改指 dialogue_font_TMP；4 个 legacy Text 改 dialogue_font.otf。
+4. **`Assets/Game/Scripts/Managers/PersistentRoot.prefab`（execute_code 改）** —
+   8 个 legacy `UnityEngine.UI.Text` 从内置字体(10102)改 dialogue_font.otf。
+   验证：0 个 LiberationSans / 0 个内置 10102 残留。
+
+**Play Mode 冒烟验收（通过）：**
+- HUD 出现：`active=True | images=10 | texts=2 | HealthText="3/3" | CollectText="梦滴 0"`。
+- `player.TakeDamage(1)` → `HealthText="2/3"` + Fill_2 变暗 ✓。
+- `tracker.Collect(item, 1)` → `CollectText="梦滴 1"` ✓。
+- 零报错（仅一条既有 TMP importer 非阻塞 warning，与本改动无关）。
+- 截图：`Assets/Screenshots/hud_smoke_test.png`。
+
+**字体事实（已确认，供后续引用）：**
+- `menu_font.otf` 与 `dialogue_font.otf` md5 相同（`13a8a4ffe423a8f53eb48df78229a6b5`），
+  字体族 "XuandongKaishu"，导入为 legacy Font 供 `UnityEngine.UI.Text` 用。
+- `dialogue_font_TMP.asset` 是 Dynamic 模式 TMP 字体（同目录两个 134B 的
+  "SDF.asset" 是空壳，勿用）。
+- 用 headless `PrefabUtility.EditPrefabContentsScope` + `EditorSceneManager.OpenScene`
+  + execute_code 改字体，避免手工改 YAML。
+
+---
+
+## ✅ 塔罗抽牌流程试玩验收（2026-08-26，更早已完成）
+
+## ✅ 塔罗抽牌流程试玩验收（2026-08-26，三轮 Play Mode 实测）
+
+**逻辑全部通过**：Frame9 状态机 A→B→C→D→F→G 无卡死无报错；22 张扇形牌阵生成；
+首张固定翻应龙(07-chariot)✓；后三张顺序随机✓（实测顺序≠资产顺序）；已抽位置
+物理防重复（卡对象销毁）✓；结果写入 GameContext.TarotResult✓；自动
+ContinueToGameplay() 切教学关✓。测试法：反射调 TransitionToFrame 跳帧 +
+Button.onClick.Invoke() 模拟点击。
+
+**修复状态（2026-08-26 晚已修 1-3 并 Play Mode 复测通过）：**
+- Bug1 字体：场景 7 个 TMP 全部改指 `dialogue_font_TMP.asset`，已存 PlayerGuide.unity；
+  中文实拍验证 OK（tarot_fix_dialogue_cn_manual.png）。注意：字体只改了场景实例，
+  `PlayerGuideV2SceneSetup.cs` 未动（CLAUDE.md 禁改 Editor 脚本）——**若重新生成
+  场景会退回 LiberationSans**，届时需重新执行字体替换或获准改 setup 脚本。
+- Bug2 主牌：`TarotDrawController.MoveCardToMainSlot` 设 sprite 后补
+  `color=white + enabled=true`（运行时兜底，场景里 CardFace 仍是 disabled 初始态）。
+- Bug3 情绪槽：新增 `GetOrCreateSlotCardFace()`，找/建槽下独立子 CardFace
+  （preserveAspect），不再误写槽根深色底板。
+- 复测：真实鼠标游玩一整轮（用户亲点），主牌+3 情绪牌全部清晰显示
+  （tarot_fix_stateC_array.png），流程完整切到 Gameplay，TarotResult 正确。
+- 「全屏黄」截图是时序假象：MCP 截图延迟拍到跳帧前 Frame1/2 画面，全屏黄
+  = 梦境背景美术图（ChatGPT Image...png，alpha 渐显满）本身，非 bug。
+
+**第二批修复（2026-08-26 深夜，Bug4/5 也已修完并验证）：**
+- Bug4 槽位重叠：场景 MainCardSlot→(-270,330)、EmotionSlot1-3→(-90/90/270,330)，
+  四槽对称一排在中上方，与扇形牌阵（顶牌上缘≈208）完全分离。实拍验证 OK
+  （tarot_layout_two_cards.png）。
+- Bug5 G 态渐变：`SceneTransitionManager` 新增公共 `FadeToBlack(duration)`
+  （unscaledDeltaTime、从当前 alpha 续渐、结束保持黑屏+blocksRaycasts），
+  `TarotDrawController.State_G_FadeToLevel` 改调它（gameContext 缺失时回退
+  WaitForSeconds）。闭环：G 渐入黑 → ContinueToGameplay 的 ShowBlackImmediate
+  幂等接管 → LoadingState.PlayGameplayEnterFade 黑屏保持+淡出入场。
+  数值验证：FadeToBlack(10s) 启动 7.7s 后 alpha=0.77 精确线性 ✓。
+- 音效：项目内无任何音频资产（wav/mp3/ogg 全无），无法接入，TODO 保留。
+- 塔罗全部已知问题至此清零（除音效等资产依赖项）。
+
+**原始 bug 清单（1-5 已全修）：**
+1. **中文全豆腐块（P0）**：PlayerGuide 场景全部 7 个 TMP 文本用 LiberationSans SDF。
+   修复：换 `Assets/Game/Art/source/dialogue_font_TMP.asset`（Dynamic 模式中文字体，
+   已验证可用；同目录两个 134 字节 "SDF.asset" 是空壳勿用）。
+2. **主牌牌面不可见（P0）**：`PlayerGuideV2SceneSetup.cs:456` 建 CardFace 时
+   `enabled=false`，`TarotDrawController.MoveCardToMainSlot` 只设 sprite 不启用
+   → 抽完只见灰蓝底板。
+3. **情绪槽牌面被染黑（P1）**：EmotionSlot 无子 CardFace，
+   `TarotDrawController.cs:582` GetComponentInChildren 拿到槽根底板 Image
+   （color 0.2,0.2,0.3,0.6）→ 牌面暗色 60% 透明几乎不可见（截图实锤）。
+4. **槽位与牌阵重叠（P2）**：主槽(-300,100)/情绪槽(100..460,100) 与扇形顶部牌
+   (y≈130) 重叠。
+5. 已知 TODO：State G 无黑屏渐变（硬切）、全部音效未接。
+
+验收截图：`Assets/Screenshots/tarot_test_*.png`
+
+**新工具坑**：编辑器无焦点时 MCP 命令排队延迟 2-4s/次，短时窗口（如 F 态 3s）
+截图会错过；用 Time.timeScale 减速也不可靠——切场景后 PlayingState.Enter 会
+重置为 1。editor/state 的 playmode_transition phase 是误报，用 execute_code 读
+Time.frameCount 验证真实运行。
 
 ## 重要纠正：中断 session 的真实待办已查明并完成
 
@@ -62,11 +164,14 @@ API 400。用户没有要求做③（预制体）。
 - ✅ 收集品可见（虹彩梦滴）
 - ⚠️ Test_SpikeTrap 仍禁用（修复清单未含此项，保持原状）
 
-**UI 现状（仅体检，未修复）：**
+**UI 现状（已实装 HUD + 修字体）：**
 - ✅ 架构正常：PersistentRoot 预制体 6 Canvas，UIManager 5 面板引用齐全，
   运行时 Canvas_HUD/Dialogue 正确激活
-- ⚠️ HUD/菜单全是空壳占位（HealthBar/EnergyBar/CollectibleCounter/MiniMap 等
-  = 空 Transform 无视觉）；新导入的对话 UI 元件/菜单 BG/LOGO 均未接入
+- ✅ **HUD 已实装**：血量条（分段血格）+ 收集品计数，见顶部「HUD/UI 实装」小节。
+- ✅ 全场景中文字体已修：MainMenu + PersistentRoot 全部 TMP/legacy Text 改
+  dialogue_font（0 LiberationSans / 0 内置字体残留）。
+- ⚠️ 仍待接入：新导入的对话 UI 元件（`Art/UI/Dialogues/` Dialogue.png 横幅 +
+  Dialogues/0-4.png 标点）尚未接入 Dialogue 系统（下轮工作）；菜单 BG/LOGO 已接入。
 
 ## ⏸ 待办/阻塞
 
@@ -77,18 +182,20 @@ API 400。用户没有要求做③（预制体）。
      monster `*.png.meta`、`ArtAssetImporter.cs`/`PlayerAnimatorAssetSetup.cs` 路径修正、
      未跟踪 `FixPlayerAnimationSpriteScale.cs`/`FixPlayerScaleAndAnimation.cs`、
      截图 5 张、`元件分割综合.zip`、`美术资源/extracted/元件/{Dialogues,FX,Menu,S01,S02}/`
-   - 本 session：`ScenePackArtImporter.cs`、`GameplaySceneFixes.cs`、
+   - 本 session（含 HUD 轮）：`ScenePackArtImporter.cs`、`GameplaySceneFixes.cs`、
      `ParallaxLayer.cs`（加 snapToCameraOnStart）、`Assets/Game/Art/Scenes/**`、
      `Assets/Game/Art/UI/Dialogues/**`、`player_idle.anim`/`player_run.anim`（重建）、
      `idle/*.png.meta`（PPU 112）、`PatrolEnemy.prefab`、`CollectibleItem.prefab`、
      `Gameplay.unity`、`design/figma_storyboard_build_spec.md`、
-     `design/art_pack_manifest.md`、验收截图、本文件
+     `design/art_pack_manifest.md`、`GameplayHUDController.cs`（新）、`UIManager.cs`、
+     `MainMenu.unity`、`PersistentRoot.prefab`、验收截图、本文件
    - commit 需人类署名，不得含 AI 署名/Co-Authored-By（全局 CLAUDE.md 硬性要求）
 3. **需要你亲自 Play 验收**动画修复效果（我这边工具实测已通过，但角色大小/比例
    是否符合美术预期，最终要你看着定）。若觉得角色偏大/偏小，改 idle 文件夹 PPU
    （现 112，数字越大越小）+ 同步调 BoxCollider2D size 和 GroundCheck localY。
-4. **HUD/UI 实装**：全部空壳，新导入的对话 UI 元件（`Art/UI/Dialogues/`）、菜单
-   BG/LOGO 未接入。这是下一个大块工作。
+4. **对话 UI 元件接入（下轮）**：`Art/UI/Dialogues/` Dialogue.png 横幅 +
+   Dialogues/0-4.png 标点尚未接入 Dialogue 系统；能量条/小地图本轮明确不做
+   （无数据源）。
 
 ### 待清理（agent 留下的临时文件，rm 被权限拒绝）
 - `美术资源/extracted/元件/S02/_preview/`（13 张深底合成预览图）

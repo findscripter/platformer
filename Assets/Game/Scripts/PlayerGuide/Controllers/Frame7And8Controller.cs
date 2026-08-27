@@ -90,6 +90,9 @@ public class Frame7And8Controller
             }
             dialogueView.SetPanelActive(false);
 
+            // 追问后重新征询输入：面板必须先确保可见可交互，
+            // 否则 ActivateInputField 和提交按钮都作用在已关闭的对象上，下面的等待会永久挂起。
+            dreamInputView.EnsureVisible();
             dreamInputView.ClearAndActivate();
 
             isWaitingForReInput = true;

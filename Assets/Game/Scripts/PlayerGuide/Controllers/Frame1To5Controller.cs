@@ -55,6 +55,13 @@ public class Frame1To5Controller
                 view.SmallBubbleFloatAmplitude);
         }
 
+        // 主梦泡是 Frame 1 舞台的一部分（设计稿：中偏左 39%,45% 192px 蓝描边），
+        // 与小梦泡一同随背景淡入，不是 Frame 2 才凭空出现。
+        // 注意：MainBubble 是 BackgroundCanvasGroup 的兄弟节点而非子节点，
+        // 不会被背景的 CanvasGroup 带着淡入，必须自己跑一条同时长的淡入。
+        mainBubbleView.ShowAsStageElement();
+        coroutineHost.StartCoroutine(mainBubbleView.FadeIn(view.Frame1Duration));
+
         if (view.BackgroundCanvasGroup != null)
         {
             yield return backgroundView.FadeCanvasGroup(0f, 1f, view.Frame1Duration);
@@ -71,7 +78,9 @@ public class Frame1To5Controller
 
     public IEnumerator Frame2_MainBubbleAppear()
     {
-        yield return mainBubbleView.PlayAppearAnimation(0.5f);
+        // 设计稿 Frame 2「延续 Frame 1 布局，主梦泡放大强调」——
+        // 梦泡已在 Frame 1 显示，这里只做强调放大，不再从 0 缩放入场。
+        yield return mainBubbleView.PlayEmphasis(0.5f);
         mainBubbleView.EnableClick();
     }
 

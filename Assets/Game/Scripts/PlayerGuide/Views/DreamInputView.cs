@@ -51,6 +51,23 @@ public class DreamInputView : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 确保面板处于「玩家可见且可操作」状态。
+    /// ActivateInputField / onClick 对 inactive 的 GameObject 是空操作，
+    /// 重新征询输入前必须先把面板拉回来，否则等待提交会死锁。
+    /// </summary>
+    public void EnsureVisible()
+    {
+        SetPanelActive(true);
+
+        if (canvasGroup != null)
+        {
+            canvasGroup.alpha = 1f;
+            canvasGroup.interactable = true;
+            canvasGroup.blocksRaycasts = true;
+        }
+    }
+
     public void ClearAndActivate()
     {
         if (dreamInputField != null)

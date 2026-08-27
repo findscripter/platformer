@@ -221,6 +221,27 @@ public class PlayerGuideController : MonoBehaviour
         switch (previousFrame)
         {
             case GuideFrame.Frame1_DreamSpaceGeneration:
+                // 保留小梦泡作为背景装饰（设计稿：Frame 1-3 期间小梦泡持续漂浮）
+                // 粒子系统停止
+                if (view.DreamSpaceParticles != null)
+                {
+                    view.DreamSpaceParticles.Stop();
+                }
+                break;
+
+            case GuideFrame.Frame2_MainBubbleAppear:
+                // 只解绑交互，不隐藏梦泡：Frame 3 要震动它、Frame 4 才让它消散。
+                // 此处 SetActive(false) 会导致主梦泡在 Frame 2→3 之间闪一下。
+                mainBubbleView.OnClicked -= OnMainBubbleClicked;
+                mainBubbleView.DisableClick();
+                break;
+
+            case GuideFrame.Frame3_DreamEchoPlay:
+                backgroundView.StopDreamEcho();
+                break;
+
+            case GuideFrame.Frame4_BubbleDissolve:
+                // Frame 4 主梦泡消散时，同时清理背景小梦泡
                 if (view.SmallBubblesContainer != null)
                 {
                     foreach (Transform child in view.SmallBubblesContainer)
@@ -231,24 +252,6 @@ public class PlayerGuideController : MonoBehaviour
                         }
                     }
                 }
-                if (view.DreamSpaceParticles != null)
-                {
-                    view.DreamSpaceParticles.Stop();
-                }
-                break;
-
-            case GuideFrame.Frame2_MainBubbleAppear:
-                mainBubbleView.OnClicked -= OnMainBubbleClicked;
-                mainBubbleView.SetActive(false);
-                mainBubbleView.DisableClick();
-                break;
-
-            case GuideFrame.Frame3_DreamEchoPlay:
-                backgroundView.StopDreamEcho();
-                break;
-
-            case GuideFrame.Frame4_BubbleDissolve:
-                // Frame 4 自己会隐藏主梦泡，这里确保梦核保持显示
                 break;
 
             case GuideFrame.Frame5_FeifeiEnterWithCore:
@@ -260,6 +263,12 @@ public class PlayerGuideController : MonoBehaviour
                 break;
 
             case GuideFrame.Frame7_DreamInput:
+                // 只解绑提交，不隐藏面板：Frame 8 的追问分支还要让玩家重新输入。
+                // 此处 SetPanelActive(false) 会让 Frame 8 的 WaitUntil 永远等不到提交（死锁）。
+                // 面板由 Frame 8 自己在结尾淡出并关闭。
+                dreamInputView.UnbindSubmit();
+                break;
+
             case GuideFrame.Frame8_WriteDreamAndFollowUp:
                 dreamInputView.SetPanelActive(false);
                 dreamInputView.UnbindSubmit();

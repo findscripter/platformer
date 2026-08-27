@@ -37,6 +37,7 @@ public class TarotDrawController : MonoBehaviour
     [SerializeField] private TMP_Text dialogueSpeakerText;
     [SerializeField] private TMP_Text dialogueContentText;
     [SerializeField] private CanvasGroup dialogueCanvasGroup;
+    [SerializeField] private GameObject continueIndicator;
 
     [Header("卡牌 UI")]
     [SerializeField] private GameObject cardArrayContainer;
@@ -61,12 +62,16 @@ public class TarotDrawController : MonoBehaviour
     [SerializeField] private float cardFlipDuration = 0.3f;
     [SerializeField] private float cardMoveDuration = 0.5f;
     [Tooltip("主牌放大后的停顿时长（设计稿：约 0.6s）")]
-    [SerializeField] private float mainCardEmphasisHold = 0.6f;
+    [SerializeField] private float mainCardEmphasisHold = 0.3f;
     [Tooltip("四张展示保持时长（设计稿：1.2-1.5s）")]
     [SerializeField] private float stateFDisplayDuration = 1.35f;
     [Tooltip("剩余 18 张牌淡出时长（设计稿：0.3s）")]
     [SerializeField] private float remainingFadeDuration = 0.3f;
     [SerializeField] private float stateGFadeDuration = 1.5f;
+    [Tooltip("省略号呼吸速度")]
+    [SerializeField] private float indicatorPulseSpeed = 1.5f;
+    [Tooltip("省略号最低透明度")]
+    [SerializeField] private float indicatorMinAlpha = 0.3f;
 
     #endregion
 
@@ -84,6 +89,11 @@ public class TarotDrawController : MonoBehaviour
 
     /// <summary>已被抽走的牌阵下标，用于防止重复点击同一张牌。</summary>
     private readonly List<int> drawnCardIndices = new();
+
+    /// <summary>输入缓冲队列：动画期间的点击会缓存在这里，下次等待时优先消费。</summary>
+    private readonly Queue<int> pendingClicks = new();
+
+    private Coroutine indicatorPulseRoutine;
 
     // 状态 A 的 4 行对话
     private readonly string[] stateADialogues = new[]
@@ -208,6 +218,9 @@ public class TarotDrawController : MonoBehaviour
         if (dialogueSpeakerText != null)
             dialogueSpeakerText.text = "腓腓";
 
+        // 启动省略号呼吸动画（表示还有后续台词）
+        indicatorPulseRoutine = StartCoroutine(PulseContinueIndicator());
+
         // 播放 4 行对话
         foreach (string line in stateADialogues)
         {
@@ -224,6 +237,15 @@ public class TarotDrawController : MonoBehaviour
 
     private IEnumerator State_B_FadeOutDialogue()
     {
+        // 停止省略号呼吸
+        if (indicatorPulseRoutine != null)
+        {
+            StopCoroutine(indicatorPulseRoutine);
+            indicatorPulseRoutine = null;
+        }
+        if (continueIndicator != null)
+            continueIndicator.SetActive(false);
+
         // 腓腓和对话淡出
         if (dialogueCanvasGroup != null)
         {
@@ -350,24 +372,120 @@ public class TarotDrawController : MonoBehaviour
             // 旋转朝向中心
             cardObj.transform.localRotation = Quaternion.Euler(0f, 0f, -angle);
 
-            // 绑定点击事件
-            int index = i;
+            // 移除单个卡牌的 Button（改用全屏响应区，避免热区冲突）
             Button btn = cardObj.GetComponent<Button>();
             if (btn != null)
             {
-                btn.onClick.AddListener(() => OnCardClicked(index));
+                Destroy(btn);
             }
         }
+
+        // 创建全屏透明 Button 作为点击响应区（设计稿：点任意牌翻出固定牌）
+        SetupFullscreenClickArea();
+    }
+
+    /// <summary>
+    /// 在 cardArrayContainer 上创建全屏透明 Button，点击任意位置触发抽牌
+    /// </summary>
+    private void SetupFullscreenClickArea()
+    {
+        if (cardArrayContainer == null)
+            return;
+
+        // 检查是否已存在
+        Transform existingArea = cardArrayContainer.transform.Find("FullscreenClickArea");
+        if (existingArea != null)
+            Destroy(existingArea.gameObject);
+
+        // 创建全屏透明 GameObject
+        GameObject clickArea = new GameObject("FullscreenClickArea");
+        clickArea.transform.SetParent(cardArrayContainer.transform, false);
+
+        RectTransform rect = clickArea.AddComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.sizeDelta = Vector2.zero;
+        rect.anchoredPosition = Vector2.zero;
+
+        // 添加透明 Image（Button 需要 Graphic 才能接收 raycast）
+        Image img = clickArea.AddComponent<Image>();
+        img.color = new Color(0, 0, 0, 0);  // 完全透明
+        img.raycastTarget = true;
+
+        // 添加 Button
+        Button btn = clickArea.AddComponent<Button>();
+        btn.transition = Selectable.Transition.None;  // 无视觉反馈（已在卡牌本身实现）
+
+        // 绑定点击事件：点任意位置触发随机一张牌
+        btn.onClick.AddListener(() =>
+        {
+            if (!isWaitingForCardClick)
+            {
+                // 动画期间点击，缓冲到队列（已在 OnCardClicked 实现）
+                int randomIndex = GetRandomUndrawnCardIndex();
+                OnCardClicked(randomIndex);
+            }
+            else
+            {
+                // 正常等待期，随机选一张未抽过的牌
+                int randomIndex = GetRandomUndrawnCardIndex();
+                OnCardClicked(randomIndex);
+            }
+        });
+
+        // 将点击区放到最底层（Z-order），避免遮挡卡牌的视觉反馈
+        clickArea.transform.SetAsFirstSibling();
+    }
+
+    /// <summary>
+    /// 随机选择一张未被抽走的牌的索引
+    /// </summary>
+    private int GetRandomUndrawnCardIndex()
+    {
+        List<int> availableIndices = new List<int>();
+        for (int i = 0; i < arrayCardCount; i++)
+        {
+            if (!drawnCardIndices.Contains(i))
+                availableIndices.Add(i);
+        }
+
+        if (availableIndices.Count == 0)
+            return 0;  // 全部抽完时返回第一张（理论上不会发生）
+
+        return availableIndices[Random.Range(0, availableIndices.Count)];
     }
 
     private void OnCardClicked(int index)
     {
-        if (!isWaitingForCardClick)
-            return;
-
         // 已被抽走的位置不可再点（设计稿程序需求：防止重复点击）
         if (drawnCardIndices.Contains(index))
             return;
+
+        // 如果当前不在等待点击状态（动画播放中），缓冲这次点击
+        if (!isWaitingForCardClick)
+        {
+            // 避免重复缓冲同一张牌，且最多缓冲 3 张（后三张情绪牌）
+            if (!pendingClicks.Contains(index) && pendingClicks.Count < 3)
+            {
+                pendingClicks.Enqueue(index);
+                // 给缓冲的点击一个轻微的视觉反馈
+                if (index >= 0 && index < instantiatedCards.Count)
+                {
+                    var card = instantiatedCards[index];
+                    if (card != null)
+                        StartCoroutine(QuickPunchScale(card.transform, 0.15f));
+                }
+            }
+            return;
+        }
+
+        // 即时视觉反馈：缩放动画
+        if (index >= 0 && index < instantiatedCards.Count)
+        {
+            var card = instantiatedCards[index];
+            if (card != null)
+                StartCoroutine(QuickPunchScale(card.transform, 0.1f));
+        }
 
         clickedCardIndex = index;
         isWaitingForCardClick = false;
@@ -395,6 +513,7 @@ public class TarotDrawController : MonoBehaviour
         while (elapsed < cardFlipDuration)
         {
             float t = elapsed / cardFlipDuration;
+            t = EaseOutCubic(t);  // 添加缓动，避免线性插值的生硬感
             cardTransform.localRotation = Quaternion.Lerp(startRot, endRot, t);
 
             // 中点切换图片
@@ -439,10 +558,12 @@ public class TarotDrawController : MonoBehaviour
             yield return null;
         }
 
-        // 将卡牌图片复制到主卡槽
+        // 将卡牌图片复制到主卡槽（场景搭建时 CardFace 默认禁用，此处必须显式启用）
         if (mainCardImage != null && selectedMainCard != null && selectedMainCard.CardFace != null)
         {
             mainCardImage.sprite = selectedMainCard.CardFace;
+            mainCardImage.color = Color.white;
+            mainCardImage.enabled = true;
         }
 
         // 销毁临时卡牌对象，并在列表中置空，避免后续淡出访问已销毁对象
@@ -525,10 +646,18 @@ public class TarotDrawController : MonoBehaviour
         // 依次等待玩家点击三张未抽过的牌
         for (int slot = 0; slot < 3; slot++)
         {
-            isWaitingForCardClick = true;
-            clickedCardIndex = -1;
-
-            yield return new WaitUntil(() => !isWaitingForCardClick);
+            // 优先从缓冲队列取点击
+            if (pendingClicks.Count > 0)
+            {
+                clickedCardIndex = pendingClicks.Dequeue();
+            }
+            else
+            {
+                // 队列空时才等待新点击
+                isWaitingForCardClick = true;
+                clickedCardIndex = -1;
+                yield return new WaitUntil(() => !isWaitingForCardClick);
+            }
 
             int index = clickedCardIndex;
             drawnCardIndices.Add(index);
@@ -578,15 +707,42 @@ public class TarotDrawController : MonoBehaviour
             yield return null;
         }
 
-        // 槽位承接牌面，避免临时牌残留在牌阵父节点下影响后续淡出
-        var slotImage = slot.GetComponentInChildren<Image>();
+        // 槽位承接牌面，避免临时牌残留在牌阵父节点下影响后续淡出。
+        // 不能用 GetComponentInChildren：会先命中槽根自己的深色底板 Image，
+        // 牌面会被底板颜色染暗，必须写到独立的子 CardFace 上。
+        var slotImage = GetOrCreateSlotCardFace(slot);
         if (slotImage != null && cardData != null && cardData.CardFace != null)
         {
             slotImage.sprite = cardData.CardFace;
+            slotImage.color = Color.white;
+            slotImage.enabled = true;
         }
 
         instantiatedCards[index] = null;
         Destroy(cardObj);
+    }
+
+    /// <summary>
+    /// 取槽位下名为 CardFace 的子 Image（跳过槽根底板）；场景里没有就补建一个。
+    /// </summary>
+    private Image GetOrCreateSlotCardFace(Transform slot)
+    {
+        Transform face = slot.Find("CardFace");
+        if (face == null)
+        {
+            var faceObj = new GameObject("CardFace", typeof(RectTransform));
+            face = faceObj.transform;
+            face.SetParent(slot, false);
+            var faceRect = (RectTransform)face;
+            faceRect.anchorMin = Vector2.zero;
+            faceRect.anchorMax = Vector2.one;
+            faceRect.sizeDelta = Vector2.zero;
+            var img = faceObj.AddComponent<Image>();
+            img.preserveAspect = true;
+            return img;
+        }
+
+        return face.GetComponent<Image>();
     }
 
     #endregion
@@ -615,8 +771,16 @@ public class TarotDrawController : MonoBehaviour
 
     private IEnumerator State_G_FadeToLevel()
     {
-        // TODO: 调用 SceneTransitionManager.FadeOut(stateGFadeDuration)
-        yield return new WaitForSeconds(stateGFadeDuration);
+        // 渐入黑屏后再切关；黑屏由 ContinueToGameplay → Loading 的入场淡出接管
+        var transitionManager = gameContext != null ? gameContext.SceneTransitionManager : null;
+        if (transitionManager != null)
+        {
+            yield return transitionManager.FadeToBlack(stateGFadeDuration);
+        }
+        else
+        {
+            yield return new WaitForSeconds(stateGFadeDuration);
+        }
 
         // 加载教学关
         if (GameLoop.Instance != null)
@@ -635,6 +799,29 @@ public class TarotDrawController : MonoBehaviour
             panel.SetActive(active);
     }
 
+    /// <summary>
+    /// 即时反馈：快速缩放动画（punch scale），用于点击反馈。
+    /// </summary>
+    private IEnumerator QuickPunchScale(Transform target, float duration)
+    {
+        if (target == null)
+            yield break;
+
+        Vector3 originalScale = target.localScale;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            float scale = Mathf.Lerp(0.9f, 1f, EaseOutCubic(t));
+            target.localScale = originalScale * scale;
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        target.localScale = originalScale;
+    }
+
     private IEnumerator FadeCanvasGroup(CanvasGroup group, float from, float to, float duration)
     {
         if (group == null)
@@ -650,11 +837,40 @@ public class TarotDrawController : MonoBehaviour
         }
 
         group.alpha = to;
+
+        // 自动同步 blocksRaycasts 和 interactable，避免隐形遮罩层
+        group.blocksRaycasts = (to > 0f);
+        group.interactable = (to > 0f);
     }
 
     private float EaseOutCubic(float t)
     {
         return 1f - Mathf.Pow(1f - t, 3f);
+    }
+
+    /// <summary>
+    /// 省略号提示点的呼吸循环，表示腓腓还有后续台词。
+    /// 由调用方 StopCoroutine 终止，终止后需自行隐藏 continueIndicator。
+    /// </summary>
+    private IEnumerator PulseContinueIndicator()
+    {
+        if (continueIndicator == null)
+            yield break;
+
+        var image = continueIndicator.GetComponent<Image>();
+        if (image == null)
+            yield break;
+
+        continueIndicator.SetActive(true);
+
+        while (true)
+        {
+            float t = Mathf.PingPong(Time.time * indicatorPulseSpeed, 1f);
+            Color color = image.color;
+            color.a = Mathf.Lerp(indicatorMinAlpha, 1f, t);
+            image.color = color;
+            yield return null;
+        }
     }
 
     #endregion
