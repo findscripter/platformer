@@ -84,7 +84,7 @@ public static class Frame6DialogueSetup
         // 6-6
         segments[5] = new Frame6DialogueConfig.DialogueSegment
         {
-            text = "如果你还记得。",
+            text = "如果你还记得那场梦。",
             suggestedDuration = 1.3f,
             feifeiAnimation = "LookAtPlayer",
             coreGlowIntensity = 0.5f,
@@ -94,7 +94,7 @@ public static class Frame6DialogueSetup
         // 6-7
         segments[6] = new Frame6DialogueConfig.DialogueSegment
         {
-            text = "我们一起去看看，它到底想告诉你什么。",
+            text = "我们就从那里开始吧。",
             suggestedDuration = 2.1f,
             feifeiAnimation = "Smile",
             coreGlowIntensity = 0.8f,

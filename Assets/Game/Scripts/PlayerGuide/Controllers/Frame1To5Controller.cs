@@ -46,13 +46,12 @@ public class Frame1To5Controller
 
         if (view.SmallBubblesContainer != null && view.SmallBubblePrefab != null)
         {
-            smallBubblesView.SpawnSmallBubbles(
+            smallBubblesView.SpawnFigmaLayout(
                 view.SmallBubblesContainer,
                 view.SmallBubblePrefab,
-                view.SmallBubbleCount,
-                view.SmallBubbleSizeRange,
                 view.SmallBubbleFloatSpeed,
                 view.SmallBubbleFloatAmplitude);
+            coroutineHost.StartCoroutine(smallBubblesView.FadeInContainer(view.SmallBubblesContainer, view.Frame1Duration));
         }
 
         // 主梦泡是 Frame 1 舞台的一部分（设计稿：中偏左 39%,45% 192px 蓝描边），
@@ -60,6 +59,7 @@ public class Frame1To5Controller
         // 注意：MainBubble 是 BackgroundCanvasGroup 的兄弟节点而非子节点，
         // 不会被背景的 CanvasGroup 带着淡入，必须自己跑一条同时长的淡入。
         mainBubbleView.ShowAsStageElement();
+        mainBubbleView.DisableClick();
         coroutineHost.StartCoroutine(mainBubbleView.FadeIn(view.Frame1Duration));
 
         if (view.BackgroundCanvasGroup != null)
@@ -78,9 +78,12 @@ public class Frame1To5Controller
 
     public IEnumerator Frame2_MainBubbleAppear()
     {
-        // 设计稿 Frame 2「延续 Frame 1 布局，主梦泡放大强调」——
-        // 梦泡已在 Frame 1 显示，这里只做强调放大，不再从 0 缩放入场。
+        // 设计稿 Frame 2「延续 Frame 1 布局，主梦泡放大强调，其余小梦泡淡化」
+        if (view.SmallBubblesContainer != null)
+            yield return smallBubblesView.DimAll(view.SmallBubblesContainer, 0.35f, 0.4f);
+
         yield return mainBubbleView.PlayEmphasis(0.5f);
+        mainBubbleView.ShowClickHint(true);
         mainBubbleView.EnableClick();
     }
 
@@ -97,9 +100,8 @@ public class Frame1To5Controller
             if (elapsedSinceLastHint >= nextHintTime && !hintActive)
             {
                 coroutineHost.StartCoroutine(mainBubbleView.PlayHintGlow(view.Frame2HintGlowIntensity));
+                GuideSfx.PlayHint();
                 hintActive = true;
-
-                // TODO: 播放提示音效
 
                 elapsedSinceLastHint = 0f;
                 nextHintTime = view.Frame2HintDelayRepeat;
@@ -131,14 +133,15 @@ public class Frame1To5Controller
             yield return mainBubbleView.PlayDissolve(view.Frame4DissolveDuration);
         }
 
-        // TODO: 播放音效 "bubble_dissolve"
+        GuideSfx.PlayWhoosh();
 
         backgroundView.SetBackgroundSprite(view.DreamBackgroundSpriteLate);
 
         if (view.DreamCoreObject != null)
         {
             dreamCoreView.SetActive(true);
-            yield return dreamCoreView.FadeIn(1.5f);
+            dreamCoreView.ApplyFigmaSize();
+            yield return dreamCoreView.FadeIn(0.35f);
         }
 
         yield return new WaitForSeconds(view.Frame4CoreStabilizeDuration);
@@ -163,16 +166,16 @@ public class Frame1To5Controller
 
         feifeiView.SafeSetBool("IsWalking", false);
 
-        // TODO: 停止脚步声
-
-        yield return new WaitForSeconds(0.5f);
-
         feifeiView.SafeSetTrigger("PickUpCore");
 
         // TODO: 播放拾取音效 "core_pickup"
 
         yield return new WaitForSeconds(view.Frame5PickupDuration);
+        GuideSfx.PlayPickup();
+        if (view.FeifeiCharacter != null)
+            dreamCoreView.AttachTo(view.FeifeiCharacter.transform, new Vector2(42f, 18f));
 
-        yield return new WaitForSeconds(1f);
+        yield return feifeiView.PlayTailSweep(view.Frame5TailDuration);
+        yield return dreamCoreView.CalmFromAgitated(0.4f);
     }
 }

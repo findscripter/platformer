@@ -8,6 +8,7 @@ public enum GameStateType
     PlayerDead,//玩家死亡
     Respawning,//复活
     LevelClear,//关卡完成
+    EchoSpace,//通关后独立梦境回响空间（Figma Frame 10）
     Result,//结果
     Dialogue,//对话
 }

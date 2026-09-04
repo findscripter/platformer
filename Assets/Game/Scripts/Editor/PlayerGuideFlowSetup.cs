@@ -18,9 +18,9 @@ public static class PlayerGuideFlowSetup
     private const string GachaNodeName = "gacha_node";
     private const string DialogBoxName = "dialog_box";
 
-    private const string FeifeiTextPath = "Assets/Game/player_guide/text_feifei.asset";
-    private const string InputTextPath = "Assets/Game/player_guide/text_input.asset";
-    private const string GachaTextPath = "Assets/Game/player_guide/text_gacha.asset";
+    private const string FeifeiTextPath = "Assets/Game/Configs/PlayerGuide/text_feifei.asset";
+    private const string InputTextPath = "Assets/Game/Configs/PlayerGuide/text_input.asset";
+    private const string GachaTextPath = "Assets/Game/Configs/PlayerGuide/text_gacha.asset";
 
     [MenuItem("Tools/UI/Wire Player Guide Flow")]
     public static void WireFromMenu()
@@ -135,7 +135,7 @@ public static class PlayerGuideFlowSetup
         SequentialTextConfig gachaText = AssetDatabase.LoadAssetAtPath<SequentialTextConfig>(GachaTextPath);
         if (feifeiText == null || inputText == null || gachaText == null)
         {
-            message = "Could not load one or more SequentialTextConfig assets in Assets/Game/player_guide/.";
+            message = "Could not load one or more SequentialTextConfig assets in Assets/Game/Configs/PlayerGuide/.";
             return false;
         }
 

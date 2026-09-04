@@ -451,6 +451,7 @@ public class GameLoop : MonoBehaviour
         stateMachine.RegisterState(GameStateType.PlayerDead, new PlayerDeadState(context));
         stateMachine.RegisterState(GameStateType.Respawning, new RespawnState(context));
         stateMachine.RegisterState(GameStateType.LevelClear, new LevelClearState(context));
+        stateMachine.RegisterState(GameStateType.EchoSpace, new EchoSpaceState(context));
         stateMachine.RegisterState(GameStateType.Result, new ResultState(context));
         stateMachine.RegisterState(GameStateType.Dialogue, new DialogueState(context));
     }

@@ -9,7 +9,7 @@ using UnityEngine;
 public static class ArtAssetImporter
 {
     private const string SourceRoot = "E:/腾讯gamejam/美术资源/extracted";
-    private const string TargetRoot = "Assets/Art";
+    private const string TargetRoot = "Assets/Game/Art";
 
     [MenuItem("Tools/GameJam/1. Import Art Assets")]
     public static void ImportAll()
@@ -33,16 +33,8 @@ public static class ArtAssetImporter
 
     private static void CreateDirectoryStructure()
     {
-        Directory.CreateDirectory(Path.Combine(Application.dataPath, "Art"));
-        Directory.CreateDirectory(Path.Combine(Application.dataPath, "Art/Characters"));
-        Directory.CreateDirectory(Path.Combine(Application.dataPath, "Art/Characters/Player"));
-        Directory.CreateDirectory(Path.Combine(Application.dataPath, "Art/Characters/Monster"));
-        Directory.CreateDirectory(Path.Combine(Application.dataPath, "Art/Characters/Feifei"));
-        Directory.CreateDirectory(Path.Combine(Application.dataPath, "Art/UI"));
-        Directory.CreateDirectory(Path.Combine(Application.dataPath, "Art/VFX"));
-        Directory.CreateDirectory(Path.Combine(Application.dataPath, "Art/Environment"));
-
-        Debug.Log("✓ 目录结构创建完成");
+        // Live art already lives under Assets/Game/Art. Do not recreate Assets/Art.
+        Debug.Log("✓ 使用现有 Assets/Game/Art 目录");
     }
 
     private static void ImportCharacterAnimations()
@@ -52,39 +44,39 @@ public static class ArtAssetImporter
         // 玩家动画
         CopyAnimationFrames(
             Path.Combine(SourceRoot, "关键帧/关键帧/角色/待机"),
-            "Assets/Art/Characters/Player/Idle"
+            "Assets/Game/Art/Characters/player/idle"
         );
         CopyAnimationFrames(
             Path.Combine(SourceRoot, "关键帧/关键帧/角色/走路"),
-            "Assets/Art/Characters/Player/Walk"
+            "Assets/Game/Art/Characters/player/walk"
         );
         CopyAnimationFrames(
             Path.Combine(SourceRoot, "关键帧/关键帧/角色/跑步"),
-            "Assets/Art/Characters/Player/Run"
+            "Assets/Game/Art/Characters/player/run"
         );
         CopyAnimationFrames(
             Path.Combine(SourceRoot, "关键帧/关键帧/角色/跳跃"),
-            "Assets/Art/Characters/Player/Jump"
+            "Assets/Game/Art/Characters/player/jump"
         );
         CopyAnimationFrames(
             Path.Combine(SourceRoot, "关键帧/关键帧/角色/攻击"),
-            "Assets/Art/Characters/Player/Attack"
+            "Assets/Game/Art/Characters/player/attack"
         );
 
         // 怪物动画
         CopyAnimationFrames(
             Path.Combine(SourceRoot, "关键帧/关键帧/怪物/走路"),
-            "Assets/Art/Characters/Monster/Walk"
+            "Assets/Game/Art/Characters/monster/walk"
         );
         CopyAnimationFrames(
             Path.Combine(SourceRoot, "关键帧/关键帧/怪物/受击"),
-            "Assets/Art/Characters/Monster/Hit"
+            "Assets/Game/Art/Characters/monster/hit"
         );
 
         // 腓腓动画
         CopyAnimationFrames(
             Path.Combine(SourceRoot, "关键帧/关键帧/腓腓/待机"),
-            "Assets/Art/Characters/Feifei/Idle"
+            "Assets/Game/Art/Characters/feifei_idle"
         );
 
         Debug.Log("✓ 角色动画序列帧导入完成");
@@ -96,11 +88,11 @@ public static class ArtAssetImporter
 
         CopySingleFile(
             Path.Combine(SourceRoot, "元件/dialogues.png"),
-            "Assets/Art/UI/dialogues.png"
+            "Assets/Game/Art/UI/dialogues.png"
         );
         CopySingleFile(
             Path.Combine(SourceRoot, "元件/DR 元件.png"),
-            "Assets/Art/UI/DR_Elements.png"
+            "Assets/Game/Art/UI/DR_Elements.png"
         );
 
         Debug.Log("✓ UI元件导入完成");
@@ -112,15 +104,15 @@ public static class ArtAssetImporter
 
         CopySingleFile(
             Path.Combine(SourceRoot, "元件/Mist FX.png"),
-            "Assets/Art/VFX/MistFX.png"
+            "Assets/Game/Art/Effects/Mist FX.png"
         );
         CopySingleFile(
             Path.Combine(SourceRoot, "元件/Mist FX2.png"),
-            "Assets/Art/VFX/MistFX2.png"
+            "Assets/Game/Art/Effects/Mist FX2.png"
         );
         CopySingleFile(
             Path.Combine(SourceRoot, "元件/Wave FX.png"),
-            "Assets/Art/VFX/WaveFX.png"
+            "Assets/Game/Art/Effects/Wave FX.png"
         );
 
         Debug.Log("✓ 特效资源导入完成");
@@ -132,7 +124,7 @@ public static class ArtAssetImporter
 
         CopySingleFile(
             Path.Combine(SourceRoot, "元件/场景参考.png"),
-            "Assets/Art/Environment/SceneReference.png"
+            "Assets/Game/Art/Reference/场景参考.png"
         );
 
         Debug.Log("✓ 场景参考导入完成");
@@ -202,7 +194,7 @@ public static class ArtAssetImporter
             FilterMode.Point, TextureImporterCompression.Uncompressed, 100);
         ConfigureSpritesInFolder("Assets/Game/Art/Characters/monster", TextureImporterType.Sprite,
             FilterMode.Point, TextureImporterCompression.Uncompressed, 100);
-        ConfigureSpritesInFolder("Assets/Art/Characters/Feifei", TextureImporterType.Sprite,
+        ConfigureSpritesInFolder("Assets/Game/Art/Characters/feifei_idle", TextureImporterType.Sprite,
             FilterMode.Point, TextureImporterCompression.Uncompressed, 100);
 
         Debug.Log("✓ 动画Sprite配置完成");
@@ -215,8 +207,8 @@ public static class ArtAssetImporter
         // UI元件 - Multiple模式，允许切分
         var uiFiles = new[]
         {
-            "Assets/Art/UI/dialogues.png",
-            "Assets/Art/UI/DR_Elements.png"
+            "Assets/Game/Art/UI/dialogues.png",
+            "Assets/Game/Art/UI/DR_Elements.png"
         };
 
         foreach (var path in uiFiles)
@@ -246,7 +238,7 @@ public static class ArtAssetImporter
     {
         Debug.Log("配置VFX Sprite...");
 
-        ConfigureSpritesInFolder("Assets/Art/VFX", TextureImporterType.Sprite,
+        ConfigureSpritesInFolder("Assets/Game/Art/Effects", TextureImporterType.Sprite,
             FilterMode.Bilinear, TextureImporterCompression.Uncompressed, 100);
 
         Debug.Log("✓ VFX Sprite配置完成");

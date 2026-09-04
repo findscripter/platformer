@@ -17,13 +17,22 @@ public sealed class PlayerAnimationStateController : MonoBehaviour
     private const string LandingClipResourcePath = "Player/PlayerLanding";
     private const string AttackClipResourcePath = "Player/PlayerAttack";
     private static readonly int StateParameter = Animator.StringToHash("State");
+    private static readonly int[] StateHashes =
+    {
+        Animator.StringToHash("Idle"),
+        Animator.StringToHash("Run"),
+        Animator.StringToHash("Jump Up"),
+        Animator.StringToHash("Jump Down"),
+        Animator.StringToHash("Landing"),
+        Animator.StringToHash("Attack")
+    };
 
     [Header("Animation")]
     [SerializeField] private Animator animator;
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField, Min(0f)] private float movementThreshold = 0.05f;
     [SerializeField, Min(0f)] private float verticalThreshold = 0.05f;
-    [SerializeField, Min(0f)] private float minimumAirborneTime = 0.08f;
+    [SerializeField, Min(0f)] private float minimumAirborneTime = 0.12f;
 
     private PlayerController player;
     private Rigidbody2D rb;
@@ -32,7 +41,7 @@ public sealed class PlayerAnimationStateController : MonoBehaviour
     private bool hasValidAirbornePhase;
     private float airborneTime;
     private float landingTimeRemaining;
-    private float landingClipLength = 0.5f;
+    private float landingClipLength = 0.15f;
     private float landingFrameDuration = 1f / 12f;
     private bool attackLocked;
     private float attackTimeRemaining;
@@ -196,7 +205,11 @@ public sealed class PlayerAnimationStateController : MonoBehaviour
 
         if (animator != null && animator.runtimeAnimatorController != null)
         {
-            animator.SetInteger(StateParameter, (int)currentState);
+            int stateIndex = (int)currentState;
+            animator.SetInteger(StateParameter, stateIndex);
+            // Sprite clips cannot blend. Snap to the new state at time 0 so
+            // one-shots (jump / land / attack) never resume mid-clip.
+            animator.Play(StateHashes[stateIndex], 0, 0f);
         }
     }
 

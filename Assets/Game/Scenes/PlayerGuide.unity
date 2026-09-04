@@ -5974,10 +5974,10 @@ MonoBehaviour:
   mainCardSlot: {fileID: 1368504127}
   mainCardImage: {fileID: 1769815574}
   arrayCardCount: 22
-  arrayFanAngle: 150
-  arrayRadius: 560
-  arrayVerticalOffset: -430
-  arrayCardSize: {x: 96, y: 155}
+  arrayFanAngle: 30
+  arrayRadius: 700
+  arrayVerticalOffset: -980
+  arrayCardSize: {x: 120, y: 200}
   emotionCardSlots:
   - {fileID: 841364068}
   - {fileID: 1160187775}
@@ -5989,7 +5989,7 @@ MonoBehaviour:
   mainCardEmphasisHold: 0.6
   stateFDisplayDuration: 1.35
   remainingFadeDuration: 0.3
-  stateGFadeDuration: 1.5
+  stateGFadeDuration: 0.5
   indicatorPulseSpeed: 1.5
   indicatorMinAlpha: 0.3
 --- !u!114 &788960327
@@ -9331,12 +9331,13 @@ MonoBehaviour:
   tarotController: {fileID: 788960326}
   coreResponseDuration: 2
   fadeOutDuration: 1
-  frame1Duration: 3.5
+  frame1Duration: 2.5
   frame3Duration: 2.5
   frame4DissolveDuration: 2
   frame4CoreStabilizeDuration: 0.5
-  frame5WalkDuration: 3
-  frame5PickupDuration: 1.5
+  frame5WalkDuration: 1.5
+  frame5PickupDuration: 1
+  frame5TailDuration: 1
 --- !u!114 &1655164676
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9395,7 +9396,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 800, y: 0}
-  m_SizeDelta: {x: 200, y: 400}
+  m_SizeDelta: {x: 240, y: 240}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1675414576
 MonoBehaviour:
@@ -10398,7 +10399,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 150, y: 150}
+  m_SizeDelta: {x: 72, y: 96}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2041714578
 MonoBehaviour:
@@ -10436,7 +10437,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: d506798f8970fb645bec879362217bd6, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1

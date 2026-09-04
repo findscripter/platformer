@@ -13,7 +13,7 @@ public sealed class PatrolEnemy : MonoBehaviour
     [Header("Combat")]
     [SerializeField, Min(1)] private int maxHealth = 3;
     [SerializeField, Min(1)] private int contactDamage = 1;
-    [SerializeField, Min(0f)] private float hitStunDuration = 1.2f;
+    [SerializeField, Min(0f)] private float hitStunDuration = 0.45f;
 
     private static readonly int IsHitParameter = Animator.StringToHash("isHit");
 

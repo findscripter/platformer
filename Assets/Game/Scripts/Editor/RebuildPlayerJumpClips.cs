@@ -1,8 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
@@ -10,16 +7,13 @@ using UnityEngine;
 /// 重建玩家跳跃动画 clips（player_up / player_down / PlayerLanding），修复卡顿和姿势不连续：
 /// - player_up: 帧 1-4 @ 8fps（覆盖 0.505s 上升段），不循环
 /// - player_down: 帧 5-7 @ 6fps（覆盖 0.510s 下落段），不循环
-/// - PlayerLanding: 帧 8 + idle/1 @ 12fps（0.167s 触地→站姿过渡），不循环
+/// - PlayerLanding: 仅帧 8，0.15s，不循环
 /// 原理：jump/1-8.png 是一条连贯弧线（1蓄力 2-3起跳展裙 4-5顶点收腿 6-7下落伸腿 8触地），
 /// 旧 clip 切分错误（up=1-2循环抖动，down=3单帧静止，landing=4-8空中姿势当落地）。
 /// 物理测算：jumpForce=5 m/s，gravity=-9.81 m/s²，上升 0.505s，下落 0.510s。
 /// </summary>
 public static class RebuildPlayerJumpClips
 {
-    private const string JumpFolder = "Assets/Game/Art/Characters/player/jump";
-    private const string IdleFolder = "Assets/Game/Art/Characters/player/idle";
-
     // 调查 workflow 返回的 jump 帧 guid（顺序：1-8.png）
     private static readonly string[] JumpGuids = {
         "7fa4b936f9d8fed4d9227d3e57cb8dac", // 1.png
@@ -35,14 +29,6 @@ public static class RebuildPlayerJumpClips
     [MenuItem("Tools/GameJam/12. Rebuild Player Jump Clips")]
     public static void Run()
     {
-        // 取 idle/1.png 的 guid（落地最后一帧回到站姿过渡）
-        var idleGuid = GetTextureGuid($"{IdleFolder}/1.png");
-        if (string.IsNullOrEmpty(idleGuid))
-        {
-            Debug.LogError("idle/1.png guid 未找到");
-            return;
-        }
-
         // player_up: 帧 1-4 @ 8fps（0.5秒覆盖 0.505s 上升），不循环
         WriteClip("Assets/Game/Resources/Player/player_up.anim",
                   new[] { JumpGuids[0], JumpGuids[1], JumpGuids[2], JumpGuids[3] },
@@ -53,24 +39,23 @@ public static class RebuildPlayerJumpClips
                   new[] { JumpGuids[4], JumpGuids[5], JumpGuids[6] },
                   6f, false, "player_down");
 
-        // PlayerLanding: 帧 8 + idle/1 @ 12fps（0.167s 触地→站姿），不循环
+        // PlayerLanding: 仅触地帧 8，停在 0.15s，避免把空中姿势当落地播
         WriteClip("Assets/Game/Resources/Player/PlayerLanding.anim",
-                  new[] { JumpGuids[7], idleGuid },
-                  12f, false, "PlayerLanding");
+                  new[] { JumpGuids[7] },
+                  12f, false, "PlayerLanding", 0.15f);
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log("✓ player_up / player_down / PlayerLanding 已重建（新帧序列 + 精确帧率）");
     }
 
-    private static string GetTextureGuid(string path)
-    {
-        var meta = File.ReadAllText(path + ".meta");
-        var m = Regex.Match(meta, @"guid:\s*(\w+)");
-        return m.Success ? m.Groups[1].Value : null;
-    }
-
-    private static void WriteClip(string clipPath, string[] guids, float fps, bool loop, string clipName)
+    private static void WriteClip(
+        string clipPath,
+        string[] guids,
+        float fps,
+        bool loop,
+        string clipName,
+        float? stopTimeOverride = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine("%YAML 1.1");
@@ -137,7 +122,7 @@ public static class RebuildPlayerJumpClips
         sb.AppendLine("    m_AdditiveReferencePoseClip: {fileID: 0}");
         sb.AppendLine("    m_AdditiveReferencePoseTime: 0");
         sb.AppendLine("    m_StartTime: 0");
-        var stopTime = (guids.Length - 1) / fps;
+        var stopTime = stopTimeOverride ?? (guids.Length / fps);
         sb.AppendLine($"    m_StopTime: {stopTime}");
         sb.AppendLine("    m_OrientationOffsetY: 0");
         sb.AppendLine("    m_Level: 0");

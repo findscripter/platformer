@@ -1,8 +1,9 @@
+using System.Collections;
+
 public class LevelClearState : IGameState
 {
     private readonly GameContext context;
-
-    private const float ClearDuration = 1.0f;
+    private bool handedOff;
 
     public LevelClearState(GameContext context)
     {
@@ -12,23 +13,18 @@ public class LevelClearState : IGameState
     public void Enter()
     {
         context.InputManager.DisableAllInput();
-
-        context.Player.StopMovement();
-        context.UIManager.ShowResult();
-        context.InputManager.EnableUIInput();
+        if (context.Player != null)
+            context.Player.StopMovement();
 
         context.LevelClearTimer = 0f;
         context.IsLevelClear = true;
+        handedOff = false;
+
+        context.GameLoop.StartCoroutine(FadeThenEcho());
     }
 
     public void Update(float deltaTime)
     {
-        context.LevelClearTimer += deltaTime;
-
-        if (context.LevelClearTimer >= ClearDuration)
-        {
-            context.StateMachine.ChangeState(GameStateType.Result);
-        }
     }
 
     public void FixedUpdate(float fixedDeltaTime)
@@ -37,5 +33,19 @@ public class LevelClearState : IGameState
 
     public void Exit()
     {
+    }
+
+    private IEnumerator FadeThenEcho()
+    {
+        if (handedOff)
+            yield break;
+
+        handedOff = true;
+
+        var transition = context.SceneTransitionManager;
+        if (transition != null)
+            yield return transition.FadeToBlack(0.5f);
+
+        context.StateMachine.ChangeState(GameStateType.EchoSpace);
     }
 }

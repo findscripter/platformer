@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// PlayerGuide 主状态机控制器 - 完整 10 帧流程。
@@ -63,7 +64,13 @@ public class PlayerGuideController : MonoBehaviour
             bool advance = false;
             if (gameContext != null && gameContext.InputManager != null)
             {
-                advance = gameContext.InputManager.ConfirmPressed;
+                advance = gameContext.InputManager.ConfirmPressed
+                    || gameContext.InputManager.InteractPressed;
+            }
+
+            if (!advance && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                advance = true;
             }
 
             if (advance)
@@ -102,6 +109,7 @@ public class PlayerGuideController : MonoBehaviour
         CleanupPreviousFrame(guideState.CurrentFrame);
 
         guideState.CurrentFrame = frame;
+        PrepareStage(frame);
         Debug.Log($"[PlayerGuide] Entering {frame}");
 
         switch (frame)
@@ -166,6 +174,7 @@ public class PlayerGuideController : MonoBehaviour
     {
         mainBubbleView.OnClicked -= OnMainBubbleClicked;
         mainBubbleView.DisableClick();
+        GuideSfx.PlayClick();
         TransitionToFrame(GuideFrame.Frame3_DreamEchoPlay);
     }
 
@@ -216,6 +225,42 @@ public class PlayerGuideController : MonoBehaviour
         yield return frame9And10Controller.Frame10_CoreResponseAndEnd();
     }
 
+    /// <summary>
+    /// 每帧只保留当前该出现的层，避免写梦/塔罗/对白叠在一起。
+    /// </summary>
+    private void PrepareStage(GuideFrame frame)
+    {
+        switch (frame)
+        {
+            case GuideFrame.Frame6_FirstMeetingDialogue:
+                dreamInputView.SetPanelActive(false);
+                tarotView.SetPanelActive(false);
+                feifeiView.SetMeetingLayout();
+                break;
+
+            case GuideFrame.Frame7_DreamInput:
+            case GuideFrame.Frame8_WriteDreamAndFollowUp:
+                dialogueView.SetPanelActive(false);
+                dialogueView.ShowPlayerStandIn(false);
+                tarotView.SetPanelActive(false);
+                dreamCoreView.SetActive(false);
+                feifeiView.SetCompanionLayout();
+                if (view.InputPanel != null)
+                    view.InputPanel.transform.SetAsLastSibling();
+                break;
+
+            case GuideFrame.Frame9_TarotDrawing:
+                dialogueView.SetPanelActive(false);
+                dialogueView.ShowPlayerStandIn(false);
+                dreamInputView.SetPanelActive(false);
+                dreamCoreView.SetActive(false);
+                feifeiView.SetActive(false);
+                if (view.TarotPanel != null)
+                    view.TarotPanel.transform.SetAsLastSibling();
+                break;
+        }
+    }
+
     private void CleanupPreviousFrame(GuideFrame previousFrame)
     {
         switch (previousFrame)
@@ -234,6 +279,7 @@ public class PlayerGuideController : MonoBehaviour
                 // 此处 SetActive(false) 会导致主梦泡在 Frame 2→3 之间闪一下。
                 mainBubbleView.OnClicked -= OnMainBubbleClicked;
                 mainBubbleView.DisableClick();
+                mainBubbleView.ShowClickHint(false);
                 break;
 
             case GuideFrame.Frame3_DreamEchoPlay:

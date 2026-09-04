@@ -1,6 +1,7 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Frame 6/8 对话面板视图。
@@ -37,6 +38,28 @@ public class DialogueView : MonoBehaviour
         }
     }
 
+    /// <summary>逐字显示，约 0.05s/字；空文本立即返回。</summary>
+    public IEnumerator PlayTypewriter(string content, float secondsPerChar)
+    {
+        if (contentText == null)
+            yield break;
+
+        if (string.IsNullOrEmpty(content) || secondsPerChar <= 0f)
+        {
+            contentText.text = content ?? string.Empty;
+            yield break;
+        }
+
+        contentText.text = string.Empty;
+        for (int i = 0; i < content.Length; i++)
+        {
+            contentText.text = content.Substring(0, i + 1);
+            yield return new WaitForSeconds(secondsPerChar);
+        }
+
+        contentText.text = content;
+    }
+
     public IEnumerator FadeIn(float duration)
     {
         yield return FadeCanvasGroup(0f, 1f, duration);
@@ -45,6 +68,47 @@ public class DialogueView : MonoBehaviour
     public IEnumerator FadeOut(float duration)
     {
         yield return FadeCanvasGroup(1f, 0f, duration);
+    }
+
+    /// <summary>Figma Frame 7：左下玩家占位 180–220px。</summary>
+    public void ShowPlayerStandIn(bool visible)
+    {
+        if (dialoguePanel == null)
+            return;
+
+        Transform parent = dialoguePanel.transform.parent != null ? dialoguePanel.transform.parent : dialoguePanel.transform;
+        Transform existing = parent.Find("PlayerStandIn");
+        if (existing == null)
+            existing = dialoguePanel.transform.Find("PlayerStandIn");
+        if (!visible)
+        {
+            if (existing != null)
+                existing.gameObject.SetActive(false);
+            return;
+        }
+
+        GameObject go = existing != null ? existing.gameObject : new GameObject("PlayerStandIn", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        if (existing == null)
+            go.transform.SetParent(parent, false);
+
+        var rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = rect.anchorMax = new Vector2(0.16f, 0.42f);
+        rect.sizeDelta = new Vector2(200f, 220f);
+        rect.anchoredPosition = Vector2.zero;
+
+        var image = go.GetComponent<Image>();
+        var player = GuideArt.PlayerIdle;
+        if (player != null)
+            image.sprite = player;
+        image.color = Color.white;
+        image.preserveAspect = true;
+        image.raycastTarget = false;
+
+        Transform labelTf = go.transform.Find("Label");
+        if (labelTf != null)
+            labelTf.gameObject.SetActive(false);
+
+        go.SetActive(true);
     }
 
     private IEnumerator FadeCanvasGroup(float from, float to, float duration)

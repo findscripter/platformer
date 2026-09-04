@@ -47,18 +47,11 @@ public class BackgroundView : MonoBehaviour
 
     public void PlayDreamEcho()
     {
-        if (dreamEchoAudioSource != null && dreamEchoAudioSource.clip != null)
-        {
-            dreamEchoAudioSource.volume = 0.7f;
-            dreamEchoAudioSource.Play();
-        }
+        GuideSfx.PlayWind(dreamEchoAudioSource);
     }
 
     public void StopDreamEcho()
     {
-        if (dreamEchoAudioSource != null && dreamEchoAudioSource.isPlaying)
-        {
-            dreamEchoAudioSource.Stop();
-        }
+        GuideSfx.StopWind(dreamEchoAudioSource);
     }
 }

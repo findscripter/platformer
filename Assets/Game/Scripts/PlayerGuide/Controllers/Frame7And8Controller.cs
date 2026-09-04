@@ -2,9 +2,8 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Frame 7-8 控制器：输入梦 → 写梦与必要补问。
-/// 忠实复刻 PlayerGuideFlowControllerV2.Frame7_DreamInputRoutine / Frame8_WriteDreamRoutine，
-/// 并复用已有的 DreamInputValidator 判定逻辑（不重新发明校验规则）。
+/// Frame 7-8：同一问话框写梦与必要补问。
+/// Figma：状态 A 写下梦境；仅当意象/情绪不足时原位切到状态 B 补问一次，不销毁 UI。
 /// </summary>
 public class Frame7And8Controller
 {
@@ -34,13 +33,13 @@ public class Frame7And8Controller
     public IEnumerator Frame7_DreamInput()
     {
         dreamInputView.SetPanelActive(true);
+        dreamInputView.ShowWriteState();
 
         if (view.InputCanvasGroup != null)
         {
             yield return dreamInputView.FadeIn(0.3f);
         }
 
-        dreamInputView.SetPlaceholder("写下你的梦境...");
         dreamInputView.ClearAndActivate();
 
         isWaitingForSubmit = true;
@@ -73,26 +72,8 @@ public class Frame7And8Controller
         {
             inputState.IsInFollowUpState = true;
 
-            dialogueView.SetPanelActive(true);
-            if (view.DialogueCanvasGroup != null)
-            {
-                yield return dialogueView.FadeIn(0.3f);
-            }
-
-            dialogueView.SetSpeaker("腓腓");
-            dialogueView.SetContent("能再多说一点吗？");
-
-            yield return new WaitForSeconds(2f);
-
-            if (view.DialogueCanvasGroup != null)
-            {
-                yield return dialogueView.FadeOut(0.3f);
-            }
-            dialogueView.SetPanelActive(false);
-
-            // 追问后重新征询输入：面板必须先确保可见可交互，
-            // 否则 ActivateInputField 和提交按钮都作用在已关闭的对象上，下面的等待会永久挂起。
             dreamInputView.EnsureVisible();
+            dreamInputView.ShowFollowUpState(userInput);
             dreamInputView.ClearAndActivate();
 
             isWaitingForReInput = true;
@@ -117,7 +98,10 @@ public class Frame7And8Controller
         string newInput = dreamInputView.GetInputText();
         if (gameContext != null)
         {
-            gameContext.PlayerDreamInput = newInput;
+            string original = gameContext.PlayerDreamInput ?? string.Empty;
+            gameContext.PlayerDreamInput = string.IsNullOrWhiteSpace(original)
+                ? newInput
+                : original + " / " + newInput;
         }
         isWaitingForReInput = false;
     }

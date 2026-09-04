@@ -15,6 +15,10 @@ public class MainBubbleView : MonoBehaviour
     [SerializeField] private Button mainBubbleButton;
     [SerializeField] private TMP_Text echoText;
 
+    [Header("Frame 1 舞台")]
+    [SerializeField] private Vector2 stageSize = new Vector2(192f, 192f);
+    [SerializeField] private Vector2 stageNorm = new Vector2(0.39f, 0.45f);
+
     [Header("Frame 2 强调")]
     [Tooltip("Frame 2 主梦泡放大强调的目标倍率（设计稿：延续 Frame 1 布局，放大强调）")]
     [SerializeField] private float emphasisScale = 1.15f;
@@ -27,12 +31,37 @@ public class MainBubbleView : MonoBehaviour
 
     public event Action OnClicked;
 
+    private RectTransform clickHint;
+
+    private float EmphasisScale => emphasisScale > 1f ? emphasisScale : 1.15f;
+
     private void OnDestroy()
     {
         if (mainBubbleButton != null)
         {
             mainBubbleButton.onClick.RemoveListener(HandleClicked);
         }
+    }
+
+    /// <summary>
+    /// Figma Frame 1：主梦泡中偏左 39%/45%，192×192，蓝描边强调色由预制体承担。
+    /// </summary>
+    public void ApplyFigmaStagePlacement()
+    {
+        if (mainBubbleVisual == null)
+            return;
+
+        var rect = mainBubbleVisual.transform as RectTransform;
+        if (rect == null)
+            return;
+
+        var parent = rect.parent as RectTransform;
+        float width = parent != null ? Mathf.Max(1f, parent.rect.width) : 1920f;
+        float height = parent != null ? Mathf.Max(1f, parent.rect.height) : 1080f;
+        rect.sizeDelta = stageSize.x > 0f ? stageSize : new Vector2(192f, 192f);
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = new Vector2((stageNorm.x - 0.5f) * width, (0.5f - stageNorm.y) * height);
     }
 
     public void SetActive(bool active)
@@ -54,6 +83,8 @@ public class MainBubbleView : MonoBehaviour
 
         mainBubbleVisual.gameObject.SetActive(true);
         mainBubbleVisual.transform.localScale = Vector3.one;
+        ApplyFigmaStagePlacement();
+        EnsureEchoText();
 
         var parentImage = mainBubbleVisual.GetComponent<Image>();
         if (parentImage != null)
@@ -134,7 +165,7 @@ public class MainBubbleView : MonoBehaviour
 
         Transform target = mainBubbleVisual.transform;
         Vector3 from = target.localScale;
-        Vector3 to = Vector3.one * emphasisScale;
+        Vector3 to = Vector3.one * EmphasisScale;
 
         float elapsed = 0f;
         while (elapsed < duration)
@@ -172,20 +203,38 @@ public class MainBubbleView : MonoBehaviour
         OnClicked?.Invoke();
     }
 
+    public void ShowClickHint(bool visible)
+    {
+        EnsureClickHint();
+        if (clickHint != null)
+            clickHint.gameObject.SetActive(visible);
+    }
+
     public IEnumerator PlayHintGlow(float glowIntensity)
     {
         if (mainBubbleVisual == null) yield break;
 
+        Image bubbleImage = mainBubbleVisual.GetComponentInChildren<Image>();
+        Color originalColor = bubbleImage != null ? bubbleImage.color : Color.white;
+        float bright = glowIntensity > 1f ? glowIntensity : 1.3f;
+        Color lit = new Color(
+            Mathf.Min(1f, originalColor.r * bright),
+            Mathf.Min(1f, originalColor.g * bright),
+            Mathf.Min(1f, originalColor.b * bright),
+            originalColor.a);
+
         Transform bubbleTransform = mainBubbleVisual.transform;
         Vector3 originalScale = bubbleTransform.localScale;
-        Vector3 targetScale = originalScale * glowIntensity;
+        Vector3 targetScale = originalScale * 1.06f;
 
         float elapsed = 0f;
-        float duration = 0.3f;
+        float duration = 0.35f;
         while (elapsed < duration)
         {
             float t = elapsed / duration;
             bubbleTransform.localScale = Vector3.Lerp(originalScale, targetScale, t);
+            if (bubbleImage != null)
+                bubbleImage.color = Color.Lerp(originalColor, lit, t);
             elapsed += Time.deltaTime;
             yield return null;
         }
@@ -195,11 +244,15 @@ public class MainBubbleView : MonoBehaviour
         {
             float t = elapsed / duration;
             bubbleTransform.localScale = Vector3.Lerp(targetScale, originalScale, t);
+            if (bubbleImage != null)
+                bubbleImage.color = Color.Lerp(lit, originalColor, t);
             elapsed += Time.deltaTime;
             yield return null;
         }
 
         bubbleTransform.localScale = originalScale;
+        if (bubbleImage != null)
+            bubbleImage.color = originalColor;
     }
 
     public IEnumerator PlayVibration(float duration)
@@ -207,12 +260,22 @@ public class MainBubbleView : MonoBehaviour
         if (mainBubbleVisual == null)
             yield break;
 
+        ShowClickHint(false);
+        EnsureEchoText();
+        Image silhouette = EnsureEchoSilhouette();
+
         // 显示台词
         if (echoText != null)
         {
             echoText.text = $"{echoDialogue}\n{echoSoundNote}";
             echoText.gameObject.SetActive(true);
             yield return FadeText(echoText, 0f, 1f, echoFadeInDuration);
+        }
+
+        if (silhouette != null)
+        {
+            silhouette.gameObject.SetActive(true);
+            yield return FadeGraphic(silhouette, 0f, 0.55f, 0.35f);
         }
 
         // 衰减震动（残响效果）
@@ -246,11 +309,38 @@ public class MainBubbleView : MonoBehaviour
 
         bubbleTransform.localScale = originalScale;
 
+        if (silhouette != null)
+        {
+            yield return FadeGraphic(silhouette, silhouette.color.a, 0f, echoFadeOutDuration);
+            silhouette.gameObject.SetActive(false);
+        }
+
         // 确保文本已隐藏
         if (echoText != null)
         {
             echoText.gameObject.SetActive(false);
         }
+    }
+
+    private IEnumerator FadeGraphic(Graphic graphic, float from, float to, float duration)
+    {
+        if (graphic == null)
+            yield break;
+
+        Color color = graphic.color;
+        color.a = from;
+        graphic.color = color;
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            color.a = Mathf.Lerp(from, to, elapsed / duration);
+            graphic.color = color;
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        color.a = to;
+        graphic.color = color;
     }
 
     /// <summary>
@@ -307,6 +397,121 @@ public class MainBubbleView : MonoBehaviour
         }
 
         mainBubbleVisual.gameObject.SetActive(false);
+    }
+
+    private void EnsureEchoText()
+    {
+        if (echoText != null)
+            return;
+
+        if (mainBubbleVisual == null)
+            return;
+
+        var existing = mainBubbleVisual.transform.Find("EchoText");
+        GameObject textGo;
+        if (existing != null)
+        {
+            textGo = existing.gameObject;
+        }
+        else
+        {
+            textGo = new GameObject("EchoText", typeof(RectTransform));
+            textGo.transform.SetParent(mainBubbleVisual.transform, false);
+            var rect = textGo.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.05f, 0.2f);
+            rect.anchorMax = new Vector2(0.95f, 0.8f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        echoText = textGo.GetComponent<TMP_Text>();
+        if (echoText == null)
+            echoText = textGo.AddComponent<TextMeshProUGUI>();
+
+        echoText.fontSize = 28;
+        echoText.alignment = TextAlignmentOptions.Center;
+        echoText.textWrappingMode = TextWrappingModes.Normal;
+        echoText.color = new Color(0.15f, 0.15f, 0.18f, 0f);
+        echoText.raycastTarget = false;
+        GuideUiFont.Apply(echoText);
+        textGo.SetActive(false);
+    }
+
+    private Image EnsureEchoSilhouette()
+    {
+        if (mainBubbleVisual == null)
+            return null;
+
+        Transform existing = mainBubbleVisual.transform.Find("EchoSilhouette");
+        GameObject go = existing != null ? existing.gameObject : new GameObject("EchoSilhouette", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        if (existing == null)
+            go.transform.SetParent(mainBubbleVisual.transform, false);
+
+        var rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.18f, 0.12f);
+        rect.anchorMax = new Vector2(0.82f, 0.78f);
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        var image = go.GetComponent<Image>();
+        var monster = GuideArt.MonsterWalk;
+        image.sprite = monster != null ? monster : GuideArt.PlayerIdle;
+        image.preserveAspect = true;
+        image.color = new Color(0.18f, 0.16f, 0.22f, 0f);
+        image.raycastTarget = false;
+
+        Transform playerGhost = go.transform.Find("PlayerGhost");
+        if (playerGhost == null && GuideArt.PlayerIdle != null)
+        {
+            var ghost = new GameObject("PlayerGhost", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            ghost.transform.SetParent(go.transform, false);
+            var ghostRect = ghost.GetComponent<RectTransform>();
+            ghostRect.anchorMin = new Vector2(0.55f, 0.05f);
+            ghostRect.anchorMax = new Vector2(0.98f, 0.7f);
+            ghostRect.offsetMin = Vector2.zero;
+            ghostRect.offsetMax = Vector2.zero;
+            var ghostImage = ghost.GetComponent<Image>();
+            ghostImage.sprite = GuideArt.PlayerIdle;
+            ghostImage.preserveAspect = true;
+            ghostImage.color = new Color(0.12f, 0.12f, 0.14f, 0.55f);
+            ghostImage.raycastTarget = false;
+        }
+
+        go.transform.SetAsFirstSibling();
+        go.SetActive(false);
+        return image;
+    }
+
+    private void EnsureClickHint()
+    {
+        if (clickHint != null || mainBubbleVisual == null)
+            return;
+
+        var existing = mainBubbleVisual.transform.Find("ClickHint");
+        GameObject go;
+        if (existing != null)
+        {
+            go = existing.gameObject;
+        }
+        else
+        {
+            go = new GameObject("ClickHint", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            go.transform.SetParent(mainBubbleVisual.transform, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.08f);
+            rect.sizeDelta = new Vector2(22f, 22f);
+            rect.anchoredPosition = Vector2.zero;
+            var image = go.GetComponent<Image>();
+            var hint = GuideArt.HintDot;
+            if (hint != null)
+                image.sprite = hint;
+            image.color = Color.white;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+        }
+
+        clickHint = go.GetComponent<RectTransform>();
+        go.SetActive(false);
     }
 
     private static float EaseOutCubic(float t)

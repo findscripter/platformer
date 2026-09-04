@@ -94,7 +94,7 @@ public static class PlayerGuideGameplaySetup
         spriteRenderer.sortingOrder = 0;
 
         // 尝试加载第一帧Idle动画作为默认显示
-        var idleSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Characters/Player/Idle/1.png");
+        var idleSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Game/Art/Characters/player/idle/1.png");
         if (idleSprite != null)
         {
             spriteRenderer.sprite = idleSprite;
@@ -291,7 +291,7 @@ public static class PlayerGuideGameplaySetup
         spriteRenderer.sortingOrder = 0;
 
         // 尝试加载腓腓Idle动画第一帧
-        var feifeiSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Characters/Feifei/Idle/1.png");
+        var feifeiSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Game/Art/Characters/feifei_idle/1.png");
         if (feifeiSprite != null)
         {
             spriteRenderer.sprite = feifeiSprite;

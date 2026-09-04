@@ -135,3 +135,7 @@ Desktop.ini
 # Exclude verification screenshots (kept only in local working copy)
 Assets/Screenshots/
 
+
+# Play Mode verification shots (not Unity textures)
+/production/screenshots/
+

@@ -38,12 +38,12 @@ MonoBehaviour:
     feifeiAnimation: Sad
     coreGlowIntensity: 0.4
     playCoreRipple: 0
-  - text: "\u5982\u679C\u4F60\u8FD8\u8BB0\u5F97\u3002"
+  - text: "\u5982\u679C\u4F60\u8FD8\u8BB0\u5F97\u90A3\u573A\u68A6\u3002"
     suggestedDuration: 1.3
     feifeiAnimation: LookAtPlayer
     coreGlowIntensity: 0.5
     playCoreRipple: 0
-  - text: "\u6211\u4EEC\u4E00\u8D77\u53BB\u770B\u770B\uFF0C\u5B83\u5230\u5E95\u60F3\u544A\u8BC9\u4F60\u4EC0\u4E48\u3002"
+  - text: "\u6211\u4EEC\u5C31\u4ECE\u90A3\u91CC\u5F00\u59CB\u5427\u3002"
     suggestedDuration: 2.1
     feifeiAnimation: Smile
     coreGlowIntensity: 0.8

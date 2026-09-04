@@ -40,6 +40,9 @@ public class Frame6DialogueController
         }
 
         dialogueView.SetPanelActive(true);
+        dialogueView.ShowPlayerStandIn(true);
+        if (view.DialoguePanel != null)
+            view.DialoguePanel.transform.SetAsLastSibling();
 
         if (gameContext != null && gameContext.InputManager != null)
         {
@@ -58,6 +61,7 @@ public class Frame6DialogueController
             yield return dialogueView.FadeOut(0.3f);
         }
         dialogueView.SetPanelActive(false);
+        dialogueView.ShowPlayerStandIn(false);
 
         if (gameContext != null && gameContext.InputManager != null)
         {
@@ -81,7 +85,7 @@ public class Frame6DialogueController
         }
 
         dialogueView.SetSpeaker("腓腓");
-        dialogueView.SetContent(segment.text);
+        yield return dialogueView.PlayTypewriter(segment.text, 0.05f);
 
         feifeiView.SafePlayState(segment.feifeiAnimation);
 
@@ -90,16 +94,16 @@ public class Frame6DialogueController
             dreamCoreView.SetGlowAlpha(segment.coreGlowIntensity);
         }
 
-        // TODO: 梦核涟漪效果
         if (segment.playCoreRipple)
         {
-            // dreamCoreView.PlayCoreRippleEffect();
+            yield return dreamCoreView.PlayRipple();
         }
 
         dialogueState.IsWaitingForDialogueAdvance = true;
         float elapsed = 0f;
+        float hold = Mathf.Max(0.4f, segment.suggestedDuration);
 
-        while (dialogueState.IsWaitingForDialogueAdvance && elapsed < segment.suggestedDuration)
+        while (dialogueState.IsWaitingForDialogueAdvance && elapsed < hold)
         {
             elapsed += Time.deltaTime;
             yield return null;

@@ -57,12 +57,13 @@ public class PlayerGuideView : MonoBehaviour
     [SerializeField] private float fadeOutDuration = 1f;
 
     [Header("时长配置")]
-    [SerializeField] private float frame1Duration = 3.5f;
+    [SerializeField] private float frame1Duration = 2.5f;
     [SerializeField] private float frame3Duration = 2.5f;
     [SerializeField] private float frame4DissolveDuration = 2f;
     [SerializeField] private float frame4CoreStabilizeDuration = 0.5f;
-    [SerializeField] private float frame5WalkDuration = 3f;
-    [SerializeField] private float frame5PickupDuration = 1.5f;
+    [SerializeField] private float frame5WalkDuration = 1.5f;
+    [SerializeField] private float frame5PickupDuration = 1f;
+    [SerializeField] private float frame5TailDuration = 1f;
 
     public Transform SmallBubblesContainer => smallBubblesContainer;
     public GameObject SmallBubblePrefab => smallBubblePrefab;
@@ -105,10 +106,11 @@ public class PlayerGuideView : MonoBehaviour
     public float CoreResponseDuration => coreResponseDuration;
     public float FadeOutDuration => fadeOutDuration;
 
-    public float Frame1Duration => frame1Duration;
-    public float Frame3Duration => frame3Duration;
-    public float Frame4DissolveDuration => frame4DissolveDuration;
-    public float Frame4CoreStabilizeDuration => frame4CoreStabilizeDuration;
-    public float Frame5WalkDuration => frame5WalkDuration;
-    public float Frame5PickupDuration => frame5PickupDuration;
+    public float Frame1Duration => frame1Duration > 0f ? frame1Duration : 2.5f;
+    public float Frame3Duration => frame3Duration > 0f ? frame3Duration : 2.5f;
+    public float Frame4DissolveDuration => frame4DissolveDuration > 0f ? frame4DissolveDuration : 2f;
+    public float Frame4CoreStabilizeDuration => frame4CoreStabilizeDuration > 0f ? frame4CoreStabilizeDuration : 0.5f;
+    public float Frame5WalkDuration => frame5WalkDuration > 0f ? frame5WalkDuration : 1.5f;
+    public float Frame5PickupDuration => frame5PickupDuration > 0f ? frame5PickupDuration : 1f;
+    public float Frame5TailDuration => frame5TailDuration > 0f ? frame5TailDuration : 1f;
 }

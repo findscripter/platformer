@@ -6,7 +6,7 @@ using UnityEngine.UI;
 public static class InteractionFrameworkSetup
 {
     private const string PersistentRootPrefabPath =
-        "Assets/Game/Scripts/Managers/PersistentRoot.prefab";
+        "Assets/Game/Prefabs/Managers/PersistentRoot.prefab";
 
     [MenuItem("Tools/Platformer/Setup Interaction Framework")]
     public static void SetupFromMenu()

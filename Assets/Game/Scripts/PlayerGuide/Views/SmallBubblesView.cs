@@ -8,7 +8,31 @@ using UnityEngine;
 /// </summary>
 public class SmallBubblesView : MonoBehaviour
 {
+    /// <summary>
+    /// Figma Frame 1 小梦泡归一化位置（原点左上，对应 1920×1080 主帧舞台）。
+    /// 主梦泡在 (0.39, 0.45) 192px，不在此列。
+    /// </summary>
+    private static readonly Vector2[] FigmaSmallBubbleNorm =
+    {
+        new Vector2(0.36f, 0.20f),
+        new Vector2(0.20f, 0.32f),
+        new Vector2(0.56f, 0.32f),
+        new Vector2(0.73f, 0.24f),
+        new Vector2(0.18f, 0.60f),
+        new Vector2(0.64f, 0.56f)
+    };
+
+    private static readonly float[] FigmaSmallBubbleSizes = { 110f, 98f, 120f, 94f, 128f, 104f };
+
     public void SpawnSmallBubbles(Transform container, GameObject prefab, int count, Vector2 sizeRange, float floatSpeed, float floatAmplitude)
+    {
+        SpawnFigmaLayout(container, prefab, floatSpeed, floatAmplitude);
+    }
+
+    /// <summary>
+    /// 按 Figma Frame 1 舞台散布 6 个小梦泡（64–128px），绕固定点缓慢漂浮。
+    /// </summary>
+    public void SpawnFigmaLayout(Transform container, GameObject prefab, float floatSpeed, float floatAmplitude)
     {
         if (container == null || prefab == null)
             return;
@@ -20,25 +44,87 @@ public class SmallBubblesView : MonoBehaviour
             return;
         }
 
-        float width = containerRect.rect.width;
-        float height = containerRect.rect.height;
+        ClearBubbles(container);
 
-        for (int i = 0; i < count; i++)
+        float width = Mathf.Max(1f, containerRect.rect.width);
+        float height = Mathf.Max(1f, containerRect.rect.height);
+
+        for (int i = 0; i < FigmaSmallBubbleNorm.Length; i++)
         {
             GameObject bubble = Instantiate(prefab, containerRect);
             RectTransform bubbleRect = bubble.GetComponent<RectTransform>();
-            if (bubbleRect == null) continue;
+            if (bubbleRect == null)
+                continue;
 
-            float size = Random.Range(sizeRange.x, sizeRange.y);
+            float size = FigmaSmallBubbleSizes[i];
             bubbleRect.sizeDelta = new Vector2(size, size);
 
-            float margin = size * 0.5f + 50f;
-            float x = Random.Range(-width * 0.5f + margin, width * 0.5f - margin);
-            float y = Random.Range(-height * 0.5f + margin, height * 0.5f - margin);
+            Vector2 norm = FigmaSmallBubbleNorm[i];
+            float x = (norm.x - 0.5f) * width;
+            float y = (0.5f - norm.y) * height;
             bubbleRect.anchoredPosition = new Vector2(x, y);
+
+            var group = bubble.GetComponent<CanvasGroup>();
+            if (group == null)
+                group = bubble.AddComponent<CanvasGroup>();
+            group.alpha = 1f;
+            group.blocksRaycasts = false;
+            group.interactable = false;
 
             StartCoroutine(FloatSmallBubble(bubbleRect, x, y, floatSpeed, floatAmplitude));
         }
+    }
+
+    public void SetAllAlpha(Transform container, float alpha)
+    {
+        if (container == null)
+            return;
+
+        foreach (Transform child in container)
+        {
+            var group = child.GetComponent<CanvasGroup>();
+            if (group == null)
+                group = child.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = alpha;
+            group.blocksRaycasts = false;
+        }
+    }
+
+    public IEnumerator DimAll(Transform container, float targetAlpha, float duration)
+    {
+        if (container == null)
+            yield break;
+
+        var groups = new System.Collections.Generic.List<CanvasGroup>();
+        var starts = new System.Collections.Generic.List<float>();
+        foreach (Transform child in container)
+        {
+            var group = child.GetComponent<CanvasGroup>();
+            if (group == null)
+                group = child.gameObject.AddComponent<CanvasGroup>();
+            groups.Add(group);
+            starts.Add(group.alpha);
+        }
+
+        if (duration <= 0f)
+        {
+            for (int i = 0; i < groups.Count; i++)
+                groups[i].alpha = targetAlpha;
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            for (int i = 0; i < groups.Count; i++)
+                groups[i].alpha = Mathf.Lerp(starts[i], targetAlpha, t);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        for (int i = 0; i < groups.Count; i++)
+            groups[i].alpha = targetAlpha;
     }
 
     /// <summary>

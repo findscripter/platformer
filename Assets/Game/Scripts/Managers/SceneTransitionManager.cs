@@ -90,6 +90,38 @@ public class SceneTransitionManager : MonoBehaviour
         IsFading = false;
     }
 
+    /// <summary>从全黑淡出到画面（alpha 1→0）。</summary>
+    public IEnumerator FadeFromBlack(float duration)
+    {
+        EnsureFadeSetup();
+
+        if (fadePanel == null)
+            yield break;
+
+        IsFading = true;
+        fadePanel.gameObject.SetActive(true);
+        fadePanel.blocksRaycasts = true;
+        fadePanel.alpha = 1f;
+
+        if (duration <= 0f)
+        {
+            HideImmediate();
+            IsFading = false;
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            fadePanel.alpha = 1f - Mathf.Clamp01(elapsed / duration);
+            yield return null;
+        }
+
+        HideImmediate();
+        IsFading = false;
+    }
+
     private IEnumerator FadeOutRoutine()
     {
         if (fadePanel == null)
