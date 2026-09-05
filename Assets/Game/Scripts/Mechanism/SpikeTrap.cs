@@ -22,9 +22,13 @@ public sealed class SpikeTrap : MonoBehaviour
     private static void TryKillPlayer(Collider2D other)
     {
         PlayerController player = other.GetComponentInParent<PlayerController>();
-        if (player != null)
-        {
-            player.TryKill();
-        }
+        if (player == null)
+            return;
+
+        TarotResultData run = GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null;
+        if (run != null && run.HasActiveEffect(TarotEffectId.E02))
+            return;
+
+        player.TryKill();
     }
 }

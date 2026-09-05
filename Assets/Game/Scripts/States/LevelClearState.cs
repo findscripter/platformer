@@ -14,7 +14,7 @@ public class LevelClearState : IGameState
     {
         context.InputManager.DisableAllInput();
         if (context.Player != null)
-            context.Player.StopMovement();
+            context.Player.FreezePhysics();
 
         context.LevelClearTimer = 0f;
         context.IsLevelClear = true;

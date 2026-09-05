@@ -15,7 +15,7 @@ public class EchoSpaceState : IGameState
         context.UIManager.HideAll();
 
         if (context.Player != null)
-            context.Player.StopMovement();
+            context.Player.FreezePhysics();
 
         controller = EchoSpaceController.Ensure();
         controller.Begin(context);

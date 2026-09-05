@@ -8,12 +8,22 @@ public class GameplaySceneBridge : MonoBehaviour
 
     public void Apply(GameLoop gameLoop)
     {
+        DreamremainsLevelBootstrap.Build(this);
+
         if (gameLoop == null)
-        {
             return;
-        }
 
         gameLoop.BindGameplay(player, spawnPoint, goalTrigger);
+    }
+
+    public void BindOfficial(PlayerController gameplayPlayer, Transform officialSpawn, Collider2D officialGoal)
+    {
+        if (gameplayPlayer != null)
+            player = gameplayPlayer;
+        if (officialSpawn != null)
+            spawnPoint = officialSpawn;
+        if (officialGoal != null)
+            goalTrigger = officialGoal;
     }
 
     private void Reset()
@@ -26,6 +36,10 @@ public class GameplaySceneBridge : MonoBehaviour
     private PlayerController FindPlayer()
     {
         
+        var testPlayer = GameObject.Find("test_player");
+        if (testPlayer != null && testPlayer.activeInHierarchy)
+            return testPlayer.GetComponent<PlayerController>();
+
         var playerObject = GameObject.Find("Runtime_Player");
         return playerObject != null ? playerObject.GetComponent<PlayerController>() : null;
     }

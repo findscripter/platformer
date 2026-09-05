@@ -23,9 +23,11 @@ public sealed class PatrolEnemy : MonoBehaviour
     private bool movingToEnd = true;
     private int currentHealth;
     private float hitStunRemaining;
+    private int healthMultiplier = 1;
+    private int baseMaxHealth;
 
     public int CurrentHealth => currentHealth;
-    public int MaxHealth => maxHealth;
+    public int MaxHealth => Mathf.Max(1, baseMaxHealth > 0 ? baseMaxHealth : maxHealth) * Mathf.Max(1, healthMultiplier);
     public bool IsAlive => currentHealth > 0;
     public bool IsDamageable => IsAlive;
 
@@ -40,9 +42,20 @@ public sealed class PatrolEnemy : MonoBehaviour
         // Animator 位于子物体 Visual 上，根物体只有 Transform/Rigidbody2D/Collider2D/本脚本。
         animator = GetComponentInChildren<Animator>();
 
-        currentHealth = maxHealth;
+        baseMaxHealth = maxHealth;
+        currentHealth = MaxHealth;
         patrolOrigin = body.position;
         UpdateFacing();
+    }
+
+    public void ConfigurePatrol(Vector2 startOffset, Vector2 endOffset)
+    {
+        patrolStartOffset = startOffset;
+        patrolEndOffset = endOffset;
+        if (body != null)
+            patrolOrigin = body.position;
+        else
+            patrolOrigin = transform.position;
     }
 
     private void Reset()
@@ -109,6 +122,20 @@ public sealed class PatrolEnemy : MonoBehaviour
         {
             player.TakeDamage(contactDamage);
         }
+    }
+
+    public void SetHealthMultiplier(int multiplier)
+    {
+        if (!IsAlive)
+            return;
+
+        int next = Mathf.Max(1, multiplier);
+        if (next == healthMultiplier)
+            return;
+
+        float ratio = MaxHealth > 0 ? currentHealth / (float)MaxHealth : 1f;
+        healthMultiplier = next;
+        currentHealth = Mathf.Max(1, Mathf.RoundToInt(MaxHealth * ratio));
     }
 
     /// <summary>

@@ -12,6 +12,7 @@ public static class GuideArt
     public const string DialogueBannerGuid = "2033fe5a018fd9b45a37ec8c64c15755";
     public const string HintDotGuid = "41e0bc7119da43045b92e5f75de4d944";
     public const string CircleGuid = "e79b4d6c863b4124e9f6b264f6d371cb";
+    public const string TarotBackgroundGuid = "7b2e4c91a8d64f3e9c5a1b0d8e6f4a2c";
     public const string BubbleGuid = "cb83933569bc45344b1141bc6af262eb";
 
     private static readonly string[] FeifeiGuids =
@@ -75,4 +76,5 @@ public static class GuideArt
     public static Sprite DialogueBanner => Load(DialogueBannerGuid);
     public static Sprite HintDot => Load(HintDotGuid);
     public static Sprite Circle => Load(CircleGuid);
+    public static Sprite TarotBackground => Load(TarotBackgroundGuid);
 }

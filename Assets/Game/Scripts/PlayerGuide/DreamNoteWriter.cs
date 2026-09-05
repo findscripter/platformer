@@ -1,6 +1,5 @@
 /// <summary>
-/// Frame 10 梦笺正文。没有联网 LLM，按玩家写下的梦 + 主牌生成可读笺文，
-/// 并配合「正在倾听」等待态，对上「等待 AI 内容 → 阅读」。
+/// Frame 10 梦笺正文。按玩家写下的梦 + 本局四张抽牌生成可读笺文。
 /// </summary>
 public static class DreamNoteWriter
 {
@@ -9,9 +8,17 @@ public static class DreamNoteWriter
         return "梦核正把这场旅程轻轻收进笺里……";
     }
 
-    public static string Compose(string dream, string mainCard)
+    public static string Compose(string dream, TarotResultData run)
     {
-        string card = string.IsNullOrWhiteSpace(mainCard) ? "应龙" : mainCard.Trim();
+        string cards = run != null && run.IsComplete()
+            ? run.SummarizeDrawn()
+            : "尚未翻开的牌";
+        return Compose(dream, cards);
+    }
+
+    public static string Compose(string dream, string cards)
+    {
+        string cardLine = string.IsNullOrWhiteSpace(cards) ? "尚未翻开的牌" : cards.Trim();
         string memory = string.IsNullOrWhiteSpace(dream)
             ? "风声、脚步，和那些还没说完的话"
             : dream.Trim();
@@ -20,7 +27,7 @@ public static class DreamNoteWriter
             memory = memory.Substring(0, 48) + "…";
 
         return "梦核轻轻展开一页笺。\n"
-            + card + " 把路收进光里。\n"
+            + cardLine + "\n"
             + "你还记得：" + memory + "\n"
             + "打开看看吧。它已经替你收好了。";
     }

@@ -22,6 +22,7 @@ public class RespawnState : IGameState
         }
 
         context.LevelManager.ResetLevel();
+        TarotEffectApplier.Apply(context);
 
         context.StateMachine.ChangeState(GameStateType.Playing);
     }

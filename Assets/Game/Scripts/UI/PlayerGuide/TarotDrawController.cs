@@ -5,15 +5,8 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Frame 9 塔罗抽牌控制器 - 6 状态流程（A-D、F、G）
-/// 状态 A: 腓腓引导对话（4 句）
-/// 状态 B: 腓腓与对话淡出
-/// 状态 C: 第一次抽牌（任意点击，固定翻出应龙/战车，上移并强调）
-/// 状态 D: 继续选择第 2-4 张（剩余牌原位可点击，出牌顺序随机）
-/// 状态 F: 4 张牌完整展示（剩余 18 张淡出）
-/// 状态 G: Fade 到教学关
-/// 注：设计稿的状态 E（第二至第四张）已与状态 D 合并——两者共用同一套
-/// "原位点击 → 普通翻牌 → 上移填槽"流程，拆成两个协程会造成状态重复。
+/// Frame 9 塔罗抽牌。关卡实现规则：22 张随机抽 4 张、不重复、正逆位独立随机，
+/// 不用 fixedCards。玩家点 4 张牌背，按点击顺序对应 T1–T4。
 /// </summary>
 public class TarotDrawController : MonoBehaviour
 {
@@ -29,8 +22,8 @@ public class TarotDrawController : MonoBehaviour
 
     #region Inspector Fields
 
-    [Header("卡牌数据（4 张固定牌）")]
-    [SerializeField] private TarotCardData[] fixedCards = new TarotCardData[4];
+    [Header("卡牌数据（留空则从 Resources 加载全部 22 张）")]
+    [SerializeField] private TarotCardData[] deckCards;
 
     [Header("UI 引用")]
     [SerializeField] private GameObject dialoguePanel;
@@ -46,12 +39,17 @@ public class TarotDrawController : MonoBehaviour
     [SerializeField] private GameObject mainCardSlot;
     [SerializeField] private Image mainCardImage;
 
-    [Header("牌阵布局（扇形）")]
+    [Header("牌阵布局（对白上方的手牌扇）")]
     [SerializeField] private int arrayCardCount = 22;
-    [SerializeField] private float arrayFanAngle = 30f;
-    [SerializeField] private float arrayRadius = 700f;
-    [SerializeField] private float arrayVerticalOffset = -980f;
-    [SerializeField] private Vector2 arrayCardSize = new Vector2(120f, 200f);
+    [SerializeField] private Vector2 arrayCardSize = new Vector2(164f, 272f);
+    [Tooltip("相邻牌中心距。小于牌宽才会重叠，露出每张的边。")]
+    [SerializeField] private float arraySpacing = 60f;
+    [Tooltip("牌阵中心相对画布中心的 Y。对白条顶约 -216，牌底需在其上方。")]
+    [SerializeField] private float arrayRowY = -50f;
+    [Tooltip("左右最大倾角（度），左负右正。")]
+    [SerializeField] private float arrayFanTilt = 8f;
+    [Tooltip("两端相对中心下沉的弧度，模拟握在手里。")]
+    [SerializeField] private float arrayArcDrop = 18f;
 
     [Header("情绪卡槽位（3 个）")]
     [SerializeField] private Transform[] emotionCardSlots = new Transform[3];
@@ -81,8 +79,8 @@ public class TarotDrawController : MonoBehaviour
     private GameContext gameContext;
 
     private List<GameObject> instantiatedCards = new();
-    private TarotCardData selectedMainCard;
-    private List<TarotCardData> selectedEmotionCards = new();
+    private readonly TarotCardData[] drawnCards = new TarotCardData[TarotResultData.SlotCount];
+    private readonly bool[] drawnReversed = new bool[TarotResultData.SlotCount];
 
     private bool isWaitingForCardClick;
     private int clickedCardIndex = -1;
@@ -113,12 +111,8 @@ public class TarotDrawController : MonoBehaviour
     /// </summary>
     public IEnumerator StartTarotFlow()
     {
-        // 验证数据
-        if (fixedCards == null || fixedCards.Length < 4)
-        {
-            Debug.LogError("[TarotDraw] fixedCards 必须包含 4 张牌！");
+        if (!PrepareDrawnHand())
             yield break;
-        }
 
         // 获取 GameContext
         if (GameLoop.Instance != null)
@@ -146,10 +140,11 @@ public class TarotDrawController : MonoBehaviour
     {
         // 重置流程状态，支持重复进入
         drawnCardIndices.Clear();
-        selectedEmotionCards.Clear();
-        selectedMainCard = null;
+        pendingClicks.Clear();
         isWaitingForCardClick = false;
         clickedCardIndex = -1;
+
+        ApplyTarotBackground();
 
         SetPanelActive(dialoguePanel, false);
         SetPanelActive(cardArrayContainer, false);
@@ -292,13 +287,10 @@ public class TarotDrawController : MonoBehaviour
 
         yield return new WaitUntil(() => !isWaitingForCardClick);
 
-        // 无论点击哪张，翻出的都是第 0 张（应龙/战车）
-        selectedMainCard = fixedCards[0];
         int mainCardIndex = clickedCardIndex;
         drawnCardIndices.Add(mainCardIndex);
 
-        // 原位翻牌
-        yield return FlipCard(mainCardIndex, selectedMainCard);
+        yield return FlipCard(mainCardIndex, drawnCards[0], drawnReversed[0]);
 
         // TODO: 播放音效 "main_card_flip"（共鸣感）
 
@@ -365,7 +357,6 @@ public class TarotDrawController : MonoBehaviour
             return;
         }
 
-        // 清空之前的牌
         foreach (var card in instantiatedCards)
         {
             if (card != null)
@@ -373,24 +364,32 @@ public class TarotDrawController : MonoBehaviour
         }
         instantiatedCards.Clear();
 
-        int cardCount = arrayCardCount;
-        float overlap = 28f;
-        float startX = -((cardCount - 1) * overlap) * 0.5f;
-        float rowY = 80f;
+        int cardCount = Mathf.Max(1, arrayCardCount);
+        Vector2 size = arrayCardSize.x > 1f ? arrayCardSize : new Vector2(164f, 272f);
+        float spacing = arraySpacing > 1f ? arraySpacing : 60f;
+        float startX = -((cardCount - 1) * spacing) * 0.5f;
 
         for (int i = 0; i < cardCount; i++)
         {
-            GameObject cardObj = Instantiate(cardPrefab, cardParent);
+            GameObject cardObj = Instantiate(cardPrefab, cardParent, false);
             instantiatedCards.Add(cardObj);
 
-            var cardRect = cardObj.transform as RectTransform;
-            if (cardRect != null)
-                cardRect.sizeDelta = arrayCardSize.x > 0f ? arrayCardSize : new Vector2(120f, 200f);
-
             float t = cardCount <= 1 ? 0.5f : i / (float)(cardCount - 1);
-            float tilt = Mathf.Lerp(-8f, 8f, t);
-            cardObj.transform.localPosition = new Vector3(startX + i * overlap, rowY + Mathf.Abs(t - 0.5f) * 18f, 0f);
-            cardObj.transform.localRotation = Quaternion.Euler(0f, 0f, -tilt);
+            float tilt = Mathf.Lerp(-arrayFanTilt, arrayFanTilt, t);
+            float arc = -Mathf.Abs(t - 0.5f) * 2f * arrayArcDrop;
+
+            RectTransform cardRect = cardObj.transform as RectTransform;
+            if (cardRect != null)
+            {
+                cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+                cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+                cardRect.pivot = new Vector2(0.5f, 0.5f);
+                cardRect.sizeDelta = size;
+                cardRect.anchoredPosition = new Vector2(startX + i * spacing, arrayRowY + arc);
+                cardRect.localRotation = Quaternion.Euler(0f, 0f, -tilt);
+                cardRect.localScale = Vector3.one;
+            }
+
             cardObj.transform.SetAsLastSibling();
         }
 
@@ -469,7 +468,7 @@ public class TarotDrawController : MonoBehaviour
         // TODO: 播放音效 "card_click"
     }
 
-    private IEnumerator FlipCard(int index, TarotCardData cardData)
+    private IEnumerator FlipCard(int index, TarotCardData cardData, bool reversed = false)
     {
         if (index < 0 || index >= instantiatedCards.Count)
             yield break;
@@ -503,7 +502,47 @@ public class TarotDrawController : MonoBehaviour
             yield return null;
         }
 
-        cardTransform.localRotation = endRot;
+        cardTransform.localRotation = reversed
+            ? endRot * Quaternion.Euler(0f, 0f, 180f)
+            : endRot;
+    }
+
+    private bool PrepareDrawnHand()
+    {
+        TarotCardData[] deck = deckCards != null && deckCards.Length >= TarotResultData.SlotCount
+            ? deckCards
+            : TarotCatalog.LoadDeck();
+
+        if (deck == null || deck.Length < TarotResultData.SlotCount)
+        {
+            Debug.LogError("[TarotDraw] 牌组不足 4 张，无法开局。");
+            return false;
+        }
+
+        var pool = new List<TarotCardData>(deck.Length);
+        for (int i = 0; i < deck.Length; i++)
+        {
+            if (deck[i] != null)
+                pool.Add(deck[i]);
+        }
+
+        if (pool.Count < TarotResultData.SlotCount)
+        {
+            Debug.LogError("[TarotDraw] 有效牌不足 4 张。");
+            return false;
+        }
+
+        for (int i = 0; i < TarotResultData.SlotCount; i++)
+        {
+            int pick = Random.Range(i, pool.Count);
+            TarotCardData swap = pool[i];
+            pool[i] = pool[pick];
+            pool[pick] = swap;
+            drawnCards[i] = pool[i];
+            drawnReversed[i] = Random.value < 0.5f;
+        }
+
+        return true;
     }
 
     private IEnumerator MoveCardToMainSlot(int index)
@@ -536,11 +575,14 @@ public class TarotDrawController : MonoBehaviour
         }
 
         // 将卡牌图片复制到主卡槽（场景搭建时 CardFace 默认禁用，此处必须显式启用）
-        if (mainCardImage != null && selectedMainCard != null && selectedMainCard.CardFace != null)
+        if (mainCardImage != null && drawnCards[0] != null && drawnCards[0].CardFace != null)
         {
-            mainCardImage.sprite = selectedMainCard.CardFace;
+            mainCardImage.sprite = drawnCards[0].CardFace;
             mainCardImage.color = Color.white;
             mainCardImage.enabled = true;
+            mainCardImage.transform.localRotation = drawnReversed[0]
+                ? Quaternion.Euler(0f, 0f, 180f)
+                : Quaternion.identity;
         }
 
         // 销毁临时卡牌对象，并在列表中置空，避免后续淡出访问已销毁对象
@@ -598,39 +640,16 @@ public class TarotDrawController : MonoBehaviour
 
     #region State D: Continue Prompt
 
-    /// <summary>
-    /// 设计稿状态 D + E：第 1 张保持在中上方，剩余牌仍在中下方原位可点击；
-    /// 玩家依次点第 2、3、4 张，每张用同一普通翻牌 + 上移动效填入情绪卡槽。
-    /// 后三张出牌顺序随机（设计稿：后三张顺序随机）。
-    /// 设计稿明确不加"情绪牌"标签、也不增加引导对白。
-    /// </summary>
     private IEnumerator State_D_ContinuePrompt()
     {
-        // 后三张的出牌顺序随机，与玩家点击的具体位置无关
-        List<TarotCardData> remainingCards = new()
+        for (int slot = 1; slot < TarotResultData.SlotCount; slot++)
         {
-            fixedCards[1],
-            fixedCards[2],
-            fixedCards[3]
-        };
-
-        for (int i = 0; i < remainingCards.Count; i++)
-        {
-            int randomIndex = Random.Range(i, remainingCards.Count);
-            (remainingCards[i], remainingCards[randomIndex]) = (remainingCards[randomIndex], remainingCards[i]);
-        }
-
-        // 依次等待玩家点击三张未抽过的牌
-        for (int slot = 0; slot < 3; slot++)
-        {
-            // 优先从缓冲队列取点击
             if (pendingClicks.Count > 0)
             {
                 clickedCardIndex = pendingClicks.Dequeue();
             }
             else
             {
-                // 队列空时才等待新点击
                 isWaitingForCardClick = true;
                 clickedCardIndex = -1;
                 yield return new WaitUntil(() => !isWaitingForCardClick);
@@ -639,23 +658,16 @@ public class TarotDrawController : MonoBehaviour
             int index = clickedCardIndex;
             drawnCardIndices.Add(index);
 
-            TarotCardData card = remainingCards[slot];
-            selectedEmotionCards.Add(card);
-
-            // 原位普通翻牌
-            yield return FlipCard(index, card);
-
-            // TODO: 播放音效 "normal_card_flip"（轻量普通翻牌声）
-
-            // 上移填入中上方对应情绪卡槽
-            yield return MoveCardToEmotionSlot(index, slot, card);
+            TarotCardData card = drawnCards[slot];
+            yield return FlipCard(index, card, drawnReversed[slot]);
+            yield return MoveCardToEmotionSlot(index, slot - 1, card, drawnReversed[slot]);
         }
     }
 
     /// <summary>
     /// 把抽中的牌从牌阵原位上移到指定情绪卡槽，到位后销毁临时牌、由槽位承接牌面。
     /// </summary>
-    private IEnumerator MoveCardToEmotionSlot(int index, int slotIndex, TarotCardData cardData)
+    private IEnumerator MoveCardToEmotionSlot(int index, int slotIndex, TarotCardData cardData, bool reversed)
     {
         if (index < 0 || index >= instantiatedCards.Count)
             yield break;
@@ -693,6 +705,9 @@ public class TarotDrawController : MonoBehaviour
             slotImage.sprite = cardData.CardFace;
             slotImage.color = Color.white;
             slotImage.enabled = true;
+            slotImage.transform.localRotation = reversed
+                ? Quaternion.Euler(0f, 0f, 180f)
+                : Quaternion.identity;
         }
 
         instantiatedCards[index] = null;
@@ -737,8 +752,10 @@ public class TarotDrawController : MonoBehaviour
         // 保存结果到 GameContext
         if (gameContext != null)
         {
-            gameContext.TarotResult = new TarotResultData(selectedMainCard, selectedEmotionCards);
-            Debug.Log($"[TarotDraw] 主牌: {selectedMainCard.DisplayName}, 情绪牌: {selectedEmotionCards.Count} 张");
+            var result = new TarotResultData();
+            result.BeginRun(drawnCards, drawnReversed);
+            gameContext.TarotResult = result;
+            Debug.Log("[TarotDraw] " + result.SummarizeDrawn());
         }
     }
 
@@ -769,6 +786,36 @@ public class TarotDrawController : MonoBehaviour
     #endregion
 
     #region Utility Methods
+
+    private void ApplyTarotBackground()
+    {
+        Image panelImage = GetComponent<Image>();
+        if (panelImage == null)
+            return;
+
+        Sprite art = GuideArt.TarotBackground;
+        if (art == null)
+            return;
+
+        panelImage.sprite = art;
+        panelImage.color = Color.white;
+        panelImage.preserveAspect = false;
+        panelImage.raycastTarget = false;
+        panelImage.type = Image.Type.Simple;
+
+        if (dialoguePanel != null)
+        {
+            Image bar = dialoguePanel.GetComponent<Image>();
+            Sprite banner = GuideArt.DialogueBanner;
+            if (bar != null && banner != null)
+            {
+                bar.sprite = banner;
+                bar.color = Color.white;
+                bar.type = Image.Type.Sliced;
+                bar.raycastTarget = false;
+            }
+        }
+    }
 
     private void SetPanelActive(GameObject panel, bool active)
     {

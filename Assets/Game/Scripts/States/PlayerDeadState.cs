@@ -13,7 +13,7 @@ public class PlayerDeadState : IGameState
     {
         context.InputManager.DisableAllInput();
 
-        context.Player.StopMovement();
+        context.Player.FreezePhysics();
         context.DeadStateTimer = 0f;
         context.IsPlayerDead = true;
         context.UIManager.ShowDeathUI();

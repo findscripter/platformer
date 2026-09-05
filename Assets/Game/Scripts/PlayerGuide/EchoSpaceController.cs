@@ -195,9 +195,7 @@ public class EchoSpaceController : MonoBehaviour
 
         string body = DreamNoteWriter.Compose(
             context != null ? context.PlayerDreamInput : null,
-            context != null && context.TarotResult != null && context.TarotResult.MainCard != null
-                ? context.TarotResult.MainCard.DisplayName
-                : "应龙");
+            context != null ? context.TarotResult : null);
 
         if (noteText != null)
         {
@@ -258,11 +256,18 @@ public class EchoSpaceController : MonoBehaviour
         rootGroup.alpha = 0f;
 
         var bg = CreateStretch(root, "Background").gameObject.AddComponent<Image>();
-        bg.color = new Color(0.17f, 0.16f, 0.27f, 1f);
+        var tarotBg = GuideArt.TarotBackground;
+        if (tarotBg != null)
+        {
+            bg.sprite = tarotBg;
+            bg.color = Color.white;
+            bg.preserveAspect = false;
+        }
+        else
+        {
+            bg.color = new Color(0.17f, 0.16f, 0.27f, 1f);
+        }
         bg.raycastTarget = true;
-
-        CreateDecorCircle(root, new Vector2(-420f, 180f), 420f, new Color(0.12f, 0.11f, 0.2f, 0.9f));
-        CreateDecorCircle(root, new Vector2(380f, -80f), 360f, new Color(0.14f, 0.13f, 0.24f, 0.85f));
 
         var label = CreateText(root, "SpaceLabel", "独立梦境回响空间", 22, TextAlignmentOptions.MidlineLeft);
         var labelRect = label.rectTransform;
@@ -393,11 +398,6 @@ public class EchoSpaceController : MonoBehaviour
         }
 
         return rect;
-    }
-
-    private static void CreateDecorCircle(Transform parent, Vector2 anchored, float size, Color color)
-    {
-        CreateNamedCircle(parent, "Decor", anchored, size, color, null).GetComponent<Image>().raycastTarget = false;
     }
 
     private static TMP_Text CreateText(Transform parent, string name, string content, float size, TextAlignmentOptions align)
