@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src blob: data:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Dreamremains 关卡路线与机制施工图 v4</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --background: light-dark(#ffffff, #181818);
+  --foreground: light-dark(#1a1c1f, #f7f7f7);
+  --muted-foreground: light-dark(#667085, #a7adb7);
+  --border: light-dark(#d0d5dd, #454a52);
+  --blue: light-dark(#2563eb, #60a5fa);
+  --orange: light-dark(#d97706, #f59e0b);
+  --purple: light-dark(#7c3aed, #a78bfa);
+  --green: light-dark(#16803a, #4ade80);
+  --yellow: light-dark(#b7791f, #facc15);
+  --red: light-dark(#c62828, #f87171);
+  --font-sans: Inter, "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "Microsoft YaHei", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--background); color: var(--foreground); }
+body { padding: 24px; font-family: var(--font-sans); }
+.viz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: color-mix(in srgb, var(--background) 96%, var(--foreground)); }
+.text-small { font-size: 13px; line-height: 1.45; }
+.text-muted { color: var(--muted-foreground); }
+.viz-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.form-label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--muted-foreground); }
+.form-select, .btn { min-height: 36px; border: 1px solid var(--border); border-radius: 6px; background: var(--background); color: var(--foreground); padding: 7px 10px; font: inherit; }
+.btn { cursor: pointer; }
+.btn:hover { border-color: var(--blue); }
+strong { color: var(--foreground); }
+</style>
+</head>
+<body>
+<div id="dreamremains-construction-layers-v4">
+  <style>
+    #dreamremains-construction-layers-v4 {
+      color: var(--foreground);
+      font-family: var(--font-sans, system-ui, sans-serif);
+      width: 100%;
+    }
+    #dreamremains-construction-layers-v4 h2 { margin: 0 0 4px; font-weight: 500; }
+    #dreamremains-construction-layers-v4 .subtitle { margin: 0 0 12px; color: var(--muted-foreground); }
+    #dreamremains-construction-layers-v4 .viz-controls { margin-bottom: 10px; }
+    #dreamremains-construction-layers-v4 .control-field { min-width: 170px; }
+    #dreamremains-construction-layers-v4 .map-status { margin: 0 0 8px; color: var(--muted-foreground); }
+    #dreamremains-construction-layers-v4 .concepts { margin: 0 0 12px; }
+    #dreamremains-construction-layers-v4 .concept-title { color: var(--muted-foreground); margin-bottom: 4px; }
+    #dreamremains-construction-layers-v4 .concept-value { font-weight: 500; }
+    #dreamremains-construction-layers-v4 .handoff-note { margin: 10px 0 0; }
+    #dreamremains-construction-layers-v4 .map-wrap { width: 100%; }
+    #dreamremains-construction-layers-v4 .construction-map { display: block; width: 100%; height: auto; }
+    #dreamremains-construction-layers-v4 .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px 18px;
+      margin-top: 10px;
+      color: var(--muted-foreground);
+    }
+    #dreamremains-construction-layers-v4 .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+    #dreamremains-construction-layers-v4 .legend-line { width: 38px; border-top: 4px solid var(--blue); }
+    #dreamremains-construction-layers-v4 .legend-line.optional { border-top-color: var(--orange); border-top-style: dashed; }
+    #dreamremains-construction-layers-v4 .legend-line.hidden { border-top-color: var(--purple); border-top-style: dotted; }
+    #dreamremains-construction-layers-v4 .legend-line.fold { border-top-color: var(--green); border-top-style: dotted; }
+    #dreamremains-construction-layers-v4 .legend-symbol { min-width: 42px; text-align: center; color: var(--foreground); font-family: var(--font-mono, ui-monospace, monospace); }
+    #dreamremains-construction-layers-v4 .map-frame { fill: color-mix(in srgb, var(--background) 96%, var(--foreground)); stroke: var(--border); stroke-width: 2; }
+    #dreamremains-construction-layers-v4 .zone-fill-a { fill: color-mix(in srgb, var(--foreground) 5%, transparent); }
+    #dreamremains-construction-layers-v4 .zone-fill-b { fill: color-mix(in srgb, var(--orange) 8%, transparent); }
+    #dreamremains-construction-layers-v4 .zone-boundary { stroke: var(--border); stroke-width: 1.5; stroke-dasharray: 6 7; }
+    #dreamremains-construction-layers-v4 .grid-line { stroke: var(--border); stroke-width: .8; opacity: .36; }
+    #dreamremains-construction-layers-v4 .grid-major { stroke-width: 1.2; opacity: .58; }
+    #dreamremains-construction-layers-v4 .grid-label,
+    #dreamremains-construction-layers-v4 .zone-label,
+    #dreamremains-construction-layers-v4 .platform-label,
+    #dreamremains-construction-layers-v4 .point-label,
+    #dreamremains-construction-layers-v4 .route-label,
+    #dreamremains-construction-layers-v4 .mechanism-label {
+      fill: var(--foreground);
+      font-family: var(--font-mono, ui-monospace, monospace);
+    }
+    #dreamremains-construction-layers-v4 .grid-label { font-size: 12px; fill: var(--muted-foreground); }
+    #dreamremains-construction-layers-v4 .zone-label { font-size: 17px; font-weight: 500; }
+    #dreamremains-construction-layers-v4 .platform-label { font-size: 15px; }
+    #dreamremains-construction-layers-v4 .point-label { font-size: 15px; font-weight: 500; }
+    #dreamremains-construction-layers-v4 .route-label { font-size: 16px; font-weight: 500; }
+    #dreamremains-construction-layers-v4 .mechanism-label { font-size: 14px; fill: var(--green); font-weight: 500; }
+    #dreamremains-construction-layers-v4 .platform { fill: color-mix(in srgb, var(--foreground) 76%, var(--background)); stroke: var(--foreground); stroke-width: 2; }
+    #dreamremains-construction-layers-v4 .platform-b { fill: color-mix(in srgb, var(--blue) 32%, var(--background)); stroke: var(--blue); stroke-width: 2; }
+    #dreamremains-construction-layers-v4 .moving { fill: color-mix(in srgb, var(--blue) 15%, var(--background)); stroke: var(--blue); stroke-width: 4; }
+    #dreamremains-construction-layers-v4 .fading { fill: color-mix(in srgb, var(--yellow) 16%, var(--background)); stroke: var(--yellow); stroke-width: 3; stroke-dasharray: 6 4; }
+    #dreamremains-construction-layers-v4 .hidden-platform { fill: color-mix(in srgb, var(--purple) 14%, var(--background)); stroke: var(--purple); stroke-width: 3; stroke-dasharray: 8 5; }
+    #dreamremains-construction-layers-v4 .killzone { fill: url(#killzone-hatch); stroke: var(--red); stroke-width: 2; stroke-dasharray: 9 5; }
+    #dreamremains-construction-layers-v4 .spike { fill: var(--red); }
+    #dreamremains-construction-layers-v4 .spike-envelope { fill: none; stroke: var(--red); stroke-width: 2; stroke-dasharray: 4 4; }
+    #dreamremains-construction-layers-v4 .planning-area { fill: color-mix(in srgb, var(--blue) 5%, transparent); stroke: var(--blue); stroke-width: 2; stroke-dasharray: 4 8; }
+    #dreamremains-construction-layers-v4 .learn-area { fill: color-mix(in srgb, var(--yellow) 11%, transparent); stroke: var(--yellow); stroke-width: 3; }
+    #dreamremains-construction-layers-v4 .test-area { fill: color-mix(in srgb, var(--green) 9%, transparent); stroke: var(--green); stroke-width: 3; stroke-dasharray: 8 5; }
+    #dreamremains-construction-layers-v4 .synthesis-area { fill: color-mix(in srgb, var(--purple) 9%, transparent); stroke: var(--purple); stroke-width: 3; stroke-dasharray: 2 8; }
+    #dreamremains-construction-layers-v4 .learn-arrow { fill: none; stroke: var(--green); stroke-width: 4; marker-end: url(#arrow-green); }
+    #dreamremains-construction-layers-v4 .camera-room { fill: color-mix(in srgb, var(--blue) 5%, transparent); stroke: var(--blue); stroke-width: 2; stroke-dasharray: 10 7; }
+    #dreamremains-construction-layers-v4 .camera-label { fill: var(--blue); font-size: 15px; font-family: var(--font-mono, ui-monospace, monospace); font-weight: 500; }
+    #dreamremains-construction-layers-v4 .ghost { opacity: .14; }
+    #dreamremains-construction-layers-v4 .node { fill: var(--background); stroke: var(--foreground); stroke-width: 3; }
+    #dreamremains-construction-layers-v4 .tarot { fill: color-mix(in srgb, var(--purple) 18%, var(--background)); stroke: var(--purple); }
+    #dreamremains-construction-layers-v4 .checkpoint { fill: color-mix(in srgb, var(--green) 18%, var(--background)); stroke: var(--green); }
+    #dreamremains-construction-layers-v4 .monster { fill: color-mix(in srgb, var(--red) 16%, var(--background)); stroke: var(--red); }
+    #dreamremains-construction-layers-v4 .item { fill: color-mix(in srgb, var(--yellow) 18%, var(--background)); stroke: var(--yellow); }
+    #dreamremains-construction-layers-v4 .trigger { fill: color-mix(in srgb, var(--green) 16%, var(--background)); stroke: var(--green); }
+    #dreamremains-construction-layers-v4 .door { fill: color-mix(in srgb, var(--purple) 14%, var(--background)); stroke: var(--purple); stroke-width: 3; }
+    #dreamremains-construction-layers-v4 .fold { fill: color-mix(in srgb, var(--green) 20%, var(--background)); stroke: var(--green); stroke-width: 3; }
+    #dreamremains-construction-layers-v4 .patrol { stroke: var(--red); stroke-width: 2.5; marker-start: url(#arrow-red-start); marker-end: url(#arrow-red); }
+    #dreamremains-construction-layers-v4 .move-range { stroke: var(--blue); stroke-width: 2.5; marker-start: url(#arrow-blue-start); marker-end: url(#arrow-blue); }
+    #dreamremains-construction-layers-v4 .rt-line { stroke: var(--muted-foreground); stroke-width: 2; stroke-dasharray: 5 6; }
+    #dreamremains-construction-layers-v4 .main-route { fill: none; stroke: var(--blue); stroke-width: 6; marker-end: url(#arrow-blue); }
+    #dreamremains-construction-layers-v4 .optional-route { fill: none; stroke: var(--orange); stroke-width: 5; stroke-dasharray: 15 10; marker-end: url(#arrow-orange); }
+    #dreamremains-construction-layers-v4 .hidden-route { fill: none; stroke: var(--purple); stroke-width: 5; stroke-dasharray: 3 10; stroke-linecap: round; marker-end: url(#arrow-purple); }
+    #dreamremains-construction-layers-v4 .fold-route { fill: none; stroke: var(--green); stroke-width: 5; stroke-dasharray: 3 10; stroke-linecap: round; marker-end: url(#arrow-green); }
+    #dreamremains-construction-layers-v4 .guide-note { fill: var(--muted-foreground); font-size: 13px; font-family: var(--font-mono, ui-monospace, monospace); }
+  </style>
+
+  <h2>梦墟 Demo｜关卡路线与塔罗机制施工图 v4</h2>
+  <p class="subtitle text-small">保留 v3 地形拓扑；本图只表达场景、路线、点位、塔罗教学与镜头分段。组件状态和组装方法见配套施工说明。</p>
+
+  <div class="viz-controls" aria-label="图纸选择">
+    <label class="form-label control-field">场景
+      <select class="form-select" id="construction-scene">
+        <option value="A">场景A｜黑色街区 / 迷失区</option>
+        <option value="B">场景B｜橙蓝梦境 / 行动区</option>
+      </select>
+    </label>
+    <label class="form-label control-field">施工图层
+      <select class="form-select" id="construction-layer">
+        <option value="overview">00 关卡总览</option>
+        <option value="terrain">01 地形层</option>
+        <option value="points">02 点位层</option>
+        <option value="routes">03 路线层</option>
+        <option value="carriers">04 机制载体层</option>
+        <option value="tarot">05 塔罗流程层</option>
+        <option value="camera">06 摄像机 / Room层</option>
+        <option value="all">07 全部叠加核对</option>
+      </select>
+    </label>
+    <button class="btn" id="download-layer-svg" type="button">下载当前SVG</button>
+  </div>
+
+  <p class="map-status text-small" id="construction-status" aria-live="polite"></p>
+  <div class="map-wrap" id="construction-map-wrap"></div>
+  <div class="legend text-small" id="construction-legend" aria-label="当前图层图例"></div>
+  <script>
+    (() => {
+      const root = document.getElementById('dreamremains-construction-layers-v4');
+      if (!root) return;
+      const NS = 'http://www.w3.org/2000/svg';
+      const mapWrap = root.querySelector('#construction-map-wrap');
+      const sceneSelect = root.querySelector('#construction-scene');
+      const layerSelect = root.querySelector('#construction-layer');
+      const status = root.querySelector('#construction-status');
+      const legend = root.querySelector('#construction-legend');
+      const downloadButton = root.querySelector('#download-layer-svg');
+
+      const scenes = {
+        A: {
+          title: '场景A｜黑色街区 / 迷失区',
+          zones: ['A-Z01 教学','A-Z02 首次分流','A-Z03 换层压力','A-Z04 T2封锁','A-Z05 转场'],
+          bounds: [0,6,12.5,19.5,26,30],
+          platforms: [
+            ['PL-A01',0.3,5.7,3.9,'normal'],['PL-A02',4.2,5.0,1.5,'normal'],['PL-A03',6.0,2.0,3.7,'normal'],
+            ['PL-A04',6.0,6.0,3.5,'normal'],['PL-A05',10.1,4.2,2.2,'normal'],['PL-A06',12.7,4.8,1.8,'normal'],
+            ['MP-A01',15.1,4.1,1.5,'moving'],['PL-A07',17.1,1.8,3.4,'normal'],['PL-A08',17.1,5.9,3.5,'normal'],
+            ['PL-A09',21.0,3.5,2.4,'normal'],['PL-A10',22.0,1.2,2.2,'normal'],['PL-A11',24.3,4.8,2.2,'normal'],
+            ['PL-A12',26.7,5.3,2.0,'normal'],['PL-A13',29.0,4.5,1.2,'normal'],
+            ['FP-A01a',12.3,5.5,.9,'fading'],['FP-A01b',13.5,5.1,.9,'fading'],['FP-A01c',14.7,5.5,.9,'fading'],
+            ['TH-A01',12.7,.8,1.8,'hidden'],['TH-A02',15.0,.8,1.6,'hidden'],['TH-A03',22.1,6.5,1.7,'hidden'],['TH-A04',25.0,6.5,1.6,'hidden']
+          ],
+          abysses: [['H-A01',5.1,8.8],['H-A02',13.5,18.0],['H-A03',22.6,25.7]],
+          spikes: [['SG-A01',7.0,5.65,1.7],['SG-A02',15.2,5.65,2.0],['SG-A03',23.2,5.65,1.3]],
+          planningAreas: [
+            ['ONB-A01',0.45,4.35,3.45,1.45,'基础移动 / 攻击教学段'],
+            ['VA-A1',11.7,2.7,5.0,3.2,'T1后验证区'],['VA-A2',20.5,2.5,5.2,3.5,'T2后组合区'],
+            ['AW-A01',12.3,1.0,3.8,1.5,'E01空中行走体积'],['HP-A01',16.8,.75,4.0,1.55,'E03/E15挑战高台组'],
+            ['CB-A01',17.0,4.55,3.7,1.45,'E04/E05/E16/E17战斗验证区']
+          ],
+          tarotFlow: [
+            ['LAB-T1',10.45,2.55,1.65,1.25,'T1 学习','安全读取新牌与正逆位','learn','T1'],
+            ['TEST-T1',12.35,2.45,1.9,2.15,'T1 单项验证','新牌 + 低惩罚平台/敌人/危险','test','T1'],
+            ['SYN-T1',14.55,2.2,2.25,2.7,'T1 组合验证','检查牌效与基础跳跃/战斗共存','synthesis','T1'],
+            ['LAB-T2',20.35,2.15,1.55,1.1,'T2 学习','显示新牌与命运覆写结果','learn','T2'],
+            ['TEST-T2',22.15,2.15,1.65,2.0,'T2 单项验证','只突出T2主效果','test','T2'],
+            ['SYN-T2',24.05,2.0,2.05,3.1,'T2 组合验证','T1快照 + T2；上下行分流','synthesis','T2']
+          ],
+          points: [
+            ['SP-A01','SP',0.9,5.35,'node'],['T1','T1',11.3,3.85,'tarot'],['CP-A01','CP',13.7,4.5,'checkpoint'],
+            ['T2','T2',21.9,3.15,'tarot'],['CP-A02','CP',27.5,5.0,'checkpoint'],['TRANS-A-B','TRANS',29.7,4.1,'node'],
+            ['EN-A01','EN1',3.0,5.35,'monster'],['EN-A02','EN2',8.0,5.65,'monster'],['EN-A03','EN3',18.3,1.45,'monster'],
+            ['EN-A04','EN4',19.2,5.55,'monster'],['EN-A05','EN5',25.0,4.45,'monster'],
+            ['IT-A01','IT',14.7,.45,'item'],['IT-A02','IT',25.2,6.15,'item'],['TRG-A01','TRG1',12.1,3.95,'trigger'],['TRG-A02','TRG2',22.5,3.55,'trigger'],
+            ['D1','D1',9.7,1.45,'door'],['D2','D2',20.7,5.45,'door'],
+            ['FE-A03','FE',12.6,2.6,'fold'],['FA-A03','FA',19.1,3.0,'fold'],['FE-A04','FE',19.8,3.8,'fold'],['FA-A04','FA',21.5,3.1,'fold'],
+            ['FE-A05','FE',26.1,4.0,'fold'],['FA-A05','FA',29.1,4.0,'fold']
+          ],
+          patrols: [['EN-A01',1.8,3.8,5.15],['EN-A02',6.5,9.0,5.45],['EN-A03',17.5,19.8,1.25],['EN-A04',17.8,20.0,5.35],['EN-A05',24.5,25.9,4.25]],
+          moves: [['MP-A01',15.85,2.2,5.1]],
+          rt: [['RT-01',5.7],['RT-02',12.3],['RT-03',19.3],['RT-04',25.9]],
+          rooms: [['CAM-A01',0,5.7],['CAM-A02',5.7,12.3],['CAM-A03',12.3,19.3],['CAM-A04',19.3,25.9],['CAM-A05',25.9,30]],
+          routes: {
+            main: [[.9,5.35],[4.1,5.35],[5.2,4.7],[6.3,5.7],[9.3,5.7],[10.7,3.9],[12.0,3.9],[13.7,4.5],[15.8,3.8],[17.7,1.45],[20.2,1.45],[21.9,3.15],[23.0,3.15],[25.0,4.45],[27.5,5.0],[29.7,4.1]],
+            optional: [
+              { label:'上层观察 / 安全支路', points:[[5.2,4.7],[6.5,1.6],[9.4,1.6],[11.3,3.85]] },
+              { label:'下层战斗捷径', points:[[15.8,3.8],[17.7,5.55],[20.0,5.55],[21.9,3.15]] }
+            ],
+            hidden: [
+              { label:'T1 镜面高层收藏路', points:[[11.3,3.55],[12.5,1.1],[15.2,.45],[17.7,1.45]] },
+              { label:'T2 封锁底层近路', points:[[21.9,3.45],[22.5,6.2],[25.2,6.2],[27.5,5.0]] }
+            ],
+            fold: [
+              { label:'E06折叠 A-Z03', points:[[12.6,2.6],[15.2,1.0],[19.1,3.0]] },
+              { label:'E06折叠 A-Z04', points:[[19.8,3.8],[20.7,2.2],[21.5,3.1]] },
+              { label:'E06折叠 A-Z05', points:[[26.1,4.0],[27.7,2.8],[29.1,4.0]] }
+            ],
+            notes: [
+              ['BR-A01',7.8,1.05,'上层观察支路｜收集物待填充｜支线剧情待填充'],
+              ['BR-A02',18.75,6.15,'下层战斗支路｜奖励待填充｜文案待填充']
+            ]
+          }
+        },
+        B: {
+          title: '场景B｜橙蓝梦境 / 行动区',
+          zones: ['B-Z01 漂浮适应','B-Z02 上行流动','B-Z03 T3往返','B-Z04 组合压力','B-Z05 四牌终局'],
+          bounds: [0,5.2,12,18.8,25.2,30],
+          platforms: [
+            ['PL-B01',.3,5.7,3.3,'normal'],['PL-B02',4.0,4.9,1.6,'normal'],['PL-B03',6.1,4.1,1.8,'normal'],
+            ['PL-B04',8.5,3.1,1.8,'normal'],['PL-B05',10.8,2.0,2.1,'normal'],['PL-B06',6.5,6.0,4.8,'normal'],
+            ['MP-B01',12.8,5.3,1.6,'moving'],['PL-B08',14.6,3.3,3.0,'normal'],['PL-B09',17.2,5.1,1.8,'normal'],
+            ['PL-B10',19.5,4.2,2.2,'normal'],['MP-B02',22.0,3.2,1.7,'moving'],['PL-B12',24.1,2.2,2.2,'normal'],
+            ['PL-B13',26.5,5.0,1.9,'normal'],['PL-B14',28.8,1.5,1.3,'normal'],
+            ['FP-B01a',13.8,4.8,.9,'fading'],['FP-B01b',15.1,4.3,.9,'fading'],['FP-B01c',16.4,4.8,.9,'fading'],
+            ['FP-B02a',24.4,3.9,.9,'fading'],['FP-B02b',25.7,3.4,.9,'fading'],['FP-B02c',27.0,3.9,.9,'fading'],
+            ['TH-B01',13.8,.8,1.7,'hidden'],['TH-B02',16.0,.8,1.7,'hidden'],['TH-B03',23.2,6.4,2.0,'hidden'],['TH-B04',25.7,6.4,1.7,'hidden']
+          ],
+          abysses: [['H-B01',3.8,7.8],['H-B02',12.2,17.0],['H-B03',20.3,24.0],['H-B04',27.0,29.0]],
+          spikes: [['SG-B01',8.9,5.65,1.4],['SG-B02',20.7,5.65,1.4],['SG-B03',27.4,5.65,1.0]],
+          planningAreas: [
+            ['VA-B1',12.4,2.0,5.7,3.7,'T3后进阶验证'],['VA-B2',22.8,1.5,5.5,4.2,'T4后最终组合'],
+            ['AW-B01',13.7,1.1,3.8,1.7,'E01空中行走体积'],['HP-B01',23.8,.75,2.8,1.7,'E03/E15挑战高台组'],
+            ['CB-B01',19.3,3.45,3.0,1.55,'E04/E05/E16/E17战斗验证区']
+          ],
+          tarotFlow: [
+            ['LAB-T3',10.55,.85,1.65,1.2,'T3 学习','显示新牌与覆写结果','learn','T3'],
+            ['TEST-T3',12.45,1.25,1.9,2.2,'T3 单项验证','新牌 + 漂浮平台/移动平台','test','T3'],
+            ['SYN-T3',14.65,1.45,2.8,3.9,'T3 组合验证','T1/T2快照 + T3 + 敌人','synthesis','T3'],
+            ['LAB-T4',21.45,1.9,1.55,1.1,'T4 学习','最终牌与当前状态提示','learn','T4'],
+            ['TEST-T4',23.25,1.85,1.65,2.1,'T4 单项验证','只突出T4主效果','test','T4'],
+            ['SYN-T4',25.15,1.45,2.65,4.1,'T4 组合验证','四牌状态 + 两层路线 + 战斗','synthesis','T4']
+          ],
+          points: [
+            ['IN-B01','IN',.9,5.35,'node'],['CP-B01','CP',4.8,4.55,'checkpoint'],['T3','T3',11.8,1.65,'tarot'],
+            ['CP-B02','CP',18.4,4.75,'checkpoint'],['T4','T4',22.8,2.85,'tarot'],['CP-B03','CP',27.8,4.65,'checkpoint'],['END','END',29.5,1.1,'node'],
+            ['EN-B01','EN1',3.0,5.35,'monster'],['EN-B02','EN2',7.8,5.65,'monster'],['EN-B03','EN3',15.3,2.95,'monster'],
+            ['EN-B04','EN4',21.2,3.85,'monster'],['EN-B05','EN5',24.9,1.85,'monster'],['EN-B06','EN6',27.2,4.65,'monster'],
+            ['IT-B01','IT',15.9,.45,'item'],['IT-B02','IT',26.2,6.05,'item'],['TRG-B01','TRG3',12.9,3.05,'trigger'],['TRG-B02','TRG4',23.4,2.7,'trigger'],
+            ['D3','D3',18.9,4.75,'door'],['FE-B02','FE',5.3,3.6,'fold'],['FA-B02','FA',11.5,1.65,'fold'],
+            ['FE-B03','FE',12.2,5.9,'fold'],['FA-B03','FA',18.1,4.75,'fold'],['FE-B04','FE',19.0,3.5,'fold'],['FA-B04','FA',22.4,2.85,'fold'],
+            ['FE-B05','FE',25.3,4.5,'fold'],['FA-B05','FA',27.5,4.65,'fold']
+          ],
+          patrols: [['EN-B01',1.8,3.3,5.15],['EN-B02',6.9,10.0,5.45],['EN-B03',14.8,16.8,2.75],['EN-B04',19.8,21.5,3.65],['EN-B05',24.2,25.8,1.65],['EN-B06',26.7,28.0,4.45]],
+          moves: [['MP-B01',13.6,2.6,5.8],['MP-B02',22.85,2.0,5.0]],
+          rt: [['RT-05',.35],['RT-06',5.2],['RT-07',12.0],['RT-08',18.8],['RT-09',25.2]],
+          rooms: [['CAM-B01',0,5.2],['CAM-B02',5.2,12],['CAM-B03',12,18.8],['CAM-B04',18.8,25.2],['CAM-B05',25.2,30]],
+          routes: {
+            main: [[.9,5.35],[3.7,5.35],[4.8,4.55],[7.0,3.75],[9.3,2.75],[11.8,1.65],[13.4,2.2],[15.3,2.95],[17.5,4.75],[18.4,4.75],[20.5,3.85],[22.8,2.85],[24.9,1.85],[26.7,4.65],[27.8,4.65],[29.5,1.1]],
+            optional: [
+              { label:'下层战斗捷径', points:[[4.8,4.55],[7.0,5.65],[10.8,5.65],[13.4,2.2]] },
+              { label:'机关 / 收集支路', points:[[18.4,4.75],[20.2,5.7],[23.0,5.7],[24.9,1.85]] }
+            ],
+            hidden: [
+              { label:'T3 高层漂浮收藏链', points:[[11.8,1.35],[14.0,.45],[16.8,.45],[18.4,4.75]] },
+              { label:'T4 终局底层隐藏路', points:[[22.8,3.15],[23.5,6.1],[26.5,6.1],[27.8,4.65]] }
+            ],
+            fold: [
+              { label:'E06折叠 B-Z02', points:[[5.3,3.6],[8.0,1.0],[11.5,1.65]] },
+              { label:'E06折叠 B-Z03', points:[[12.2,5.9],[15.2,7.0],[18.1,4.75]] },
+              { label:'E06折叠 B-Z04', points:[[19.0,3.5],[20.5,2.0],[22.4,2.85]] },
+              { label:'E06折叠 B-Z05', points:[[25.3,4.5],[26.3,5.8],[27.5,4.65]] }
+            ],
+            notes: [
+              ['BR-B01',8.6,6.25,'下层战斗支路｜收集物待填充｜支线剧情待填充'],
+              ['BR-B02',21.5,6.2,'机关收集支路｜奖励待填充｜文案待填充']
+            ]
+          }
+        }
+      };
+
+      const statuses = {
+        overview: '总览：查看上下行编织、三层路线与关键节点；不把箭头当作碰撞体。',
+        terrain: '地形层：平台、断崖、尖刺、透明KillZone和移动范围；只表达需要碰撞/触发的实体。',
+        points: '点位层：所有点位贴合对应平台，巡逻线和RT边界均为独立对象。',
+        routes: '路线层：箭头仅表示连通关系，不代表Unity实际高度、地面或碰撞体。',
+        carriers: '机制载体层：只显示牌效可作用的AW/HP/CB/VA等策划范围；详细规则读取配套文档和Excel。',
+        tarot: '塔罗流程层：只显示T点、LAB/TEST/SYN区段和对应隐藏路；详细文字已移至配套文档。',
+        camera: '摄像机层：Camera Room是镜头构图段；RT触发镜头段切换，不等同Scene，也不必与Zone一一对应。',
+        all: '全部叠加：只用于检查漏项和路线冲突；程序施工时应按地形、点位、路线、塔罗、摄像机五层分别搭建。'
+      };
+
+      const legendByLayer = {
+        overview: [['main','','主线必经'],['optional','','可选探索'],['hidden','','塔罗隐藏路'],['symbol','T1–T4','塔罗交互点'],['symbol','CP','检查点'],['symbol','SP/IN','起点/场景入口'],['symbol','END','正式终点'],['symbol','TRANS','场景切换']],
+        terrain: [['symbol','PL','普通平台'],['symbol','MP','移动平台'],['symbol','FP','计时消失平台；E12/E18载体'],['symbol','DP','永久消失平台；本图未放置'],['symbol','TH','塔罗隐藏平台'],['symbol','SG','尖刺'],['symbol','H','深渊危险区']],
+        points: [['symbol','SP/IN','入口'],['symbol','END','终点'],['symbol','TRANS','场景切换'],['symbol','T1–T4','塔罗点'],['symbol','CP','检查点'],['symbol','EN','怪物'],['symbol','IT','收集品'],['symbol','TRG','机关触发器'],['symbol','D','门'],['symbol','FE/FA','折叠入口/落点'],['symbol','RT','Camera Room切换线']],
+        routes: [['main','','主线必经'],['optional','','可选支路'],['hidden','','塔罗隐藏路'],['fold','','E06折叠传送']],
+        carriers: [['symbol','ONB','基础移动/攻击教学段'],['symbol','VA','塔罗验证范围'],['symbol','AW','空中行走载体'],['symbol','HP','高台变化载体'],['symbol','CB','战斗牌效载体']],
+        tarot: [['symbol','LAB-T','安全学习段'],['symbol','TEST-T','单项验证段'],['symbol','SYN-T','组合验证段'],['hidden','','对应塔罗隐藏路']],
+        camera: [['symbol','CAM','镜头构图段'],['symbol','RT','Camera Room切换触发器'],['symbol','4U','工程相机半高'],['symbol','16:9','约14.22U×8U视野']],
+        all: [['main','','主线'],['optional','','可选'],['hidden','','隐藏'],['fold','','折叠'],['symbol','点位','PL/MP/FP/TH/SG/H/EN/IT/T/CP/TRG/D/TRANS/RT'],['symbol','策划范围','Zone/LAB/TEST/SYN/VA/AW/CB/HP/CAM']]
+      };
+
+      const sx = x => 50 + x * 50;
+      const sy = y => 70 + y * 50;
+      const line = (x1,y1,x2,y2,cls) => `<line x1="${sx(x1)}" y1="${sy(y1)}" x2="${sx(x2)}" y2="${sy(y2)}" class="${cls}"/>`;
+      const polyline = (points, cls) => `<polyline points="${points.map(([x,y]) => `${sx(x)},${sy(y)}`).join(' ')}" class="${cls}"/>`;
+      const label = (x,y,text,cls='platform-label',anchor='start') => `<text x="${sx(x)}" y="${sy(y)}" class="${cls}" text-anchor="${anchor}">${text}</text>`;
+
+      function defs() {
+        return `<defs>
+          <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L9 3L0 6Z" fill="var(--blue)"/></marker>
+          <marker id="arrow-blue-start" markerWidth="10" markerHeight="10" refX="1" refY="3" orient="auto"><path d="M9 0L0 3L9 6Z" fill="var(--blue)"/></marker>
+          <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L9 3L0 6Z" fill="var(--red)"/></marker>
+          <marker id="arrow-red-start" markerWidth="10" markerHeight="10" refX="1" refY="3" orient="auto"><path d="M9 0L0 3L9 6Z" fill="var(--red)"/></marker>
+          <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L9 3L0 6Z" fill="var(--orange)"/></marker>
+          <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L9 3L0 6Z" fill="var(--purple)"/></marker>
+          <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L9 3L0 6Z" fill="var(--green)"/></marker>
+          <pattern id="killzone-hatch" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(25)">
+            <rect width="14" height="14" fill="color-mix(in srgb, var(--red) 4%, transparent)"/>
+            <line x1="0" y1="0" x2="0" y2="14" stroke="var(--red)" stroke-width="3" opacity=".42"/>
+          </pattern>
+        </defs>`;
+      }
+
+      function drawGrid(scene) {
+        let out = `<rect x="1" y="1" width="1598" height="500" rx="4" class="map-frame"/>`;
+        for (let x = 0; x <= 30; x += 1) out += line(x,0,x,8,x % 5 === 0 ? 'grid-line grid-major' : 'grid-line');
+        for (let y = 0; y <= 8; y += 1) out += line(0,y,30,y,y % 2 === 0 ? 'grid-line grid-major' : 'grid-line');
+        for (let x = 0; x <= 30; x += 5) out += label(x,-.18,String(x),'grid-label','middle');
+        for (let y = 0; y <= 8; y += 2) out += label(-.25,y+.08,String(y),'grid-label','end');
+        for (let i = 0; i < scene.zones.length; i += 1) {
+          const left = scene.bounds[i]; const right = scene.bounds[i+1];
+          out += `<rect x="${sx(left)}" y="${sy(0)}" width="${(right-left)*50}" height="400" class="${scene === scenes.A ? 'zone-fill-a' : 'zone-fill-b'}" opacity="${i%2 ? .45 : .8}"/>`;
+          if (i > 0) out += line(left,0,left,8,'zone-boundary');
+          out += label((left+right)/2,.36,scene.zones[i],'zone-label','middle');
+        }
+        return out;
+      }
+
+      function terrainMarkup(scene, ghost=false) {
+        let out = `<g class="${ghost ? 'ghost' : ''}">`;
+        scene.abysses.forEach(([id,x1,x2]) => {
+          out += `<rect x="${sx(x1)}" y="${sy(6.15)}" width="${(x2-x1)*50}" height="92" class="killzone"/>`;
+          if (!ghost) out += label((x1+x2)/2,7.48,`${id}｜深渊危险区`,'platform-label','middle');
+        });
+        scene.platforms.forEach(([id,x,y,w,type]) => {
+          const cls = type === 'moving' ? 'moving' : type === 'fading' ? 'fading' : type === 'hidden' ? 'hidden-platform' : scene === scenes.B ? 'platform-b' : 'platform';
+          out += `<rect x="${sx(x)}" y="${sy(y)}" width="${w*50}" height="16" rx="2" class="${cls}"/>`;
+          if (!ghost && !id.endsWith('b') && !id.endsWith('c')) out += label(x+w/2,y-.12,id,'platform-label','middle');
+        });
+        scene.spikes.forEach(([id,x,y,w]) => {
+          const teeth = Math.max(2,Math.round(w*3));
+          let d = `M${sx(x)} ${sy(y)}`;
+          for (let i=0;i<teeth;i+=1) d += `L${sx(x)+(i+.5)*(w*50/teeth)} ${sy(y)-18}L${sx(x)+(i+1)*(w*50/teeth)} ${sy(y)}`;
+          out += `<path d="${d}Z" class="spike"/>`;
+          out += `<rect x="${sx(x)-4}" y="${sy(y)-35}" width="${w*50+8}" height="39" rx="3" class="spike-envelope"/>`;
+          if (!ghost) out += label(x+w/2,y+.62,id,'platform-label','middle');
+        });
+        scene.moves.forEach(([id,x,y1,y2]) => {
+          out += line(x,y1,x,y2,'move-range');
+          if (!ghost) out += label(x+.15,(y1+y2)/2,id,'mechanism-label');
+        });
+        out += '</g>';
+        return out;
+      }
+
+      function pointMarkup(scene) {
+        let out = '<g>';
+        scene.rt.forEach(([id,x]) => {
+          out += line(x,.7,x,7.9,'rt-line');
+          out += label(x+.08,.92,id,'point-label');
+        });
+        scene.patrols.forEach(([id,x1,x2,y]) => {
+          out += line(x1,y,x2,y,'patrol');
+          out += label((x1+x2)/2,y-.18,`${id}巡逻`,'mechanism-label','middle');
+        });
+        scene.points.forEach(([id,short,x,y,type]) => {
+          const cls = `node ${type}`;
+          if (type === 'door') {
+            out += `<rect x="${sx(x)-10}" y="${sy(y)-28}" width="20" height="56" rx="2" class="${cls}"/>`;
+          } else if (type === 'fold') {
+            out += `<rect x="${sx(x)-12}" y="${sy(y)-21}" width="24" height="42" rx="10" class="${cls}"/>`;
+          } else {
+            out += `<circle cx="${sx(x)}" cy="${sy(y)}" r="17" class="${cls}"/>`;
+          }
+          out += `<text x="${sx(x)}" y="${sy(y)+5}" class="point-label" text-anchor="middle">${short}</text>`;
+          out += label(x,y-.48,id,'point-label','middle');
+        });
+        out += '</g>';
+        return out;
+      }
+
+      function routeMarkup(scene) {
+        let out = '<g>';
+        out += polyline(scene.routes.main,'main-route');
+        out += label(2.2,6.75,'MAIN · 必经主线','route-label');
+        scene.routes.optional.forEach((route,index) => {
+          out += polyline(route.points,'optional-route');
+          const [x,y] = route.points[Math.floor(route.points.length/2)];
+          out += label(x,y-(index ? .28 : .35),route.label,'route-label','middle');
+        });
+        scene.routes.hidden.forEach(route => {
+          out += polyline(route.points,'hidden-route');
+          const [x,y] = route.points[1];
+          out += label(x,y-.28,route.label,'route-label');
+        });
+        scene.routes.fold.forEach(route => {
+          out += polyline(route.points,'fold-route');
+          const [x,y] = route.points[1];
+          out += label(x,y-.26,route.label,'mechanism-label','middle');
+        });
+        (scene.routes.notes || []).forEach(([id,x,y,note]) => {
+          out += label(x,y,`${id}｜${note}`,'guide-note','middle');
+        });
+        out += '</g>';
+        return out;
+      }
+
+      function overviewPointMarkup(scene) {
+        const major = scene.points.filter(([id]) =>
+          id === 'END' || /^T[1-4]$/.test(id) || /^(SP|IN|CP|TRANS)-/.test(id)
+        );
+        let out = '<g>';
+        major.forEach(([id,short,x,y,type]) => {
+          const cls = `node ${type}`;
+          out += `<circle cx="${sx(x)}" cy="${sy(y)}" r="17" class="${cls}"/>`;
+          out += `<text x="${sx(x)}" y="${sy(y)+5}" class="point-label" text-anchor="middle">${short}</text>`;
+          out += label(x,y-.48,id,'point-label','middle');
+        });
+        out += '</g>';
+        return out;
+      }
+
+      function carrierMarkup(scene) {
+        let out = '<g>';
+        scene.planningAreas.forEach(([id,x,y,w,h,note]) => {
+          out += `<rect x="${sx(x)}" y="${sy(y)}" width="${w*50}" height="${h*50}" rx="7" class="planning-area"/>`;
+          out += label(x+.12,y+.38,id,'mechanism-label');
+          out += label(x+.12,y+h-.18,note,'guide-note');
+        });
+        out += label(.35,7.82,'本层矩形仅表示牌效作用范围，不生成可见美术或碰撞；实现说明见配套文档。','guide-note');
+        out += '</g>';
+        return out;
+      }
+
+      function tarotMarkup(scene) {
+        let out = '<g>';
+        scene.tarotFlow.forEach(([id,x,y,w,h,title,note,stage,group],index) => {
+          const cls = stage === 'learn' ? 'learn-area' : stage === 'test' ? 'test-area' : 'synthesis-area';
+          out += `<rect x="${sx(x)}" y="${sy(y)}" width="${w*50}" height="${h*50}" rx="7" class="${cls}"/>`;
+          out += label(x+w*.5,y+h*.52,id,'mechanism-label','middle');
+          if (scene.tarotFlow[index+1] && scene.tarotFlow[index+1][8] === group) {
+            const next = scene.tarotFlow[index+1];
+            out += line(x+w,y+h*.55,next[1],next[2]+next[4]*.55,'learn-arrow');
+          }
+        });
+        scene.points.filter(point => /^T[1-4]$/.test(point[0]) || point[0].startsWith('CP-') || point[0].startsWith('TRG-')).forEach(([id,short,x,y,type]) => {
+          const cls = `node ${type}`;
+          out += `<circle cx="${sx(x)}" cy="${sy(y)}" r="17" class="${cls}"/>`;
+          out += `<text x="${sx(x)}" y="${sy(y)+5}" class="point-label" text-anchor="middle">${short}</text>`;
+          out += label(x,y-.48,id,'point-label','middle');
+        });
+        scene.routes.hidden.forEach(route => { out += polyline(route.points,'hidden-route'); });
+        out += label(.35,7.82,'流程：T → LAB → TEST → 下一RT锁定快照 → SYN → 解锁对应隐藏路；详细定义见配套文档。','guide-note');
+        out += '</g>';
+        return out;
+      }
+
+      function cameraMarkup(scene) {
+        let out = '<g>';
+        scene.rooms.forEach(([id,x1,x2],index) => {
+          out += `<rect x="${sx(x1)+4}" y="${sy(.72)}" width="${(x2-x1)*50-8}" height="${7.0*50}" rx="5" class="camera-room" opacity="${index%2 ? .72 : 1}"/>`;
+          out += label((x1+x2)/2,1.18,id,'camera-label','middle');
+          out += label((x1+x2)/2,1.55,index === 0 ? '进入时建立构图' : 'RT切换后跟随','guide-note','middle');
+        });
+        scene.rt.forEach(([id,x]) => {
+          out += line(x,.7,x,7.9,'rt-line');
+          out += label(x+.08,7.65,`${id} · 镜头切换`,'point-label');
+        });
+        out += label(.35,7.95,'当前工程：Cinemachine OrthographicSize=4；1920×1080时视野约14.22U×8U。图中CAM框只表达分镜范围，不是最终Unity尺寸。','guide-note');
+        out += '</g>';
+        return out;
+      }
+
+      function renderLegend(layer) {
+        legend.innerHTML = legendByLayer[layer].map(([type,symbol,text]) => {
+          if (type === 'symbol') return `<span class="legend-item"><span class="legend-symbol">${symbol}</span>${text}</span>`;
+          return `<span class="legend-item"><span class="legend-line ${type}"></span>${text}</span>`;
+        }).join('');
+      }
+
+      function render() {
+        const sceneKey = sceneSelect.value;
+        const layer = layerSelect.value;
+        const scene = scenes[sceneKey];
+        let body = drawGrid(scene);
+        if (layer === 'overview') body += terrainMarkup(scene,false) + routeMarkup(scene) + overviewPointMarkup(scene);
+        if (layer === 'terrain') body += terrainMarkup(scene,false);
+        if (layer === 'points') body += terrainMarkup(scene,true) + pointMarkup(scene);
+        if (layer === 'routes') body += terrainMarkup(scene,true) + routeMarkup(scene);
+        if (layer === 'carriers') body += terrainMarkup(scene,true) + carrierMarkup(scene);
+        if (layer === 'tarot') body += terrainMarkup(scene,true) + tarotMarkup(scene);
+        if (layer === 'camera') body += terrainMarkup(scene,true) + cameraMarkup(scene);
+        if (layer === 'all') body += terrainMarkup(scene,false) + pointMarkup(scene) + routeMarkup(scene) + carrierMarkup(scene) + tarotMarkup(scene);
+        body += label(0,8.55,'X：0–30宏观格　Y：0–8宏观格　平台矩形=碰撞骨架；路线箭头≠实际地面','guide-note');
+        const svg = document.createElementNS(NS,'svg');
+        svg.setAttribute('class','construction-map');
+        svg.setAttribute('viewBox','0 0 1600 535');
+        svg.setAttribute('role','img');
+        svg.setAttribute('aria-label',`${scene.title} ${statuses[layer]}`);
+        svg.innerHTML = defs() + body;
+        mapWrap.replaceChildren(svg);
+        status.textContent = `${scene.title}｜${statuses[layer]}`;
+        renderLegend(layer);
+      }
+
+      sceneSelect.addEventListener('change',render);
+      layerSelect.addEventListener('change',render);
+      downloadButton.addEventListener('click',() => {
+        const svg = mapWrap.querySelector('svg');
+        if (!svg) return;
+        const serialized = new XMLSerializer().serializeToString(svg);
+        const blob = new Blob([serialized],{type:'image/svg+xml'});
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `Dreamremains_${sceneSelect.value}_${layerSelect.value}.svg`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      });
+      render();
+    })();
+  </script>
+</div>
+
+</body>
+</html>

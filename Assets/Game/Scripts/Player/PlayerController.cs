@@ -22,6 +22,30 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private LayerMask groundLayer;
     [SerializeField, Range(0f, 1f)] private float minimumGroundNormalY = 0.5f;
 
+    [Header("Health")]
+    [SerializeField, Min(1)] private int maxHealth = 3;
+    [SerializeField, Min(0f)] private float invulnerabilityDuration = 1f;
+
+    [Header("Attack")]
+    [SerializeField] private Vector2 attackHitboxSize = new Vector2(1.1f, 0.9f);
+    [SerializeField] private float attackHitboxForwardOffset = 0.7f;
+    [SerializeField] private Vector2 attackHitboxCenterOffset = Vector2.zero;
+    [SerializeField, Min(1)] private int attackDamage = 1;
+    [SerializeField, Range(0f, 1f)] private float attackHitTimeNormalized = 0.4f;
+    // 敌人 prefab 根节点与 Visual 均在 Enemy 层（index 9）
+    [SerializeField] private LayerMask attackTargetLayers = 1 << 9;
+    [SerializeField, Min(0f)] private float attackCooldown = 0.1f;
+
+    private bool allowMoveLeft = true;
+    private float attackRangeMultiplier = 1f;
+    private int extraAirJumps;
+    private int extraAirJumpsRemaining;
+    private int airWalkLocks;
+    private float defaultGravityScale = 1f;
+    private AerialAttackMode aerialAttackMode = AerialAttackMode.Normal;
+    private RigidbodyType2D storedBodyType = RigidbodyType2D.Dynamic;
+    private bool physicsFrozen;
+
     private Rigidbody2D rb;
     private Collider2D bodyCollider;
     private PlayerAnimationStateController animationController;
@@ -35,18 +59,42 @@ public class PlayerController : MonoBehaviour
     private bool leftGroundAfterJump;
     private float fallingTime;
 
+    private int currentHealth;
+    private float invulnerabilityRemaining;
+    private float attackCooldownRemaining;
+    private readonly Collider2D[] attackHits = new Collider2D[8];
+    private ContactFilter2D attackFilter;
+
     public bool IsGrounded { get; private set; }
     public bool IsDead { get; private set; }
     public bool IsInputEnabled { get; private set; } = true;
+    public int CurrentHealth => currentHealth;
+    public int MaxHealth => maxHealth;
+    public bool IsInvulnerable => invulnerabilityRemaining > 0f;
+
+    public enum AerialAttackMode
+    {
+        Normal = 0,
+        Execute = 1,
+        Nullify = 2
+    }
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         bodyCollider = GetComponent<Collider2D>();
         animationController = GetComponent<PlayerAnimationStateController>();
+        defaultGravityScale = rb != null ? rb.gravityScale : 1f;
         groundFilter = new ContactFilter2D();
         groundFilter.SetLayerMask(groundLayer);
         groundFilter.useTriggers = false;
+
+        // 敌人碰撞体是 trigger，命中检测必须允许 trigger 参与。
+        attackFilter = new ContactFilter2D();
+        attackFilter.SetLayerMask(attackTargetLayers);
+        attackFilter.useTriggers = true;
+
+        currentHealth = maxHealth;
 
         if (animationController == null)
         {
@@ -77,6 +125,11 @@ public class PlayerController : MonoBehaviour
             jumpBufferTimeRemaining = jumpBufferTime;
         }
 
+        if (input.AttackPressed && attackCooldownRemaining <= 0f && animationController.TryStartAttack())
+        {
+            attackCooldownRemaining = attackCooldown;
+        }
+
         if (animationController.IsMovementLocked)
         {
             moveX = 0f;
@@ -84,20 +137,96 @@ public class PlayerController : MonoBehaviour
         }
 
         moveX = input.MoveX;
+        if (!allowMoveLeft && moveX < 0f)
+            moveX = 0f;
+    }
+
+    public void SetMoveLeftAllowed(bool allowed)
+    {
+        allowMoveLeft = allowed;
+        if (!allowed && moveX < 0f)
+            moveX = 0f;
+    }
+
+    public void SetAttackRangeMultiplier(float multiplier)
+    {
+        attackRangeMultiplier = Mathf.Max(1f, multiplier);
+    }
+
+    public void SetExtraAirJumps(int count)
+    {
+        extraAirJumps = Mathf.Max(0, count);
+        extraAirJumpsRemaining = extraAirJumps;
+    }
+
+    public void SetMaxHealth(int value, bool fill)
+    {
+        maxHealth = Mathf.Max(1, value);
+        if (fill)
+            currentHealth = maxHealth;
+        else
+            currentHealth = Mathf.Min(currentHealth, maxHealth);
+    }
+
+    public void SetAerialAttackMode(AerialAttackMode mode)
+    {
+        aerialAttackMode = mode;
+    }
+
+    public void AddAirWalkLock()
+    {
+        airWalkLocks++;
+        ApplyAirWalkGravity();
+    }
+
+    public void RemoveAirWalkLock()
+    {
+        airWalkLocks = Mathf.Max(0, airWalkLocks - 1);
+        ApplyAirWalkGravity();
+    }
+
+    public void ClearAirWalkLocks()
+    {
+        airWalkLocks = 0;
+        ApplyAirWalkGravity();
+    }
+
+    private bool IsAirWalking => airWalkLocks > 0;
+
+    private void ApplyAirWalkGravity()
+    {
+        if (rb == null)
+            return;
+        rb.gravityScale = IsAirWalking ? 0f : defaultGravityScale;
     }
 
     public void FixedTick(float fixedDeltaTime)
     {
-        if (IsDead || !IsInputEnabled)
+        if (IsDead || !IsInputEnabled || physicsFrozen)
             return;
 
+        UpdateCombatTimers(fixedDeltaTime);
+
         CheckGround();
+        if (IsAirWalking)
+        {
+            IsGrounded = true;
+            if (rb.linearVelocity.y < 0f)
+                rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+        }
+
         UpdateFallingTime(fixedDeltaTime);
         UpdateJumpAvailability();
         UpdateCoyoteTime(fixedDeltaTime);
 
         float effectiveMoveX = GetEffectiveMoveX();
         animationController.UpdateAnimation(effectiveMoveX, fixedDeltaTime);
+
+        // 动画状态在 UpdateAnimation 里推进，故命中窗口查询紧随其后。
+        if (animationController.ConsumeAttackHitWindow(attackHitTimeNormalized))
+        {
+            PerformAttackHitDetection();
+        }
 
         if (animationController.IsMovementLocked)
         {
@@ -107,6 +236,7 @@ public class PlayerController : MonoBehaviour
         }
 
         Move(effectiveMoveX);
+        RideMovingPlatform();
 
         if (animationController.IsLandingAnimationPlaying)
             return;
@@ -235,12 +365,16 @@ public class PlayerController : MonoBehaviour
         {
             jumpConsumed = false;
             leftGroundAfterJump = false;
+            extraAirJumpsRemaining = extraAirJumps;
         }
     }
 
     private bool CanJump()
     {
-        return !jumpConsumed && (IsGrounded || coyoteTimeRemaining > 0f);
+        if (IsGrounded || coyoteTimeRemaining > 0f)
+            return !jumpConsumed;
+
+        return extraAirJumpsRemaining > 0;
     }
 
     private bool TryJump()
@@ -248,11 +382,14 @@ public class PlayerController : MonoBehaviour
         if (jumpBufferTimeRemaining <= 0f || !CanJump())
             return false;
 
+        bool airJump = jumpConsumed && !IsGrounded && coyoteTimeRemaining <= 0f;
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
         jumpBufferTimeRemaining = 0f;
         coyoteTimeRemaining = 0f;
         jumpConsumed = true;
         leftGroundAfterJump = !IsGrounded;
+        if (airJump)
+            extraAirJumpsRemaining--;
         return true;
     }
 
@@ -261,6 +398,31 @@ public class PlayerController : MonoBehaviour
         jumpBufferTimeRemaining = 0f;
     }
 
+    /// <summary>
+    /// 对玩家造成伤害。无敌帧期间被忽略。血量归零时自动调用 <see cref="TryKill"/>。
+    /// </summary>
+    /// <returns>是否真正造成了伤害（无敌帧或已死返回 false）。</returns>
+    public bool TakeDamage(int amount)
+    {
+        if (IsDead || IsInvulnerable || amount <= 0)
+            return false;
+
+        currentHealth = Mathf.Max(0, currentHealth - amount);
+        invulnerabilityRemaining = invulnerabilityDuration;
+
+        Debug.Log($"Player took {amount} damage, health: {currentHealth}/{maxHealth}");
+
+        if (currentHealth <= 0)
+        {
+            TryKill();
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 立即致死，忽略血量与无敌帧。用于坠落深渊等环境即死。
+    /// </summary>
     public bool TryKill()
     {
         if (IsDead)
@@ -279,6 +441,7 @@ public class PlayerController : MonoBehaviour
 
     public void Respawn(Vector3 position)
     {
+        UnfreezePhysics();
         transform.position = position;
         rb.linearVelocity = Vector2.zero;
 
@@ -290,13 +453,126 @@ public class PlayerController : MonoBehaviour
         jumpConsumed = false;
         leftGroundAfterJump = false;
         fallingTime = 0f;
+        currentHealth = maxHealth;
+        extraAirJumpsRemaining = extraAirJumps;
+        airWalkLocks = 0;
+        ApplyAirWalkGravity();
+        invulnerabilityRemaining = 0f;
+        attackCooldownRemaining = 0f;
         animationController.ResetState();
         animationController.UpdateAnimation(0f);
     }
 
+    private void UpdateCombatTimers(float fixedDeltaTime)
+    {
+        if (invulnerabilityRemaining > 0f)
+        {
+            invulnerabilityRemaining = Mathf.Max(0f, invulnerabilityRemaining - fixedDeltaTime);
+        }
+
+        if (attackCooldownRemaining > 0f)
+        {
+            attackCooldownRemaining = Mathf.Max(0f, attackCooldownRemaining - fixedDeltaTime);
+        }
+    }
+
+    private Vector2 GetAttackHitboxSize()
+    {
+        return attackHitboxSize * attackRangeMultiplier;
+    }
+
+    private Vector2 GetAttackHitboxCenter()
+    {
+        float facing = animationController != null && animationController.IsFacingRight ? 1f : -1f;
+        float range = attackRangeMultiplier;
+        Vector2 offset = new Vector2(
+            (attackHitboxForwardOffset * facing * range) + (attackHitboxCenterOffset.x * facing),
+            attackHitboxCenterOffset.y);
+
+        return (Vector2)transform.position + offset;
+    }
+
+    private void PerformAttackHitDetection()
+    {
+        Vector2 center = GetAttackHitboxCenter();
+        int count = Physics2D.OverlapBox(center, GetAttackHitboxSize(), 0f, attackFilter, attackHits);
+
+        for (int i = 0; i < count; i++)
+        {
+            Collider2D hit = attackHits[i];
+            if (hit == null)
+                continue;
+
+            if (hit.transform.IsChildOf(transform))
+                continue;
+
+            if (IsBlockedByWall(center, hit))
+                continue;
+
+            PatrolEnemy enemy = hit.GetComponentInParent<PatrolEnemy>();
+            if (enemy != null)
+            {
+                enemy.TakeDamage(ResolveAttackDamage());
+            }
+        }
+    }
+
+    private int ResolveAttackDamage()
+    {
+        bool falling = !IsGrounded && rb != null && rb.linearVelocity.y < 0f;
+        if (!falling)
+            return attackDamage;
+
+        if (aerialAttackMode == AerialAttackMode.Execute)
+            return 999;
+        if (aerialAttackMode == AerialAttackMode.Nullify)
+            return 0;
+        return attackDamage;
+    }
+
+    private void RideMovingPlatform()
+    {
+        if (!IsGrounded || bodyCollider == null)
+            return;
+
+        int hitCount = bodyCollider.Cast(Vector2.down, groundFilter, groundHits, groundCheckRadius + 0.05f);
+        for (int i = 0; i < hitCount; i++)
+        {
+            MovingPlatform platform = groundHits[i].collider.GetComponentInParent<MovingPlatform>();
+            if (platform == null)
+                continue;
+
+            rb.position += platform.FrameDelta;
+            return;
+        }
+    }
+
+    private bool IsBlockedByWall(Vector2 origin, Collider2D target)
+    {
+        Vector2 destination = target.bounds.center;
+        RaycastHit2D block = Physics2D.Linecast(origin, destination, groundLayer);
+        if (block.collider == null)
+            return false;
+
+        return !block.collider.transform.IsChildOf(target.transform)
+            && !block.collider.transform.IsChildOf(transform);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (groundCheck != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+        }
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireCube(GetAttackHitboxCenter(), GetAttackHitboxSize());
+    }
+
     public void StopMovement()
     {
-        IsInputEnabled = true;
+        IsInputEnabled = false;
         moveX = 0f;
         coyoteTimeRemaining = 0f;
         jumpBufferTimeRemaining = 0f;
@@ -307,9 +583,42 @@ public class PlayerController : MonoBehaviour
         if (rb != null)
         {
             rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
         }
 
-        animationController.ResetState();
-        animationController.UpdateAnimation(0f);
+        if (animationController != null)
+        {
+            animationController.ResetState();
+            animationController.UpdateAnimation(0f);
+        }
+    }
+
+    /// <summary>
+    /// 过场/通关时关掉动力学，避免站在 END 上仍被重力拖下深渊。
+    /// </summary>
+    public void FreezePhysics()
+    {
+        StopMovement();
+        if (rb == null || physicsFrozen)
+            return;
+
+        storedBodyType = rb.bodyType;
+        physicsFrozen = true;
+        rb.linearVelocity = Vector2.zero;
+        rb.angularVelocity = 0f;
+        rb.bodyType = RigidbodyType2D.Kinematic;
+    }
+
+    public void UnfreezePhysics()
+    {
+        if (rb != null && physicsFrozen)
+        {
+            rb.bodyType = storedBodyType;
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+        }
+
+        physicsFrozen = false;
+        IsInputEnabled = true;
     }
 }

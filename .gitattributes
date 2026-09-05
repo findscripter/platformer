@@ -1,1 +1,2 @@
-Assets/Game/Art/source/*[[:space:]]SDF.asset filter=lfs diff=lfs merge=lfs -text
+"Assets/Game/Art/source/dialogue_font SDF.asset" text -filter -diff -merge
+"Assets/Game/Art/source/menu_font SDF.asset" text -filter -diff -merge

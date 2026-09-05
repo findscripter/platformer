@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 public static class DebugOverlayPrefabSetup
 {
-    private const string PrefabPath = "Assets/Game/Scripts/Managers/PersistentRoot.prefab";
+    private const string PrefabPath = "Assets/Game/Prefabs/Managers/PersistentRoot.prefab";
 
     [MenuItem("Tools/UI/Build Debug Overlay")]
     public static void BuildFromMenu()

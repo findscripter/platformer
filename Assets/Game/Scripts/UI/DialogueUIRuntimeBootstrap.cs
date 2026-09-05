@@ -21,6 +21,8 @@ public class DialogueUIRuntimeBootstrap : MonoBehaviour
             uiRoot,
             IsAlive(existingCanvas) ? existingCanvas : null);
 
+        DialogueUIArtIntegration.ApplyArt(buildResult.PanelRoot);
+
         var bootstrap = EnsureComponent<DialogueUIBootstrap>(gameObject);
         bootstrap.Configure(
             dialogueManager,

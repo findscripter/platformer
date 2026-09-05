@@ -19,6 +19,7 @@ public static class GameLayers
     public const string Platform = "Platform";
     public const string Player = "Player";
     public const string Enemy = "Enemy";
+    public const string NPC = "NPC";
     public const string Trigger = "Trigger";
     public const string Collectible = "Collectible";
     public const string Mechanism = "Mechanism";
@@ -27,6 +28,7 @@ public static class GameLayers
     public static int PlatformLayer => LayerMask.NameToLayer(Platform);
     public static int PlayerLayer => LayerMask.NameToLayer(Player);
     public static int EnemyLayer => LayerMask.NameToLayer(Enemy);
+    public static int NPCLayer => LayerMask.NameToLayer(NPC);
     public static int TriggerLayer => LayerMask.NameToLayer(Trigger);
     public static int CollectibleLayer => LayerMask.NameToLayer(Collectible);
     public static int MechanismLayer => LayerMask.NameToLayer(Mechanism);

@@ -7,7 +7,7 @@ using UnityEngine.UI;
 public static class DeathUIPrefabSetup
 {
     private const string PrefabPath =
-        "Assets/Game/Scripts/Managers/PersistentRoot.prefab";
+        "Assets/Game/Prefabs/Managers/PersistentRoot.prefab";
 
     private static readonly Color OverlayColor = new(0.08f, 0.005f, 0.01f, 0.72f);
     private static readonly Color PanelColor = new(0.12f, 0.025f, 0.035f, 0.96f);

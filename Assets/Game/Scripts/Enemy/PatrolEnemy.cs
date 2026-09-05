@@ -10,20 +10,52 @@ public sealed class PatrolEnemy : MonoBehaviour
     [SerializeField, Min(0.001f)] private float endpointTolerance = 0.03f;
     [SerializeField] private SpriteRenderer spriteRenderer;
 
+    [Header("Combat")]
+    [SerializeField, Min(1)] private int maxHealth = 3;
+    [SerializeField, Min(1)] private int contactDamage = 1;
+    [SerializeField, Min(0f)] private float hitStunDuration = 0.45f;
+
+    private static readonly int IsHitParameter = Animator.StringToHash("isHit");
+
     private Rigidbody2D body;
+    private Animator animator;
     private Vector2 patrolOrigin;
     private bool movingToEnd = true;
+    private int currentHealth;
+    private float hitStunRemaining;
+    private int healthMultiplier = 1;
+    private int baseMaxHealth;
+
+    public int CurrentHealth => currentHealth;
+    public int MaxHealth => Mathf.Max(1, baseMaxHealth > 0 ? baseMaxHealth : maxHealth) * Mathf.Max(1, healthMultiplier);
+    public bool IsAlive => currentHealth > 0;
+    public bool IsDamageable => IsAlive;
 
     private void Awake()
     {
         body = GetComponent<Rigidbody2D>();
         if (spriteRenderer == null)
         {
-            spriteRenderer = GetComponent<SpriteRenderer>();
+            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         }
 
+        // Animator 位于子物体 Visual 上，根物体只有 Transform/Rigidbody2D/Collider2D/本脚本。
+        animator = GetComponentInChildren<Animator>();
+
+        baseMaxHealth = maxHealth;
+        currentHealth = MaxHealth;
         patrolOrigin = body.position;
         UpdateFacing();
+    }
+
+    public void ConfigurePatrol(Vector2 startOffset, Vector2 endOffset)
+    {
+        patrolStartOffset = startOffset;
+        patrolEndOffset = endOffset;
+        if (body != null)
+            patrolOrigin = body.position;
+        else
+            patrolOrigin = transform.position;
     }
 
     private void Reset()
@@ -40,6 +72,21 @@ public sealed class PatrolEnemy : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (hitStunRemaining > 0f)
+        {
+            hitStunRemaining -= Time.fixedDeltaTime;
+            if (hitStunRemaining <= 0f)
+            {
+                hitStunRemaining = 0f;
+                if (animator != null)
+                {
+                    animator.SetBool(IsHitParameter, false);
+                }
+            }
+
+            return;
+        }
+
         Vector2 target = patrolOrigin + (movingToEnd ? patrolEndOffset : patrolStartOffset);
         Vector2 nextPosition = Vector2.MoveTowards(
             body.position,
@@ -57,21 +104,81 @@ public sealed class PatrolEnemy : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        TryKillPlayer(other);
+        TryDamagePlayer(other);
     }
 
     private void OnTriggerStay2D(Collider2D other)
     {
-        TryKillPlayer(other);
+        TryDamagePlayer(other);
     }
 
-    private static void TryKillPlayer(Collider2D other)
+    private void TryDamagePlayer(Collider2D other)
     {
+        if (!IsAlive)
+            return;
+
         PlayerController player = other.GetComponentInParent<PlayerController>();
         if (player != null)
         {
-            player.TryKill();
+            player.TakeDamage(contactDamage);
         }
+    }
+
+    public void SetHealthMultiplier(int multiplier)
+    {
+        if (!IsAlive)
+            return;
+
+        int next = Mathf.Max(1, multiplier);
+        if (next == healthMultiplier)
+            return;
+
+        float ratio = MaxHealth > 0 ? currentHealth / (float)MaxHealth : 1f;
+        healthMultiplier = next;
+        currentHealth = Mathf.Max(1, Mathf.RoundToInt(MaxHealth * ratio));
+    }
+
+    /// <summary>
+    /// 对敌人造成伤害。返回是否实际命中（已死亡时返回 false）。
+    /// </summary>
+    public bool TakeDamage(int amount)
+    {
+        if (!IsAlive || amount <= 0)
+            return false;
+
+        currentHealth = Mathf.Max(0, currentHealth - amount);
+
+        if (currentHealth <= 0)
+        {
+            Die();
+            return true;
+        }
+
+        hitStunRemaining = hitStunDuration;
+        if (animator != null)
+        {
+            animator.SetBool(IsHitParameter, true);
+        }
+
+        return true;
+    }
+
+    private void Die()
+    {
+        hitStunRemaining = 0f;
+        if (animator != null)
+        {
+            animator.SetBool(IsHitParameter, false);
+        }
+
+        // 关掉碰撞体避免尸体继续伤害玩家，再整体隐藏。
+        Collider2D[] colliders = GetComponentsInChildren<Collider2D>();
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            colliders[i].enabled = false;
+        }
+
+        gameObject.SetActive(false);
     }
 
     private void UpdateFacing()
@@ -82,7 +189,7 @@ public sealed class PatrolEnemy : MonoBehaviour
         float direction = movingToEnd
             ? patrolEndOffset.x - patrolStartOffset.x
             : patrolStartOffset.x - patrolEndOffset.x;
-        spriteRenderer.flipX = direction < 0f;
+        spriteRenderer.flipX = direction > 0f;
     }
 
     private void OnDrawGizmosSelected()

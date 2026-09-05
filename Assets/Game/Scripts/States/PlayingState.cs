@@ -18,6 +18,7 @@ public class PlayingState : IGameState
 
         context.IsPlayerDead = false;
         context.IsLevelClear = false;
+        TarotEffectApplier.Apply(context);
     }
 
     public void Update(float deltaTime)
@@ -65,10 +66,16 @@ public class PlayingState : IGameState
     private void CheckLevelClear()
     {
         bool clear = context.LevelManager.CheckLevelClear(context.Player);
+        if (!clear)
+            return;
 
-        if (clear)
-        {
-            context.StateMachine.ChangeState(GameStateType.LevelClear);
-        }
+        TarotResultData run = context.TarotResult;
+        if (run != null && run.IsComplete() && !run.AllNodesActivated)
+            return;
+
+        if (context.Player != null)
+            context.Player.FreezePhysics();
+
+        context.StateMachine.ChangeState(GameStateType.LevelClear);
     }
 }

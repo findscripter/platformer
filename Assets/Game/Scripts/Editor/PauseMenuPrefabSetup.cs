@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 public static class PauseMenuPrefabSetup
 {
-    private const string PrefabPath = "Assets/Game/Scripts/Managers/PersistentRoot.prefab";
+    private const string PrefabPath = "Assets/Game/Prefabs/Managers/PersistentRoot.prefab";
 
     private static readonly Color OverlayColor = new(0.015f, 0.025f, 0.045f, 0.78f);
     private static readonly Color PanelColor = new(0.065f, 0.09f, 0.14f, 0.98f);

@@ -11,4 +11,6 @@ public static class GameEvents
 
     public static readonly GameEvent<string> OpenDoor = new("OpenDoor");
     public static readonly GameEvent<string> MechanismActivated = new("MechanismActivated");
+    public static readonly GameEvent<int> TarotNodeActivated = new("TarotNodeActivated");
+    public static readonly GameEvent<int> ZoneEntered = new("ZoneEntered");
 }

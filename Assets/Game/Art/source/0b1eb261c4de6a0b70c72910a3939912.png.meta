@@ -1238,6 +1238,27 @@ TextureImporter:
   - first:
       213: -3460211772519302043
     second: 0b1eb261c4de6a0b70c72910a3939912_411
+  - first:
+      213: 8948830164465978326
+    second: bubble_large
+  - first:
+      213: 7150781115982590700
+    second: bubble_medium
+  - first:
+      213: -8420695048082280166
+    second: bubble_small
+  - first:
+      213: 4308755792002564131
+    second: ui_panel_long
+  - first:
+      213: -2303676850596724452
+    second: ui_panel_short
+  - first:
+      213: 5543033940370519282
+    second: feifei_character
+  - first:
+      213: 9131414250979974256
+    second: tarot_card_back
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -1257,7 +1278,7 @@ TextureImporter:
     heightScale: 0.25
     normalMapFilter: 0
     flipGreenChannel: 0
-  isReadable: 0
+  isReadable: 1
   streamingMipmaps: 0
   streamingMipmapsPriority: 0
   vTOnly: 0
@@ -1333,13 +1354,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: BG01_0
+      name: bubble_large
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 2560
-        height: 1440
+        x: 20
+        y: 550
+        width: 200
+        height: 200
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -1348,8 +1369,140 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 83b906263b2eca810800000000000000
-      internalID: 1778045212982025016
+      spriteID: 6db8b442f91a03c70800000000000000
+      internalID: 8948830164465978326
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bubble_medium
+      rect:
+        serializedVersion: 2
+        x: 20
+        y: 350
+        width: 160
+        height: 160
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ce2b6bcd98dac3360800000000000000
+      internalID: 7150781115982590700
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bubble_small
+      rect:
+        serializedVersion: 2
+        x: 20
+        y: 180
+        width: 120
+        height: 120
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a113a21f77ea32b80800000000000000
+      internalID: -8420695048082280166
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ui_panel_long
+      rect:
+        serializedVersion: 2
+        x: 10
+        y: 50
+        width: 180
+        height: 80
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 32048366096cbcb30800000000000000
+      internalID: 4308755792002564131
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ui_panel_short
+      rect:
+        serializedVersion: 2
+        x: 10
+        y: 10
+        width: 180
+        height: 30
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c1144ea1c12b700e0800000000000000
+      internalID: -2303676850596724452
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: feifei_character
+      rect:
+        serializedVersion: 2
+        x: 280
+        y: 80
+        width: 240
+        height: 640
+      alignment: 9
+      pivot: {x: 0.5, y: 0.1}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2f4f7b12000dcec40800000000000000
+      internalID: 5543033940370519282
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: tarot_card_back
+      rect:
+        serializedVersion: 2
+        x: 580
+        y: 350
+        width: 180
+        height: 280
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 07cd99681ec49be70800000000000000
+      internalID: 9131414250979974256
       vertices: []
       indices: 
       edges: []
@@ -1369,6 +1522,13 @@ TextureImporter:
       entries: []
     nameFileIdTable:
       BG01_0: 1778045212982025016
+      bubble_large: 8948830164465978326
+      bubble_medium: 7150781115982590700
+      bubble_small: -8420695048082280166
+      feifei_character: 5543033940370519282
+      tarot_card_back: 9131414250979974256
+      ui_panel_long: 4308755792002564131
+      ui_panel_short: -2303676850596724452
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -21,7 +21,22 @@ public class UIManager : MonoBehaviour
         HideAll();
 
         if (gameplayPanel != null)
+        {
             gameplayPanel.SetActive(true);
+            EnsureGameplayHUD(gameplayPanel);
+        }
+    }
+
+    /// <summary>
+    /// Canvas_HUD 是 PersistentRoot 里唯一的空壳 Canvas（子节点都是无 UI 组件的空 Transform），
+    /// 在此按需补挂 <see cref="GameplayHUDController"/>，由其运行时自建血条/收集品计数。
+    /// </summary>
+    private void EnsureGameplayHUD(GameObject hudCanvas)
+    {
+        if (hudCanvas.GetComponent<GameplayHUDController>() == null)
+        {
+            hudCanvas.AddComponent<GameplayHUDController>();
+        }
     }
 
     public void ShowPauseMenu()

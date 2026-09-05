@@ -11,6 +11,12 @@ public class LevelManager : MonoBehaviour
 
     public Transform DefaultSpawnPoint => defaultSpawnPoint;
 
+    public void SetSpawnPoint(Transform spawnPoint)
+    {
+        if (spawnPoint != null)
+            defaultSpawnPoint = spawnPoint;
+    }
+
     public void SetGameplayReferences(Transform spawnPoint, Collider2D goal)
     {
         defaultSpawnPoint = spawnPoint;

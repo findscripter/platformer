@@ -118,3 +118,27 @@ ehthumbs.db
 Thumbs.db
 Desktop.ini
 ~UnityDirMonSyncFile~*
+
+# 临时诊断/核验截图（Assets/Screenshots 下带 _inspect / inspect- / verify- / screenshot- 前缀的）
+/[Aa]ssets/[Ss]creenshots/_inspect*
+/[Aa]ssets/[Ss]creenshots/inspect-*
+/[Aa]ssets/[Ss]creenshots/verify-*
+/[Aa]ssets/[Ss]creenshots/screenshot-*
+
+# 美术原始压缩包（解压后的内容才入库）
+*.rar
+*.zip
+
+# 素材清点时 agent 生成的深底合成预览图
+/美术资源/extracted/元件/_inspect/
+/美术资源/extracted/元件/*/\_preview/
+
+# 本地验证截图（不入库，避免被 Unity 当纹理导入）
+Assets/Screenshots/
+/production/screenshots/
+
+# 会话草稿
+/production/session-logs/
+/production/session-state/
+/design/figma_live/
+
