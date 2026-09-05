@@ -138,7 +138,14 @@ Assets/Screenshots/
 /production/screenshots/
 
 # 会话草稿
-/production/session-logs/
-/production/session-state/
-/design/figma_live/
+/production/
+
+# 需求/设计文档仅本地保留，远端用 README
+/design/
+/项目需求文档.md
+/Dreamremains_*.md
+/Dreamremains_*.html
+/塔罗牌机制组合*.xlsx
+/Assets/docs/
+/docs/engine-reference/
 
