@@ -39,7 +39,8 @@
 - `frame_01.png` - Frame 1｜梦境空间生成
 - `frame_04.png` - Frame 4｜梦泡消散留下梦核
 - `frame_05.png` - Frame 5｜腓腓入场捧梦核
-- `frame_07.png` - Frame 7｜输入梦
+- `frame_05_06_detail.png` - Frame 5–6 细化分镜与需求表
+- `frame_07.png` - Frame 7｜第一次相遇对白
 - `frame_08.png` - Frame 8｜写梦与必要补问（双状态）
 - `frame_09.png` - Frame 9｜塔罗抽牌
 - `frame_10.png` - Frame 10｜关卡结束与梦核回应

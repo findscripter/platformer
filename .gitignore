@@ -132,10 +132,13 @@ Desktop.ini
 # 素材清点时 agent 生成的深底合成预览图
 /美术资源/extracted/元件/_inspect/
 /美术资源/extracted/元件/*/\_preview/
-# Exclude verification screenshots (kept only in local working copy)
+
+# 本地验证截图（不入库，避免被 Unity 当纹理导入）
 Assets/Screenshots/
-
-
-# Play Mode verification shots (not Unity textures)
 /production/screenshots/
+
+# 会话草稿
+/production/session-logs/
+/production/session-state/
+/design/figma_live/
 
