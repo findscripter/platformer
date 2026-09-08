@@ -11,6 +11,17 @@ public class DreamCoreView : MonoBehaviour
     [SerializeField] private GameObject dreamCoreObject;
     [SerializeField] private Image dreamCoreGlow;
 
+    private Transform stageParent;
+    private Vector2 stagePosition;
+    private bool stageRemembered;
+    private RectTransform holdParent;
+
+    private void LateUpdate()
+    {
+        if (holdParent != null && dreamCoreObject != null)
+            ApplyHeldSize();
+    }
+
     public void SetActive(bool active)
     {
         if (dreamCoreObject != null)
@@ -29,16 +40,63 @@ public class DreamCoreView : MonoBehaviour
         if (rect == null)
             return;
 
-        rect.sizeDelta = new Vector2(72f, 96f);
+        if (!stageRemembered)
+        {
+            stageParent = rect.parent;
+            stagePosition = rect.anchoredPosition;
+            stageRemembered = true;
+        }
+        if (holdParent != null)
+        {
+            rect.SetParent(stageParent, false);
+            holdParent = null;
+        }
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = stagePosition;
+        rect.localScale = Vector3.one;
+        rect.localRotation = Quaternion.identity;
+        rect.sizeDelta = new Vector2(72f, 72f);
         var image = dreamCoreObject.GetComponent<Image>();
         if (image != null)
         {
             var core = GuideArt.DreamCore;
             if (core != null)
+            {
                 image.sprite = core;
+                image.overrideSprite = null;
+            }
+            image.material = null;
+            image.type = Image.Type.Simple;
             image.preserveAspect = true;
             image.color = Color.white;
+            image.raycastTarget = false;
+
+            if (dreamCoreGlow != null && dreamCoreGlow != image)
+            {
+                // 旧 Glow 没有 Sprite，会画出黄色矩形；沿用梦核的透明轮廓。
+                dreamCoreGlow.sprite = core;
+                dreamCoreGlow.overrideSprite = null;
+                dreamCoreGlow.enabled = core != null;
+                dreamCoreGlow.material = null;
+                dreamCoreGlow.type = Image.Type.Simple;
+                dreamCoreGlow.preserveAspect = true;
+                dreamCoreGlow.raycastTarget = false;
+                dreamCoreGlow.color = new Color(0.88f, 0.9f, 1f, dreamCoreGlow.color.a);
+                RectTransform glowRect = dreamCoreGlow.rectTransform;
+                glowRect.anchorMin = Vector2.zero;
+                glowRect.anchorMax = Vector2.one;
+                glowRect.offsetMin = glowRect.offsetMax = Vector2.zero;
+                glowRect.localScale = Vector3.one * 1.12f;
+            }
         }
+    }
+
+    /// <summary>让梦核在消散的梦泡位置出现，保持同一 Canvas 的世界位置。</summary>
+    public void PlaceAt(Transform source)
+    {
+        if (dreamCoreObject != null && source != null)
+            dreamCoreObject.transform.position = source.position;
     }
 
     public void AttachTo(Transform parent, Vector2 localPos)
@@ -50,10 +108,31 @@ public class DreamCoreView : MonoBehaviour
         if (rect == null)
             return;
 
+        if (!stageRemembered)
+            ApplyFigmaSize();
+
         rect.SetParent(parent, false);
         rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.localScale = Vector3.one;
+        rect.localRotation = Quaternion.identity;
         rect.anchoredPosition = localPos;
+        Vector3 position = rect.localPosition;
+        position.z = 0f;
+        rect.localPosition = position;
+        holdParent = parent as RectTransform;
+        ApplyHeldSize();
         rect.SetAsLastSibling();
+    }
+
+    private void ApplyHeldSize()
+    {
+        var rect = dreamCoreObject != null ? dreamCoreObject.transform as RectTransform : null;
+        if (rect == null || holdParent == null)
+            return;
+        // 挂点尺寸与角色实际绘制尺寸一致，240px 会面位和 150px 陪伴位同比缩放。
+        float size = Mathf.Max(1f, holdParent.rect.height * 0.28f);
+        rect.sizeDelta = new Vector2(size, size);
     }
 
     public IEnumerator PlayRipple()

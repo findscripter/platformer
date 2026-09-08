@@ -12,6 +12,26 @@ public class BackgroundView : MonoBehaviour
     [SerializeField] private AudioSource dreamEchoAudioSource;
     [SerializeField] private Image backgroundImage;
 
+    private void Awake()
+    {
+        GuideUiLayout.ConfigureCanvas(this);
+        if (backgroundImage == null)
+            backgroundImage = GetComponent<Image>();
+        ApplyBackgroundLayout();
+    }
+
+    private void ApplyBackgroundLayout()
+    {
+        // 原场景的背景自身 preserveAspect 会留下空带；等比放大覆盖父视口。
+        if (backgroundImage != null)
+            GuideUiLayout.Cover(backgroundImage, backgroundImage.sprite);
+        if (backgroundCanvasGroup != null)
+        {
+            backgroundCanvasGroup.blocksRaycasts = false;
+            backgroundCanvasGroup.interactable = false;
+        }
+    }
+
     public void SetAlpha(float alpha)
     {
         if (backgroundCanvasGroup != null)
@@ -25,6 +45,7 @@ public class BackgroundView : MonoBehaviour
         if (backgroundImage != null && sprite != null)
         {
             backgroundImage.sprite = sprite;
+            ApplyBackgroundLayout();
         }
     }
 

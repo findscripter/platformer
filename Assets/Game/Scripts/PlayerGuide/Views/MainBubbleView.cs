@@ -25,13 +25,13 @@ public class MainBubbleView : MonoBehaviour
 
     [Header("Frame 3 台词配置")]
     [SerializeField] private string echoDialogue = "「我一直在找回家的路……」";
-    [SerializeField] private string echoSoundNote = "（风声）";
     [SerializeField] private float echoFadeInDuration = 0.3f;
     [SerializeField] private float echoFadeOutDuration = 0.4f;
 
     public event Action OnClicked;
 
     private RectTransform clickHint;
+    private Image bubbleImage;
 
     private float EmphasisScale => emphasisScale > 1f ? emphasisScale : 1.15f;
 
@@ -82,6 +82,7 @@ public class MainBubbleView : MonoBehaviour
             return;
 
         mainBubbleVisual.gameObject.SetActive(true);
+        EnsureBubbleArt();
         mainBubbleVisual.transform.localScale = Vector3.one;
         ApplyFigmaStagePlacement();
         EnsureEchoText();
@@ -101,6 +102,82 @@ public class MainBubbleView : MonoBehaviour
         {
             bubbleGroup.alpha = 0f;
         }
+    }
+
+    private void EnsureBubbleArt()
+    {
+        if (mainBubbleVisual == null)
+            return;
+
+        var visual = PlayerGuideMainBubbleVisual.EnsureStructure(mainBubbleVisual.gameObject);
+        EnsureCircularMask(mainBubbleVisual.gameObject);
+        RectTransform target = visual.ScaleTarget;
+        if (target == null)
+            return;
+        target.localScale = Vector3.one;
+        target.localRotation = Quaternion.identity;
+        bubbleImage = target.GetComponent<Image>();
+        if (bubbleImage == null)
+            bubbleImage = target.gameObject.AddComponent<Image>();
+
+        Sprite art = GuideArt.Bubble;
+        if (art != null)
+        {
+            bubbleImage.sprite = art;
+            bubbleImage.overrideSprite = null;
+        }
+        bubbleImage.material = null;
+        bubbleImage.type = Image.Type.Simple;
+        bubbleImage.useSpriteMesh = false;
+        bubbleImage.preserveAspect = true;
+        bubbleImage.color = Color.white;
+        bubbleImage.enabled = true;
+        bubbleImage.raycastTarget = true;
+
+        var rootImage = mainBubbleVisual.GetComponent<Image>();
+        if (rootImage != null && rootImage != bubbleImage)
+        {
+            // 根节点 Image 同时承担圆形 Mask 的模板，不能关闭；Mask.showMaskGraphic
+            // 已经负责隐藏它本身的白色遮罩图形。
+            rootImage.enabled = true;
+            rootImage.raycastTarget = false;
+        }
+        if (mainBubbleButton != null)
+        {
+            // The supplied cutout already contains its highlight and alpha. Keep the
+            // button from multiplying that artwork with disabled/hover tints.
+            mainBubbleButton.transition = Selectable.Transition.None;
+            mainBubbleButton.targetGraphic = bubbleImage;
+        }
+        bubbleImage.canvasRenderer.SetColor(Color.white);
+    }
+
+    /// <summary>
+    /// S01/0.png 的原图带方形透明画布和四角外发光；主梦泡显示时用现成圆形贴图做 UI 遮罩，
+    /// 保留玻璃内容与光晕，同时裁掉四角，避免出现明显的方形切割痕迹。
+    /// </summary>
+    private void EnsureCircularMask(GameObject root)
+    {
+        if (root == null)
+            return;
+
+        Image maskImage = root.GetComponent<Image>();
+        if (maskImage == null)
+            maskImage = root.AddComponent<Image>();
+
+        Sprite circle = GuideArt.Circle;
+        if (circle != null)
+            maskImage.sprite = circle;
+        maskImage.type = Image.Type.Simple;
+        maskImage.preserveAspect = false;
+        maskImage.color = Color.white;
+        maskImage.raycastTarget = false;
+        maskImage.enabled = true;
+
+        Mask mask = root.GetComponent<Mask>();
+        if (mask == null)
+            mask = root.AddComponent<Mask>();
+        mask.showMaskGraphic = false;
     }
 
     /// <summary>
@@ -214,7 +291,8 @@ public class MainBubbleView : MonoBehaviour
     {
         if (mainBubbleVisual == null) yield break;
 
-        Image bubbleImage = mainBubbleVisual.GetComponentInChildren<Image>();
+        if (bubbleImage == null)
+            EnsureBubbleArt();
         Color originalColor = bubbleImage != null ? bubbleImage.color : Color.white;
         float bright = glowIntensity > 1f ? glowIntensity : 1.3f;
         Color lit = new Color(
@@ -267,7 +345,7 @@ public class MainBubbleView : MonoBehaviour
         // 显示台词
         if (echoText != null)
         {
-            echoText.text = $"{echoDialogue}\n{echoSoundNote}";
+            echoText.text = echoDialogue;
             echoText.gameObject.SetActive(true);
             yield return FadeText(echoText, 0f, 1f, echoFadeInDuration);
         }
@@ -402,7 +480,11 @@ public class MainBubbleView : MonoBehaviour
     private void EnsureEchoText()
     {
         if (echoText != null)
+        {
+            echoText.color = new Color(0.94f, 0.93f, 1f, 0f);
+            echoText.transform.SetAsLastSibling();
             return;
+        }
 
         if (mainBubbleVisual == null)
             return;
@@ -431,7 +513,7 @@ public class MainBubbleView : MonoBehaviour
         echoText.fontSize = 28;
         echoText.alignment = TextAlignmentOptions.Center;
         echoText.textWrappingMode = TextWrappingModes.Normal;
-        echoText.color = new Color(0.15f, 0.15f, 0.18f, 0f);
+        echoText.color = new Color(0.94f, 0.93f, 1f, 0f);
         echoText.raycastTarget = false;
         GuideUiFont.Apply(echoText);
         textGo.SetActive(false);
@@ -457,7 +539,7 @@ public class MainBubbleView : MonoBehaviour
         var monster = GuideArt.MonsterWalk;
         image.sprite = monster != null ? monster : GuideArt.PlayerIdle;
         image.preserveAspect = true;
-        image.color = new Color(0.18f, 0.16f, 0.22f, 0f);
+        image.color = new Color(0.64f, 0.60f, 0.78f, 0f);
         image.raycastTarget = false;
 
         Transform playerGhost = go.transform.Find("PlayerGhost");
@@ -473,11 +555,12 @@ public class MainBubbleView : MonoBehaviour
             var ghostImage = ghost.GetComponent<Image>();
             ghostImage.sprite = GuideArt.PlayerIdle;
             ghostImage.preserveAspect = true;
-            ghostImage.color = new Color(0.12f, 0.12f, 0.14f, 0.55f);
+            ghostImage.color = new Color(0.64f, 0.66f, 0.8f, 0.55f);
             ghostImage.raycastTarget = false;
         }
 
-        go.transform.SetAsFirstSibling();
+        // 暗色内芯不透明，残响放在梦泡之上、台词之下。
+        go.transform.SetSiblingIndex(mainBubbleVisual.ScaleTarget.GetSiblingIndex() + 1);
         go.SetActive(false);
         return image;
     }

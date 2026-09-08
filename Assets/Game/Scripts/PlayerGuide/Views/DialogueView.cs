@@ -19,7 +19,45 @@ public class DialogueView : MonoBehaviour
         if (dialoguePanel != null)
         {
             dialoguePanel.SetActive(active);
+            if (active)
+            {
+                GuideUiLayout.ConfigureCanvas(this);
+                ApplyFullWidthReadableLayout();
+                if (canvasGroup != null)
+                {
+                    canvasGroup.alpha = 1f;
+                    canvasGroup.interactable = true;
+                    canvasGroup.blocksRaycasts = true;
+                }
+            }
         }
+    }
+
+    public void ApplyFullWidthReadableLayout()
+    {
+        if (dialoguePanel != null)
+        {
+            var rect = dialoguePanel.transform as RectTransform;
+            if (rect != null)
+            {
+                rect.anchorMin = new Vector2(0.03f, 0.04f);
+                rect.anchorMax = new Vector2(0.97f, 0.24f);
+                rect.offsetMin = Vector2.zero;
+                rect.offsetMax = Vector2.zero;
+            }
+        }
+
+        StyleBody(contentText, 36f);
+        StyleBody(speakerText, 28f);
+    }
+
+    private static void StyleBody(TMP_Text text, float size)
+    {
+        if (text == null)
+            return;
+        GuideUiLayout.ReadableText(text, size, new Color(0.12f, 0.12f, 0.16f, 1f));
+        text.alignment = TextAlignmentOptions.MidlineLeft;
+        text.textWrappingMode = TextWrappingModes.Normal;
     }
 
     public void SetSpeaker(string speaker)

@@ -1,6 +1,7 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
+[DefaultExecutionOrder(-100)]
 public sealed class MovingPlatform : MonoBehaviour
 {
     [SerializeField] private Vector2 pointA;

@@ -43,7 +43,7 @@ public abstract class InteractableBase : MonoBehaviour, IInteractable
             triggerCollider.radius = interactRadius;
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
+    protected virtual void OnTriggerEnter2D(Collider2D other)
     {
         if (other.GetComponentInParent<PlayerController>() == null)
             return;
@@ -51,7 +51,7 @@ public abstract class InteractableBase : MonoBehaviour, IInteractable
         InteractionManager.Instance?.Register(this);
     }
 
-    private void OnTriggerExit2D(Collider2D other)
+    protected virtual void OnTriggerExit2D(Collider2D other)
     {
         if (other.GetComponentInParent<PlayerController>() == null)
             return;

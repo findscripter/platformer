@@ -19,6 +19,22 @@ public class DreamInputView : MonoBehaviour
 
     public event Action OnSubmit;
 
+    private bool chromeReady;
+    private bool awaitingSubmit;
+    private float nextSubmitAllowedAt;
+    private const float SubmitGestureGuardSeconds = 0.5f;
+
+    private void OnDisable()
+    {
+        UnbindSubmit();
+    }
+
+    private void Update()
+    {
+        if (awaitingSubmit && submitButton != null)
+            submitButton.interactable = Time.unscaledTime >= nextSubmitAllowedAt;
+    }
+
     private void OnDestroy()
     {
         if (submitButton != null)
@@ -29,6 +45,10 @@ public class DreamInputView : MonoBehaviour
 
     public void SetPanelActive(bool active)
     {
+        if (active)
+            EnsureChrome();
+        else
+            UnbindSubmit();
         if (inputPanel != null)
         {
             inputPanel.SetActive(active);
@@ -100,7 +120,7 @@ public class DreamInputView : MonoBehaviour
         SetFollowUpHint(string.Empty);
         SetPlaceholder("写下你还记得的梦境");
         SetSubmitLabel("完成");
-        SetInputFieldAnchors(new Vector2(0.1f, 0.5f), new Vector2(0.9f, 0.8f));
+        SetInputFieldAnchors(new Vector2(0.1f, 0.22f), new Vector2(0.9f, 0.8f));
     }
 
     /// <summary>
@@ -110,13 +130,13 @@ public class DreamInputView : MonoBehaviour
     {
         EnsureChrome();
         string clipped = ClipOriginal(originalInput);
-        SetTitle("腓腓补问（仅一次）");
+        SetTitle("腓腓轻声问你");
         SetFollowUpHint(string.IsNullOrEmpty(clipped)
-            ? "能再靠近一点吗？多说一点你还记得的意象或情绪。"
-            : $"你写了「{clipped}」。能再靠近一点吗？");
-        SetPlaceholder("补充你还记得的内容……");
+            ? "闭上眼想一想，梦里有什么让你一直记到现在？"
+            : $"你说「{clipped}」。那时，你身边发生了什么？");
+        SetPlaceholder("哪怕只记得一个小细节，也可以告诉我……");
         SetSubmitLabel("继续");
-        SetInputFieldAnchors(new Vector2(0.1f, 0.36f), new Vector2(0.9f, 0.6f));
+        SetInputFieldAnchors(new Vector2(0.1f, 0.22f), new Vector2(0.9f, 0.62f));
     }
 
     private void SetInputFieldAnchors(Vector2 min, Vector2 max)
@@ -147,23 +167,96 @@ public class DreamInputView : MonoBehaviour
 
     private void EnsureChrome()
     {
-        if (inputPanel == null)
+        if (inputPanel == null || chromeReady)
             return;
+
+        chromeReady = true;
+        GuideUiLayout.ConfigureCanvas(this);
+        GuideUiLayout.Stretch(inputPanel.transform as RectTransform,
+            new Vector2(0.12f, 0.22f), new Vector2(0.88f, 0.78f));
+        if (canvasGroup == null)
+            canvasGroup = inputPanel.GetComponent<CanvasGroup>();
 
         if (titleText == null)
         {
-            titleText = FindOrCreateLabel(inputPanel.transform, "Title", new Vector2(0.08f, 0.84f), new Vector2(0.92f, 0.98f), 28, FontStyles.Bold);
+            titleText = FindOrCreateLabel(inputPanel.transform, "Title", new Vector2(0.12f, 0.83f), new Vector2(0.88f, 0.95f), 36, FontStyles.Bold);
         }
 
         if (followUpHintText == null)
         {
-            followUpHintText = FindOrCreateLabel(inputPanel.transform, "FollowUpHint", new Vector2(0.08f, 0.64f), new Vector2(0.92f, 0.82f), 22, FontStyles.Normal);
+            followUpHintText = FindOrCreateLabel(inputPanel.transform, "FollowUpHint", new Vector2(0.12f, 0.64f), new Vector2(0.88f, 0.82f), 28, FontStyles.Normal);
             followUpHintText.gameObject.SetActive(false);
         }
 
         if (placeholderText == null && dreamInputField != null)
         {
             placeholderText = dreamInputField.placeholder as TMP_Text;
+        }
+
+        var ink = new Color(0.12f, 0.12f, 0.15f, 1f);
+        if (titleText != null)
+            GuideUiLayout.Stretch(titleText.rectTransform, new Vector2(0.12f, 0.83f), new Vector2(0.88f, 0.95f));
+        if (followUpHintText != null)
+            GuideUiLayout.Stretch(followUpHintText.rectTransform, new Vector2(0.12f, 0.64f), new Vector2(0.88f, 0.82f));
+        GuideUiLayout.ReadableText(titleText, 36f, ink);
+        GuideUiLayout.ReadableText(followUpHintText, 28f, ink);
+        if (followUpHintText != null)
+            followUpHintText.richText = false;
+        if (dreamInputField != null)
+        {
+            bool fieldWasEnabled = dreamInputField.enabled;
+            bool installingViewport = dreamInputField.textViewport == null;
+            if (installingViewport)
+                dreamInputField.enabled = false;
+            // 场景原来未指定 viewport 且是单行输入；补齐裁切区，让长梦境可换行滚动。
+            if (installingViewport)
+            {
+                var viewport = new GameObject("TextViewport", typeof(RectTransform), typeof(RectMask2D));
+                viewport.transform.SetParent(dreamInputField.transform, false);
+                var viewportRect = (RectTransform)viewport.transform;
+                GuideUiLayout.Stretch(viewportRect, Vector2.zero, Vector2.one);
+                viewportRect.offsetMin = new Vector2(18f, 14f);
+                viewportRect.offsetMax = new Vector2(-18f, -14f);
+                dreamInputField.textViewport = viewportRect;
+                if (dreamInputField.textComponent != null)
+                    dreamInputField.textComponent.transform.SetParent(viewportRect, false);
+                if (dreamInputField.placeholder != null)
+                    dreamInputField.placeholder.transform.SetParent(viewportRect, false);
+                // 已激活的 TMP 会提前建立 Caret；它必须跟文字处于同一坐标空间。
+                var caret = dreamInputField.GetComponentInChildren<TMP_SelectionCaret>(true);
+                if (caret != null)
+                {
+                    caret.transform.SetParent(viewportRect, false);
+                    caret.transform.SetAsFirstSibling();
+                }
+            }
+            dreamInputField.lineType = TMP_InputField.LineType.MultiLineNewline;
+            dreamInputField.richText = false;
+            var inputText = dreamInputField.textComponent;
+            GuideUiLayout.ReadableText(inputText, 30f, ink);
+            if (inputText != null)
+            {
+                inputText.richText = false;
+                inputText.alignment = TextAlignmentOptions.TopLeft;
+                GuideUiLayout.Stretch(inputText.rectTransform, Vector2.zero, Vector2.one);
+            }
+            GuideUiLayout.ReadableText(placeholderText, 30f, new Color(0.35f, 0.35f, 0.38f, 1f));
+            if (placeholderText != null)
+            {
+                placeholderText.alignment = TextAlignmentOptions.TopLeft;
+                GuideUiLayout.Stretch(placeholderText.rectTransform, Vector2.zero, Vector2.one);
+            }
+            // 让 TMP.OnEnable 重新缓存 viewport 的 RectMask2D 和裁切范围。
+            if (installingViewport)
+                dreamInputField.enabled = fieldWasEnabled;
+        }
+        if (submitButton != null)
+        {
+            var rect = submitButton.transform as RectTransform;
+            GuideUiLayout.Stretch(rect, new Vector2(0.5f, 0.1f), new Vector2(0.5f, 0.1f));
+            if (rect != null)
+                rect.sizeDelta = new Vector2(200f, 64f);
+            GuideUiLayout.ReadableText(submitButton.GetComponentInChildren<TMP_Text>(true), 30f, ink);
         }
     }
 
@@ -190,7 +283,7 @@ public class DreamInputView : MonoBehaviour
         tmp.textWrappingMode = TextWrappingModes.Normal;
         tmp.color = new Color(0.18f, 0.18f, 0.2f, 1f);
         tmp.raycastTarget = false;
-        GuideUiFont.Apply(tmp);
+        tmp.font = GuideUiLayout.LoadFont();
         return tmp;
     }
 
@@ -227,8 +320,10 @@ public class DreamInputView : MonoBehaviour
 
     public void BindSubmit()
     {
+        awaitingSubmit = true;
         if (submitButton != null)
         {
+            submitButton.interactable = Time.unscaledTime >= nextSubmitAllowedAt;
             submitButton.onClick.RemoveListener(HandleSubmit);
             submitButton.onClick.AddListener(HandleSubmit);
         }
@@ -236,15 +331,23 @@ public class DreamInputView : MonoBehaviour
 
     public void UnbindSubmit()
     {
+        awaitingSubmit = false;
         if (submitButton != null)
         {
             submitButton.onClick.RemoveListener(HandleSubmit);
-            submitButton.onClick.RemoveAllListeners();
+            submitButton.interactable = false;
         }
     }
 
     private void HandleSubmit()
     {
+        if (!awaitingSubmit || !isActiveAndEnabled || Time.unscaledTime < nextSubmitAllowedAt)
+            return;
+        awaitingSubmit = false;
+        // Frame7→Frame8 会在相邻帧重新 Bind；同一次双击不能顺手提交空补问。
+        nextSubmitAllowedAt = Time.unscaledTime + SubmitGestureGuardSeconds;
+        if (submitButton != null)
+            submitButton.interactable = false;
         OnSubmit?.Invoke();
     }
 
@@ -253,12 +356,15 @@ public class DreamInputView : MonoBehaviour
         if (canvasGroup == null)
             yield break;
 
+        canvasGroup.alpha = from;
+        canvasGroup.interactable = false;
+        canvasGroup.blocksRaycasts = to > 0.01f;
         float elapsed = 0f;
         while (elapsed < duration)
         {
             float t = elapsed / duration;
             canvasGroup.alpha = Mathf.Lerp(from, to, t);
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
 

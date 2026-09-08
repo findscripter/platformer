@@ -18,7 +18,6 @@ public static class DialogueUIArtIntegration
     private const string DialogueBannerGuid = "2033fe5a018fd9b45a37ec8c64c15755";  // Dialogue.png
     private const string HintDotGuid = "41e0bc7119da43045b92e5f75de4d944";         // Dialogues/3.png
     private const string LegacyFontGuid = "aa708105bbd00994b8d6fe124993541f";      // dialogue_font.otf
-    private const string TmpFontGuid = "7e794ed8003821b4dac6b110719e0135";         // dialogue_font_TMP.asset
 
     private static Font cachedLegacyFont;
     private static TMP_FontAsset cachedTmpFont;
@@ -45,17 +44,18 @@ public static class DialogueUIArtIntegration
     {
         if (cachedLegacyFont == null)
         {
-            cachedLegacyFont = LoadAssetByGuid<Font>(LegacyFontGuid, "Assets/Game/Art/source/dialogue_font.otf");
+            var guideFont = GuideUiFont.Load();
+            cachedLegacyFont = guideFont != null ? guideFont.sourceFontFile : null;
+            if (cachedLegacyFont == null)
+                cachedLegacyFont = LoadAssetByGuid<Font>(LegacyFontGuid, "Assets/Game/Art/source/dialogue_font.otf");
             if (cachedLegacyFont == null)
             {
                 Debug.LogWarning("[DialogueUIArtIntegration] Failed to load dialogue_font.otf, Chinese text will fail to render.");
             }
         }
 
-        if (cachedTmpFont == null)
-        {
-            cachedTmpFont = LoadAssetByGuid<TMP_FontAsset>(TmpFontGuid, "Assets/Game/Art/source/dialogue_font_TMP.asset");
-        }
+        // 每次从统一入口取当前会话字体，不跨 Play 缓存旧原资产/已释放的实例。
+        cachedTmpFont = GuideUiFont.Load();
     }
 
     private static void FixAllFonts(GameObject root)

@@ -9,11 +9,24 @@ public sealed class CheckpointInteractable : InteractableBase
 
     public override void Interact(GameContext context)
     {
+        Save(context);
+    }
+
+    protected override void OnTriggerEnter2D(Collider2D other)
+    {
+        base.OnTriggerEnter2D(other);
+        if (other.GetComponentInParent<PlayerController>() == null)
+            return;
+
+        Save(GameLoop.Instance != null ? GameLoop.Instance.Context : null);
+    }
+
+    private void Save(GameContext context)
+    {
         if (context == null)
             return;
 
         context.PlayerSpawnPoint = transform;
         context.LevelManager?.SetSpawnPoint(transform);
-        Debug.Log("[Checkpoint] " + InteractableId);
     }
 }

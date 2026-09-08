@@ -6,7 +6,34 @@
 
 Unity 6 (6000.5.0f1) 2D 平台跳跃游戏，采用状态机架构、对话系统、交互框架和存档/读档功能。
 
+## 当前工程速览（2026-09-06 静态核对）
+
+- 游戏方向：梦境叙事 + 平台跳跃 + 山海经塔罗改变关卡规则。
+- 代码流程：主菜单 → 梦泡/腓腓演出 → 写梦及至多一次补问 → 22 抽 4 → A/B 区域的 T1–T4 → 通关回响与梦笺 → 结算。
+- Build Settings 中有 `Boot`、`MainMenu`、`PlayerGuide`、`Loading`、`Gameplay` 五个场景。A/B 是 `Gameplay` 中动态生成的两个区域，并非两个 Unity Scene；回响由 `EchoSpaceController` 动态创建 UI。
+- 当前 `PlayerGuide.unity` 挂载的是 `Assets/Game/Scripts/PlayerGuide/Controllers/PlayerGuideController.cs`，通过 Models / Views / Controllers 拆分流程。旧 `PlayerGuideFlowController` 和 `PlayerGuideFlowControllerV2` 仍在源码中，但未在五个正式场景和现有 Prefab 中找到挂载引用。
+- 关卡入口：`GameplaySceneBridge.Apply()` → `DreamremainsLevelBootstrap.Build()`；平台、敌人、检查点、塔罗点和镜头区域数据位于 `Assets/Game/Scripts/Level/DreamremainsLevelData.cs`。
+- 塔罗入口：`TarotDrawController` 抽牌；`TarotCatalog` 定义 22 张牌及正逆位 E00–E18；`TarotResultData` 保存本局激活、隐藏路、覆写顺序、9 个 Zone 快照和折叠充能；`TarotEffectApplier` 与各机关组件应用效果。
+- 本地需求入口：`Dreamremains_关卡程序施工说明_v4.md`、`Dreamremains_关卡路线与机制施工图_v4.html`、塔罗规则 XLSX；引导参考在 `design/figma_storyboard_build_spec.md` 与 `design/figma_frames/`。这些设计资料被 `.gitignore` 排除，远端不能仅靠 README 还原需求。
+- 需求存在版本差异：旧分镜写首张固定应龙，当前代码为四张随机且正逆位独立随机。读旧需求时先对照当前规则表，不能把旧稿中的待开发条目直接当作现状。
+
+### 已识别缺口与核验边界
+
+- `GuideArt.Load()` 与 `DreamremainsLevelBootstrap.LoadArt()` 的美术读取仅存在于 `UNITY_EDITOR` 分支，Player 构建中返回 null；动态关卡与回响空间的相关美术需改为运行时可用的资源引用后再验收打包画面。
+- `DreamInputValidator` 用长度、正则和关键词判定补问；`DreamNoteWriter.Compose()` 用固定模板拼接梦境与牌名，尚不是 AI 内容生成。
+- `GameSaveData` 当前仅有场景、出生点 ID 和对话数据；未包含梦境文字、塔罗运行状态和收集品数据。局内死亡保留塔罗状态不等于退出后可恢复整局。
+- 未发现项目自己的 NUnit / UnityTest 测试用例；`Assets/Game/Scripts/Debug/MainRouteWalker.cs` 是编辑器内的主线行走诊断工具，不能据其存在认定已完成通关验收。
+- 本次核对为代码、场景配置、历史日志和已有截图检查，未启动 Unity、未新建构建或执行完整实机流程。工作区已有多处未提交修改，应保留。
+
 ## 核心架构
+
+### 本机 MCP（2026-09-06 已连通）
+- Unity 插件为 `com.coplaydev.unity-mcp`，使用本地 HTTP：`http://127.0.0.1:8080/mcp`。
+- Codex 用户配置：`C:/Users/13185/.codex/config.toml` 的 `mcp_servers.unityMCP`；项目 `.mcp.json` 同步提供 `unityMCP`，供读取该格式的客户端使用。
+- Unity EditorPrefs 已启用 `MCPForUnity.AutoStartOnLoad`，uvx 路径为 `C:/Users/13185/.local/bin/uvx.exe`，服务器来源固定为 `mcpforunityserver==10.2.1b20260905165837`。服务由 Unity 插件在后台启动，无需手动保持终端。
+- 连通性验证：实例 `platformer@a47b5e5ca288891b`，`manage_scene/get_active` 返回 `MainMenu`，`read_console` 错误查询为 0 条；这是 MCP 连接检查，不是游戏完整流程验收。
+- Codex 新增 MCP 配置后，若当前任务的工具列表尚未出现 Unity，重启 Codex 以重新加载连接。
+- Figma：Codex 原有 `figma-mcp` 配置的 API key 经官方 API 返回 `Token has expired`；尚需用户更新授权。项目中的 `@vkhanhqui/figma-mcp-go` 是另一套桌面插件桥接方式，不应与 API key 模式混为一谈。不要把密钥写入项目文件或聊天。
 
 ### 启动流程
 - **Boot 场景**: 入口点，始终通过 `BootPlayModeRedirect` 编辑器脚本首先加载
@@ -101,7 +128,7 @@ _FadeTop ("Fade Top", Range(0, 1)) = 1
 - **引擎**: Unity 6000.5.0f1
 - **语言**: C#
 - **构建系统**: Unity Build Pipeline
-- **资源管线**: Unity Asset Import Pipeline + Addressables
+- **资源管线**: Unity Asset Import Pipeline + Resources / 序列化资源引用（当前 manifest 未声明 Addressables）
 
 ## 引擎版本参考
 

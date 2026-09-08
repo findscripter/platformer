@@ -10,6 +10,8 @@ public class FeifeiCharacterView : MonoBehaviour
 {
     [SerializeField] private GameObject feifeiCharacter;
     [SerializeField] private Animator feifeiAnimator;
+    [Tooltip("腓腓待机图中两爪位置，原点左下；按实际 Sprite 绘制范围缩放。")]
+    [SerializeField] private Vector2 coreHoldNormalized = new Vector2(0.14f, 0.36f);
 
     private Image image;
     private Sprite[] frames;
@@ -19,12 +21,69 @@ public class FeifeiCharacterView : MonoBehaviour
     private float elapsed;
     private int frameIndex;
     private bool walking;
+    private RectTransform coreHoldAnchor;
+
+    public RectTransform CoreHoldAnchor
+    {
+        get
+        {
+            EnsureImage();
+            UpdateCoreHoldAnchor();
+            return coreHoldAnchor;
+        }
+    }
 
     private void Awake()
     {
         EnsureImage();
+        if (feifeiAnimator != null)
+            feifeiAnimator.enabled = false;
         LoadFrames();
         SetPose(0, 26, 10f);
+    }
+
+    private void LateUpdate()
+    {
+        if (coreHoldAnchor != null)
+            UpdateCoreHoldAnchor();
+    }
+
+    private void UpdateCoreHoldAnchor()
+    {
+        var rect = feifeiCharacter != null ? feifeiCharacter.transform as RectTransform : null;
+        if (rect == null)
+            return;
+        if (coreHoldAnchor == null)
+        {
+            var anchor = new GameObject("DreamCoreHold", typeof(RectTransform));
+            anchor.transform.SetParent(rect, false);
+            coreHoldAnchor = anchor.GetComponent<RectTransform>();
+            coreHoldAnchor.anchorMin = coreHoldAnchor.anchorMax = new Vector2(0.5f, 0.5f);
+            coreHoldAnchor.pivot = new Vector2(0.5f, 0.5f);
+        }
+
+        Vector2 drawnSize = rect.rect.size;
+        if (image != null && image.sprite != null && image.preserveAspect)
+        {
+            Vector2 spriteSize = image.sprite.rect.size;
+            float fit = Mathf.Min(drawnSize.x / spriteSize.x, drawnSize.y / spriteSize.y);
+            drawnSize = spriteSize * fit;
+        }
+        coreHoldAnchor.sizeDelta = drawnSize;
+        coreHoldAnchor.anchoredPosition = Vector2.Scale(coreHoldNormalized - new Vector2(0.5f, 0.5f), drawnSize);
+    }
+
+    /// <summary>走到双爪能接住目标的位置，避免捧起时梦核横向跳到身体另一侧。</summary>
+    public Vector3 GetPickupPosition(Transform core)
+    {
+        RectTransform anchor = CoreHoldAnchor;
+        if (feifeiCharacter == null || anchor == null || core == null)
+            return Vector3.zero;
+        Transform character = feifeiCharacter.transform;
+        Vector3 delta = core.position - anchor.position;
+        if (character.parent != null)
+            delta = character.parent.InverseTransformVector(delta);
+        return character.localPosition + delta;
     }
 
     private void Update()
@@ -90,13 +149,17 @@ public class FeifeiCharacterView : MonoBehaviour
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = Vector2.zero;
         rect.sizeDelta = new Vector2(size, size);
+        rect.localScale = Vector3.one;
     }
 
     private void ApplySize(float size)
     {
         var rect = feifeiCharacter != null ? feifeiCharacter.transform as RectTransform : null;
         if (rect != null)
+        {
             rect.sizeDelta = new Vector2(size, size);
+            rect.localScale = Vector3.one;
+        }
     }
 
     public IEnumerator MoveLocalPosition(Vector3 from, Vector3 to, float duration)
@@ -225,6 +288,8 @@ public class FeifeiCharacterView : MonoBehaviour
         poseTo = to;
         fps = poseFps;
         elapsed = 0f;
+        if (image != null && frames != null && from >= 0 && from < frames.Length && frames[from] != null)
+            image.sprite = frames[from];
     }
 
     private void EnsureImage()
@@ -237,6 +302,9 @@ public class FeifeiCharacterView : MonoBehaviour
         {
             image.preserveAspect = true;
             image.raycastTarget = false;
+            image.type = Image.Type.Simple;
+            image.overrideSprite = null;
+            image.color = Color.white;
         }
     }
 

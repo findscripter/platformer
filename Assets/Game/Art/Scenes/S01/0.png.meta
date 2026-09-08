@@ -97,15 +97,15 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: BG01_0
+      name: DreamBubble_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 2560
-        height: 1440
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        width: 245
+        height: 246
+      alignment: 9
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -132,7 +132,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      BG01_0: 1778045212982025016
+      DreamBubble_0: 1778045212982025016
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

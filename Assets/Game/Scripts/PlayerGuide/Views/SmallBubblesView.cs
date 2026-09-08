@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// 小梦泡容器视图。
@@ -48,6 +49,7 @@ public class SmallBubblesView : MonoBehaviour
 
         float width = Mathf.Max(1f, containerRect.rect.width);
         float height = Mathf.Max(1f, containerRect.rect.height);
+        Sprite bubbleArt = GuideArt.SmallBubble;
 
         for (int i = 0; i < FigmaSmallBubbleNorm.Length; i++)
         {
@@ -57,7 +59,28 @@ public class SmallBubblesView : MonoBehaviour
                 continue;
 
             float size = FigmaSmallBubbleSizes[i];
+            bubbleRect.anchorMin = bubbleRect.anchorMax = new Vector2(0.5f, 0.5f);
+            bubbleRect.pivot = new Vector2(0.5f, 0.5f);
+            bubbleRect.localScale = Vector3.one;
+            bubbleRect.localRotation = Quaternion.identity;
             bubbleRect.sizeDelta = new Vector2(size, size);
+
+            // 直接使用素材包中132px的中号梦泡切图，覆盖当前94–128px显示尺寸。
+            Image image = bubble.GetComponent<Image>();
+            if (image == null)
+                image = bubble.AddComponent<Image>();
+            if (bubbleArt != null)
+            {
+                image.sprite = bubbleArt;
+                image.overrideSprite = null;
+            }
+            image.material = null;
+            image.type = Image.Type.Simple;
+            image.useSpriteMesh = false;
+            image.preserveAspect = true;
+            image.color = Color.white;
+            image.raycastTarget = false;
+            image.enabled = true;
 
             Vector2 norm = FigmaSmallBubbleNorm[i];
             float x = (norm.x - 0.5f) * width;

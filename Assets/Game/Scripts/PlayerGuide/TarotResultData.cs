@@ -229,7 +229,7 @@ public class TarotResultData
 
         string name = TarotCatalog.GetDisplayName(card);
         string orient = IsReversed(slot) ? "逆" : "正";
-        return name + "（" + orient + "）" + GetSlotEffect(slot);
+        return name + "（" + orient + "）";
     }
 
     public string SummarizeDrawn()

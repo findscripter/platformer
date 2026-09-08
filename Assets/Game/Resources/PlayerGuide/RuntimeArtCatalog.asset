@@ -1,0 +1,367 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffe84b753dbc88f42a2862785490ea86, type: 3}
+  m_Name: RuntimeArtCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::RuntimeArtCatalog
+  uiFont: {fileID: 11400000, guid: 7e794ed8003821b4dac6b110719e0135, type: 2}
+  entries:
+  - guid: cb83933569bc45344b1141bc6af262eb
+    assetPath: Assets/Game/Art/Characters/feifei_idle/1.png
+    sprite: {fileID: 21300000, guid: cb83933569bc45344b1141bc6af262eb, type: 3}
+  - guid: e6862fdffe31bce40ab4d966d0f45290
+    assetPath: Assets/Game/Art/Characters/feifei_idle/10.png
+    sprite: {fileID: 21300000, guid: e6862fdffe31bce40ab4d966d0f45290, type: 3}
+  - guid: 8556ebda28b526742927b5972d487868
+    assetPath: Assets/Game/Art/Characters/feifei_idle/11.png
+    sprite: {fileID: 21300000, guid: 8556ebda28b526742927b5972d487868, type: 3}
+  - guid: c88665428c99de444b5cbea30cb3b197
+    assetPath: Assets/Game/Art/Characters/feifei_idle/12.png
+    sprite: {fileID: 21300000, guid: c88665428c99de444b5cbea30cb3b197, type: 3}
+  - guid: d5506a57441c05c4abfa278972ba6779
+    assetPath: Assets/Game/Art/Characters/feifei_idle/13.png
+    sprite: {fileID: 21300000, guid: d5506a57441c05c4abfa278972ba6779, type: 3}
+  - guid: 0ed0600f418553142a5afe7cc955eb05
+    assetPath: Assets/Game/Art/Characters/feifei_idle/14.png
+    sprite: {fileID: 21300000, guid: 0ed0600f418553142a5afe7cc955eb05, type: 3}
+  - guid: ef0e745a29ee1484a9eeed431fc0b2d4
+    assetPath: Assets/Game/Art/Characters/feifei_idle/15.png
+    sprite: {fileID: 21300000, guid: ef0e745a29ee1484a9eeed431fc0b2d4, type: 3}
+  - guid: ab9f5a858db27b44ab7076dd769108f3
+    assetPath: Assets/Game/Art/Characters/feifei_idle/16.png
+    sprite: {fileID: 21300000, guid: ab9f5a858db27b44ab7076dd769108f3, type: 3}
+  - guid: b6991daf29c48db42b61d68c5abea6d4
+    assetPath: Assets/Game/Art/Characters/feifei_idle/17.png
+    sprite: {fileID: 21300000, guid: b6991daf29c48db42b61d68c5abea6d4, type: 3}
+  - guid: 50c8ba51dc5b2a24997ecb34c93439e0
+    assetPath: Assets/Game/Art/Characters/feifei_idle/18.png
+    sprite: {fileID: 21300000, guid: 50c8ba51dc5b2a24997ecb34c93439e0, type: 3}
+  - guid: bbe78d8eac7218d4198611b5a4a69b45
+    assetPath: Assets/Game/Art/Characters/feifei_idle/19.png
+    sprite: {fileID: 21300000, guid: bbe78d8eac7218d4198611b5a4a69b45, type: 3}
+  - guid: 7159e0dbd05ae484c82ef5c050365f58
+    assetPath: Assets/Game/Art/Characters/feifei_idle/2.png
+    sprite: {fileID: 21300000, guid: 7159e0dbd05ae484c82ef5c050365f58, type: 3}
+  - guid: 4543aaf06a5af72459c7ed66ab522f80
+    assetPath: Assets/Game/Art/Characters/feifei_idle/20.png
+    sprite: {fileID: 21300000, guid: 4543aaf06a5af72459c7ed66ab522f80, type: 3}
+  - guid: c75ac76fd6469c048b0ddb4c64a96472
+    assetPath: Assets/Game/Art/Characters/feifei_idle/21.png
+    sprite: {fileID: 21300000, guid: c75ac76fd6469c048b0ddb4c64a96472, type: 3}
+  - guid: 220fb868593214e4194cb0cc2c9041ce
+    assetPath: Assets/Game/Art/Characters/feifei_idle/22.png
+    sprite: {fileID: 21300000, guid: 220fb868593214e4194cb0cc2c9041ce, type: 3}
+  - guid: 4962ad94590d7724cac90986a904c39f
+    assetPath: Assets/Game/Art/Characters/feifei_idle/23.png
+    sprite: {fileID: 21300000, guid: 4962ad94590d7724cac90986a904c39f, type: 3}
+  - guid: bbf6efe2d82927a4c83d0448c222a732
+    assetPath: Assets/Game/Art/Characters/feifei_idle/24.png
+    sprite: {fileID: 21300000, guid: bbf6efe2d82927a4c83d0448c222a732, type: 3}
+  - guid: 0b0eb6a8341907349b88993fecc5e3b1
+    assetPath: Assets/Game/Art/Characters/feifei_idle/25.png
+    sprite: {fileID: 21300000, guid: 0b0eb6a8341907349b88993fecc5e3b1, type: 3}
+  - guid: b28d13aef07550947b48c52d182ff1e1
+    assetPath: Assets/Game/Art/Characters/feifei_idle/26.png
+    sprite: {fileID: 21300000, guid: b28d13aef07550947b48c52d182ff1e1, type: 3}
+  - guid: f5a4bbdf0d3cb4e47be9eaa7a708b904
+    assetPath: Assets/Game/Art/Characters/feifei_idle/27.png
+    sprite: {fileID: 21300000, guid: f5a4bbdf0d3cb4e47be9eaa7a708b904, type: 3}
+  - guid: 4837efc162a57f34b9575c1f99e3463d
+    assetPath: Assets/Game/Art/Characters/feifei_idle/3.png
+    sprite: {fileID: 21300000, guid: 4837efc162a57f34b9575c1f99e3463d, type: 3}
+  - guid: 679b83e10512cca43af6adb76659feb9
+    assetPath: Assets/Game/Art/Characters/feifei_idle/4.png
+    sprite: {fileID: 21300000, guid: 679b83e10512cca43af6adb76659feb9, type: 3}
+  - guid: daa38392fd0aa9740ba387147003770f
+    assetPath: Assets/Game/Art/Characters/feifei_idle/5.png
+    sprite: {fileID: 21300000, guid: daa38392fd0aa9740ba387147003770f, type: 3}
+  - guid: e49d004dc4c121c4c9e2b6cef45a12ba
+    assetPath: Assets/Game/Art/Characters/feifei_idle/6.png
+    sprite: {fileID: 21300000, guid: e49d004dc4c121c4c9e2b6cef45a12ba, type: 3}
+  - guid: 09ffe58fe698438469bbd12b51441e75
+    assetPath: Assets/Game/Art/Characters/feifei_idle/7.png
+    sprite: {fileID: 21300000, guid: 09ffe58fe698438469bbd12b51441e75, type: 3}
+  - guid: 6fdd6b2f45a999241ab99778ebf6018c
+    assetPath: Assets/Game/Art/Characters/feifei_idle/8.png
+    sprite: {fileID: 21300000, guid: 6fdd6b2f45a999241ab99778ebf6018c, type: 3}
+  - guid: 393314a13f3b73240b8eec3900f0a7fd
+    assetPath: Assets/Game/Art/Characters/feifei_idle/9.png
+    sprite: {fileID: 21300000, guid: 393314a13f3b73240b8eec3900f0a7fd, type: 3}
+  - guid: 1f1f2020b27c8d445a6632daf2633610
+    assetPath: "Assets/Game/Art/Characters/feifei_idle/\u8153\u8153\u5F62\u8C61.png"
+    sprite: {fileID: 21300000, guid: 1f1f2020b27c8d445a6632daf2633610, type: 3}
+  - guid: e6c3aac66a5071e4bb8fa220ef9fb3fe
+    assetPath: "Assets/Game/Art/Characters/feifei_idle/\u8153\u8153\u6709\u5149\u6548\u679C.png"
+    sprite: {fileID: 21300000, guid: e6c3aac66a5071e4bb8fa220ef9fb3fe, type: 3}
+  - guid: 17a32b05af2d6204ebd23731ee098375
+    assetPath: Assets/Game/Art/Characters/monster/walk/1.png
+    sprite: {fileID: 21300000, guid: 17a32b05af2d6204ebd23731ee098375, type: 3}
+  - guid: d2c7d160e9a4caf4aaaf9662037ea5f3
+    assetPath: Assets/Game/Art/Characters/player/idle/1.png
+    sprite: {fileID: 21300000, guid: d2c7d160e9a4caf4aaaf9662037ea5f3, type: 3}
+  - guid: 577b6198d75c3dc47af96ad3f63c5ede
+    assetPath: Assets/Game/Art/Scenes/S01/0.png
+    sprite: {fileID: 21300000, guid: 577b6198d75c3dc47af96ad3f63c5ede, type: 3}
+  - guid: 534426beebca16b41988962a0470d416
+    assetPath: Assets/Game/Art/Scenes/S01/1.png
+    sprite: {fileID: 21300000, guid: 534426beebca16b41988962a0470d416, type: 3}
+  - guid: 321f68d442bdb6a4cabf9b0b3f077bc1
+    assetPath: Assets/Game/Art/Scenes/S01/10.png
+    sprite: {fileID: 21300000, guid: 321f68d442bdb6a4cabf9b0b3f077bc1, type: 3}
+  - guid: cfed9f2360feb064c9888df68c5bdda9
+    assetPath: Assets/Game/Art/Scenes/S01/11.png
+    sprite: {fileID: 21300000, guid: cfed9f2360feb064c9888df68c5bdda9, type: 3}
+  - guid: 1098529b6901fb64494f25a02a61f271
+    assetPath: Assets/Game/Art/Scenes/S01/12.png
+    sprite: {fileID: 21300000, guid: 1098529b6901fb64494f25a02a61f271, type: 3}
+  - guid: da4bb670193c1a04fb7488b0fda402b8
+    assetPath: Assets/Game/Art/Scenes/S01/13.png
+    sprite: {fileID: 21300000, guid: da4bb670193c1a04fb7488b0fda402b8, type: 3}
+  - guid: a4ebe0bd150e9724eae43a6eb9295880
+    assetPath: Assets/Game/Art/Scenes/S01/14.png
+    sprite: {fileID: 21300000, guid: a4ebe0bd150e9724eae43a6eb9295880, type: 3}
+  - guid: 9816e3092119c33439e8471758f1f6e5
+    assetPath: Assets/Game/Art/Scenes/S01/15.png
+    sprite: {fileID: 21300000, guid: 9816e3092119c33439e8471758f1f6e5, type: 3}
+  - guid: 28ca69f364e290d46841bc6b02bcb078
+    assetPath: Assets/Game/Art/Scenes/S01/16.png
+    sprite: {fileID: 21300000, guid: 28ca69f364e290d46841bc6b02bcb078, type: 3}
+  - guid: 65ba3650efdfaef40809e08e2c3d5cd3
+    assetPath: Assets/Game/Art/Scenes/S01/17.png
+    sprite: {fileID: 21300000, guid: 65ba3650efdfaef40809e08e2c3d5cd3, type: 3}
+  - guid: fd611d332e0160c4e8eed4a23b5352d8
+    assetPath: Assets/Game/Art/Scenes/S01/18.png
+    sprite: {fileID: 21300000, guid: fd611d332e0160c4e8eed4a23b5352d8, type: 3}
+  - guid: 8505003a878bca14c8902a3e1dc2ab2b
+    assetPath: Assets/Game/Art/Scenes/S01/19.png
+    sprite: {fileID: 21300000, guid: 8505003a878bca14c8902a3e1dc2ab2b, type: 3}
+  - guid: 37a1ef70caaeb2d469da697379110a35
+    assetPath: Assets/Game/Art/Scenes/S01/2.png
+    sprite: {fileID: 21300000, guid: 37a1ef70caaeb2d469da697379110a35, type: 3}
+  - guid: 68bb6944d89266448955f80b7003ad4b
+    assetPath: Assets/Game/Art/Scenes/S01/20.png
+    sprite: {fileID: 21300000, guid: 68bb6944d89266448955f80b7003ad4b, type: 3}
+  - guid: 196035d13e452c24e8a4603d9dd6af74
+    assetPath: Assets/Game/Art/Scenes/S01/21.png
+    sprite: {fileID: 21300000, guid: 196035d13e452c24e8a4603d9dd6af74, type: 3}
+  - guid: 8637ce641346bbc4c982e35eb3585deb
+    assetPath: Assets/Game/Art/Scenes/S01/22.png
+    sprite: {fileID: 21300000, guid: 8637ce641346bbc4c982e35eb3585deb, type: 3}
+  - guid: d261cb9c947008a458f19596ed3b2357
+    assetPath: Assets/Game/Art/Scenes/S01/23.png
+    sprite: {fileID: 21300000, guid: d261cb9c947008a458f19596ed3b2357, type: 3}
+  - guid: 999e696df305e8d4890d040906dc12f2
+    assetPath: Assets/Game/Art/Scenes/S01/24.png
+    sprite: {fileID: 21300000, guid: 999e696df305e8d4890d040906dc12f2, type: 3}
+  - guid: 47fe49f475e11f748bdaf24b3c6619f5
+    assetPath: Assets/Game/Art/Scenes/S01/25.png
+    sprite: {fileID: 21300000, guid: 47fe49f475e11f748bdaf24b3c6619f5, type: 3}
+  - guid: d506798f8970fb645bec879362217bd6
+    assetPath: Assets/Game/Art/Scenes/S01/26.png
+    sprite: {fileID: 21300000, guid: d506798f8970fb645bec879362217bd6, type: 3}
+  - guid: 85330cb12b2b64540a40589da956a7b4
+    assetPath: Assets/Game/Art/Scenes/S01/3.png
+    sprite: {fileID: 21300000, guid: 85330cb12b2b64540a40589da956a7b4, type: 3}
+  - guid: 3c3f33c053f18694ab4ac7c5d622a6ed
+    assetPath: Assets/Game/Art/Scenes/S01/4.png
+    sprite: {fileID: 21300000, guid: 3c3f33c053f18694ab4ac7c5d622a6ed, type: 3}
+  - guid: 392a2361d8439944ab64d4e1a478c736
+    assetPath: Assets/Game/Art/Scenes/S01/5.png
+    sprite: {fileID: 21300000, guid: 392a2361d8439944ab64d4e1a478c736, type: 3}
+  - guid: b82a509cc3652b747a9bcd3802640f8e
+    assetPath: Assets/Game/Art/Scenes/S01/6.png
+    sprite: {fileID: 21300000, guid: b82a509cc3652b747a9bcd3802640f8e, type: 3}
+  - guid: 2149865ff5a9b2d4ab8288e8372faf7f
+    assetPath: Assets/Game/Art/Scenes/S01/7.png
+    sprite: {fileID: 21300000, guid: 2149865ff5a9b2d4ab8288e8372faf7f, type: 3}
+  - guid: 931bc3544a658ed418c46a5fb3eced94
+    assetPath: Assets/Game/Art/Scenes/S01/8.png
+    sprite: {fileID: 21300000, guid: 931bc3544a658ed418c46a5fb3eced94, type: 3}
+  - guid: 89626f2b14ddc7547a94880c2e0aeefb
+    assetPath: Assets/Game/Art/Scenes/S01/9.png
+    sprite: {fileID: 21300000, guid: 89626f2b14ddc7547a94880c2e0aeefb, type: 3}
+  - guid: c87a16a799bc9fa469c2bf74593ba58b
+    assetPath: Assets/Game/Art/Scenes/S02/0.png
+    sprite: {fileID: 21300000, guid: c87a16a799bc9fa469c2bf74593ba58b, type: 3}
+  - guid: ab6947a9df2f92042880e86e6757e3d7
+    assetPath: Assets/Game/Art/Scenes/S02/1.png
+    sprite: {fileID: 21300000, guid: ab6947a9df2f92042880e86e6757e3d7, type: 3}
+  - guid: b5a5b6234f61bb14daa3a8a2b093c3d5
+    assetPath: Assets/Game/Art/Scenes/S02/10.png
+    sprite: {fileID: 21300000, guid: b5a5b6234f61bb14daa3a8a2b093c3d5, type: 3}
+  - guid: 37478b14448afa34c8e45b2e4524018d
+    assetPath: Assets/Game/Art/Scenes/S02/11.png
+    sprite: {fileID: 21300000, guid: 37478b14448afa34c8e45b2e4524018d, type: 3}
+  - guid: 6a737225372cd6442aaa7816a43a0737
+    assetPath: Assets/Game/Art/Scenes/S02/12.png
+    sprite: {fileID: 21300000, guid: 6a737225372cd6442aaa7816a43a0737, type: 3}
+  - guid: 02d12b0a65154244e89380a6a5773b7d
+    assetPath: Assets/Game/Art/Scenes/S02/13.png
+    sprite: {fileID: 21300000, guid: 02d12b0a65154244e89380a6a5773b7d, type: 3}
+  - guid: 1bee670fd010e79428d14b4100d0e222
+    assetPath: Assets/Game/Art/Scenes/S02/14.png
+    sprite: {fileID: 21300000, guid: 1bee670fd010e79428d14b4100d0e222, type: 3}
+  - guid: c8840d294b4f32a4eb2daa529d7f78aa
+    assetPath: Assets/Game/Art/Scenes/S02/15.png
+    sprite: {fileID: 21300000, guid: c8840d294b4f32a4eb2daa529d7f78aa, type: 3}
+  - guid: 25e63af79883b5d428310b61db7e975b
+    assetPath: Assets/Game/Art/Scenes/S02/16.png
+    sprite: {fileID: 21300000, guid: 25e63af79883b5d428310b61db7e975b, type: 3}
+  - guid: e713c2dec6e5027489ce49e2559a52bc
+    assetPath: Assets/Game/Art/Scenes/S02/17.png
+    sprite: {fileID: 21300000, guid: e713c2dec6e5027489ce49e2559a52bc, type: 3}
+  - guid: cac57635de48a5f40a563fe9b6b8af31
+    assetPath: Assets/Game/Art/Scenes/S02/18.png
+    sprite: {fileID: 21300000, guid: cac57635de48a5f40a563fe9b6b8af31, type: 3}
+  - guid: 92daf5e807bc84744947c7d612fbbdf4
+    assetPath: Assets/Game/Art/Scenes/S02/19.png
+    sprite: {fileID: 21300000, guid: 92daf5e807bc84744947c7d612fbbdf4, type: 3}
+  - guid: 2f52fb8059fc81d439fe316c983fb0b3
+    assetPath: Assets/Game/Art/Scenes/S02/2.png
+    sprite: {fileID: 21300000, guid: 2f52fb8059fc81d439fe316c983fb0b3, type: 3}
+  - guid: c07fff112581ca74b9d507dd8d53a0c4
+    assetPath: Assets/Game/Art/Scenes/S02/20.png
+    sprite: {fileID: 21300000, guid: c07fff112581ca74b9d507dd8d53a0c4, type: 3}
+  - guid: 020f31d1b2ce16b4a87aa7963e26a605
+    assetPath: Assets/Game/Art/Scenes/S02/21.png
+    sprite: {fileID: 21300000, guid: 020f31d1b2ce16b4a87aa7963e26a605, type: 3}
+  - guid: 2befe0ad51e683e4881e0f7481de9f2b
+    assetPath: Assets/Game/Art/Scenes/S02/22.png
+    sprite: {fileID: 21300000, guid: 2befe0ad51e683e4881e0f7481de9f2b, type: 3}
+  - guid: a699769139542fa479f6a1d832efd56d
+    assetPath: Assets/Game/Art/Scenes/S02/23.png
+    sprite: {fileID: 21300000, guid: a699769139542fa479f6a1d832efd56d, type: 3}
+  - guid: a18cce22f371dad4391e8aed61ea482c
+    assetPath: Assets/Game/Art/Scenes/S02/24.png
+    sprite: {fileID: 21300000, guid: a18cce22f371dad4391e8aed61ea482c, type: 3}
+  - guid: 0d2b0e280cadf9240b9948f1c70157aa
+    assetPath: Assets/Game/Art/Scenes/S02/25.png
+    sprite: {fileID: 21300000, guid: 0d2b0e280cadf9240b9948f1c70157aa, type: 3}
+  - guid: dc11526eb3117a747a18c700a087deaf
+    assetPath: Assets/Game/Art/Scenes/S02/3.png
+    sprite: {fileID: 21300000, guid: dc11526eb3117a747a18c700a087deaf, type: 3}
+  - guid: 9f043e9a9dc35474980e3fd1d7a0feff
+    assetPath: Assets/Game/Art/Scenes/S02/5.png
+    sprite: {fileID: 21300000, guid: 9f043e9a9dc35474980e3fd1d7a0feff, type: 3}
+  - guid: 5cce47bfff088874f93228728561b405
+    assetPath: Assets/Game/Art/Scenes/S02/6.png
+    sprite: {fileID: 21300000, guid: 5cce47bfff088874f93228728561b405, type: 3}
+  - guid: f3e310163ec395a49bcd63e296a1e8ce
+    assetPath: Assets/Game/Art/Scenes/S02/7.png
+    sprite: {fileID: 21300000, guid: f3e310163ec395a49bcd63e296a1e8ce, type: 3}
+  - guid: a5ab8cd8f77c80e45be2609aec6ccbd8
+    assetPath: Assets/Game/Art/Scenes/S02/8.png
+    sprite: {fileID: 21300000, guid: a5ab8cd8f77c80e45be2609aec6ccbd8, type: 3}
+  - guid: ac10111fb4a354045b0ea0c4dd88a581
+    assetPath: Assets/Game/Art/Scenes/S02/S02_BG.jpg
+    sprite: {fileID: 21300000, guid: ac10111fb4a354045b0ea0c4dd88a581, type: 3}
+  - guid: 631d36e90b9364247bb6df50cb1123a4
+    assetPath: Assets/Game/Art/UI/Dialogues/0.png
+    sprite: {fileID: 21300000, guid: 631d36e90b9364247bb6df50cb1123a4, type: 3}
+  - guid: a5aceca37d48c1b48bf56ed497043a7b
+    assetPath: Assets/Game/Art/UI/Dialogues/1.png
+    sprite: {fileID: 21300000, guid: a5aceca37d48c1b48bf56ed497043a7b, type: 3}
+  - guid: 827bb46f672327244a05e1b03eaf4d16
+    assetPath: Assets/Game/Art/UI/Dialogues/2.png
+    sprite: {fileID: 21300000, guid: 827bb46f672327244a05e1b03eaf4d16, type: 3}
+  - guid: 41e0bc7119da43045b92e5f75de4d944
+    assetPath: Assets/Game/Art/UI/Dialogues/3.png
+    sprite: {fileID: 21300000, guid: 41e0bc7119da43045b92e5f75de4d944, type: 3}
+  - guid: 50089d2a43f97f1478dc32c428473d8a
+    assetPath: Assets/Game/Art/UI/Dialogues/4.png
+    sprite: {fileID: 21300000, guid: 50089d2a43f97f1478dc32c428473d8a, type: 3}
+  - guid: daa69e830fa3c6c44a175e7af2be6603
+    assetPath: Assets/Game/Art/UI/Tarot/00-fool.png
+    sprite: {fileID: 21300000, guid: daa69e830fa3c6c44a175e7af2be6603, type: 3}
+  - guid: e869fa0c1c5ac7544b4c9896a365d622
+    assetPath: Assets/Game/Art/UI/Tarot/01-magician.png
+    sprite: {fileID: 21300000, guid: e869fa0c1c5ac7544b4c9896a365d622, type: 3}
+  - guid: ecf1f5293f66e7e4f83d1bbebe74dfa8
+    assetPath: Assets/Game/Art/UI/Tarot/02-high-priestess.png
+    sprite: {fileID: 21300000, guid: ecf1f5293f66e7e4f83d1bbebe74dfa8, type: 3}
+  - guid: 801505db16f04ad4d9ac49ee800349a5
+    assetPath: Assets/Game/Art/UI/Tarot/03-empress.png
+    sprite: {fileID: 21300000, guid: 801505db16f04ad4d9ac49ee800349a5, type: 3}
+  - guid: d20543744b6a96a4aba72abbcfef0583
+    assetPath: Assets/Game/Art/UI/Tarot/04-emperor.png
+    sprite: {fileID: 21300000, guid: d20543744b6a96a4aba72abbcfef0583, type: 3}
+  - guid: a81577fdba639f342b5cea0c08b48ee2
+    assetPath: Assets/Game/Art/UI/Tarot/05-hierophant.png
+    sprite: {fileID: 21300000, guid: a81577fdba639f342b5cea0c08b48ee2, type: 3}
+  - guid: 08195f09441f6a947a6720e1d7026d82
+    assetPath: Assets/Game/Art/UI/Tarot/06-lovers.png
+    sprite: {fileID: 21300000, guid: 08195f09441f6a947a6720e1d7026d82, type: 3}
+  - guid: 10f757af09f5a964184719e932e518cb
+    assetPath: Assets/Game/Art/UI/Tarot/07-chariot.png
+    sprite: {fileID: 21300000, guid: 10f757af09f5a964184719e932e518cb, type: 3}
+  - guid: 012cd01f84d034d48a6e2bac4c16bcda
+    assetPath: Assets/Game/Art/UI/Tarot/08-strength.png
+    sprite: {fileID: 21300000, guid: 012cd01f84d034d48a6e2bac4c16bcda, type: 3}
+  - guid: 5825753b6a70006439326e52f9d206ad
+    assetPath: Assets/Game/Art/UI/Tarot/09-hermit.png
+    sprite: {fileID: 21300000, guid: 5825753b6a70006439326e52f9d206ad, type: 3}
+  - guid: c9787e2764c8dea42a10d93c9ef2f8d2
+    assetPath: Assets/Game/Art/UI/Tarot/10-wheel-of-fortune.png
+    sprite: {fileID: 21300000, guid: c9787e2764c8dea42a10d93c9ef2f8d2, type: 3}
+  - guid: 3e59e186c5075f64c880d1ad13e3b3cf
+    assetPath: Assets/Game/Art/UI/Tarot/11-justice.png
+    sprite: {fileID: 21300000, guid: 3e59e186c5075f64c880d1ad13e3b3cf, type: 3}
+  - guid: af01dcc9331d68b43a6f71839e3d0b0d
+    assetPath: Assets/Game/Art/UI/Tarot/12-hanged-man.png
+    sprite: {fileID: 21300000, guid: af01dcc9331d68b43a6f71839e3d0b0d, type: 3}
+  - guid: 9f22b2baa343a5746b38b923cf4e978e
+    assetPath: Assets/Game/Art/UI/Tarot/13-death.png
+    sprite: {fileID: 21300000, guid: 9f22b2baa343a5746b38b923cf4e978e, type: 3}
+  - guid: 0bb81d4318b3899419087ce8435ca7fc
+    assetPath: Assets/Game/Art/UI/Tarot/14-temperance.png
+    sprite: {fileID: 21300000, guid: 0bb81d4318b3899419087ce8435ca7fc, type: 3}
+  - guid: 1418116ea47ddd249bea6771fbbcda9c
+    assetPath: Assets/Game/Art/UI/Tarot/15-devil.png
+    sprite: {fileID: 21300000, guid: 1418116ea47ddd249bea6771fbbcda9c, type: 3}
+  - guid: cd147fcdf753cdc4f85dcecaa16db721
+    assetPath: Assets/Game/Art/UI/Tarot/16-tower.png
+    sprite: {fileID: 21300000, guid: cd147fcdf753cdc4f85dcecaa16db721, type: 3}
+  - guid: 5378ab3858f74814a8b602a55c4892d1
+    assetPath: Assets/Game/Art/UI/Tarot/17-star.png
+    sprite: {fileID: 21300000, guid: 5378ab3858f74814a8b602a55c4892d1, type: 3}
+  - guid: 9f7d9427919ac8049841f7ba39f78ea5
+    assetPath: Assets/Game/Art/UI/Tarot/18-moon.png
+    sprite: {fileID: 21300000, guid: 9f7d9427919ac8049841f7ba39f78ea5, type: 3}
+  - guid: 84cf6208da486484bb7620876f255775
+    assetPath: Assets/Game/Art/UI/Tarot/19-sun.png
+    sprite: {fileID: 21300000, guid: 84cf6208da486484bb7620876f255775, type: 3}
+  - guid: ce2bd79997948cd4993ea51524d2fd1f
+    assetPath: Assets/Game/Art/UI/Tarot/20-judgement.png
+    sprite: {fileID: 21300000, guid: ce2bd79997948cd4993ea51524d2fd1f, type: 3}
+  - guid: 1b1c304d33a85e643bf57682130fb740
+    assetPath: Assets/Game/Art/UI/Tarot/21-world.png
+    sprite: {fileID: 21300000, guid: 1b1c304d33a85e643bf57682130fb740, type: 3}
+  - guid: f0a887cc59c98624888e1ed1a0cdc90c
+    assetPath: Assets/Game/Art/UI/Tarot/card-back.png
+    sprite: {fileID: 21300000, guid: f0a887cc59c98624888e1ed1a0cdc90c, type: 3}
+  - guid: 7b2e4c91a8d64f3e9c5a1b0d8e6f4a2c
+    assetPath: Assets/Game/Art/UI/Tarot/tarot_background.jpg
+    sprite: {fileID: 21300000, guid: 7b2e4c91a8d64f3e9c5a1b0d8e6f4a2c, type: 3}
+  - guid: e79b4d6c863b4124e9f6b264f6d371cb
+    assetPath: Assets/Game/Art/UI/circle_sprite.png
+    sprite: {fileID: 21300000, guid: e79b4d6c863b4124e9f6b264f6d371cb, type: 3}
+  - guid: d2202ed4d2c36d8478ca29b1cbb5514c
+    assetPath: Assets/Game/Art/source/BG01.jpg
+    sprite: {fileID: 21300000, guid: d2202ed4d2c36d8478ca29b1cbb5514c, type: 3}
+  - guid: 2033fe5a018fd9b45a37ec8c64c15755
+    assetPath: Assets/Game/Art/source/Dialogue.png
+    sprite: {fileID: 21300000, guid: 2033fe5a018fd9b45a37ec8c64c15755, type: 3}
+  dreamCoreContentRect:
+    serializedVersion: 2
+    x: 0.24166666
+    y: 0.20833333
+    width: 0.49166667
+    height: 0.375

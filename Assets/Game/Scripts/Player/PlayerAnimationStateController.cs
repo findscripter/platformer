@@ -47,6 +47,7 @@ public sealed class PlayerAnimationStateController : MonoBehaviour
     private float attackTimeRemaining;
     private float attackClipLength = 0.8f;
     private bool attackHitResolved;
+    private bool wasAnimationEnabled;
 
     public AnimationState CurrentState => currentState;
     public bool IsLandingAnimationPlaying =>
@@ -194,14 +195,13 @@ public sealed class PlayerAnimationStateController : MonoBehaviour
             spriteRenderer.flipX = player.baseFaceRight ? horizontalInput < 0f : horizontalInput > 0f;
         }
 
-        if (!player.enableAnimation)
-            return;
-
         AnimationState nextState = ResolveState(horizontalInput, deltaTime);
-        if (nextState == currentState)
-            return;
-
+        bool visualChanged = nextState != currentState || !wasAnimationEnabled;
         currentState = nextState;
+        wasAnimationEnabled = player.enableAnimation;
+        // Gameplay lock timers must advance even when rendering the animation is disabled.
+        if (!wasAnimationEnabled || !visualChanged)
+            return;
 
         if (animator != null && animator.runtimeAnimatorController != null)
         {

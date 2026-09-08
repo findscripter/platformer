@@ -40,18 +40,15 @@ public class TarotDrawController : MonoBehaviour
     [SerializeField] private Image mainCardImage;
 
     [Header("牌阵布局（对白上方的手牌扇）")]
-    [SerializeField] private int arrayCardCount = 22;
-    [SerializeField] private Vector2 arrayCardSize = new Vector2(164f, 272f);
+    [SerializeField] private Vector2 arrayCardSize = new Vector2(260f, 458f);
     [Tooltip("相邻牌中心距。小于牌宽才会重叠，露出每张的边。")]
-    [SerializeField] private float arraySpacing = 60f;
-    [Tooltip("牌阵中心相对画布中心的 Y。对白条顶约 -216，牌底需在其上方。")]
-    [SerializeField] private float arrayRowY = -50f;
+    [SerializeField] private float arraySpacing = 72f;
     [Tooltip("左右最大倾角（度），左负右正。")]
-    [SerializeField] private float arrayFanTilt = 8f;
+    [SerializeField] private float arrayFanTilt = 4f;
     [Tooltip("两端相对中心下沉的弧度，模拟握在手里。")]
     [SerializeField] private float arrayArcDrop = 18f;
 
-    [Header("情绪卡槽位（3 个）")]
+    [Header("其余卡槽位（3 个）")]
     [SerializeField] private Transform[] emotionCardSlots = new Transform[3];
 
     [Header("时长配置")]
@@ -75,23 +72,29 @@ public class TarotDrawController : MonoBehaviour
 
     #region Private Fields
 
-    private TarotState currentState;
     private GameContext gameContext;
 
     private List<GameObject> instantiatedCards = new();
     private readonly TarotCardData[] drawnCards = new TarotCardData[TarotResultData.SlotCount];
     private readonly bool[] drawnReversed = new bool[TarotResultData.SlotCount];
 
-    private bool isWaitingForCardClick;
     private int clickedCardIndex = -1;
+    private bool acceptingCardClicks;
+    private bool flowRunning;
+    private int cardBeingAnimated = -1;
+    private Vector2 lastLayoutSize;
+    private TMP_Text selectionHint;
+    private float resultDisplayProgress;
 
-    /// <summary>已被抽走的牌阵下标，用于防止重复点击同一张牌。</summary>
+    /// <summary>点击时立即预留的位置，含正在播放和排队的牌。</summary>
     private readonly List<int> drawnCardIndices = new();
 
     /// <summary>输入缓冲队列：动画期间的点击会缓存在这里，下次等待时优先消费。</summary>
     private readonly Queue<int> pendingClicks = new();
 
     private Coroutine indicatorPulseRoutine;
+    private Coroutine flowRoutine;
+    private int flowVersion;
 
     // 状态 A 的 4 行对话
     private readonly string[] stateADialogues = new[]
@@ -107,29 +110,75 @@ public class TarotDrawController : MonoBehaviour
     #region Public API
 
     /// <summary>
-    /// 启动塔罗流程（由 PlayerGuideFlowControllerV2 调用）
+    /// 启动塔罗流程（由 TarotView 或旧引导控制器调用）。
     /// </summary>
     public IEnumerator StartTarotFlow()
     {
+        if (flowRunning || !isActiveAndEnabled)
+            yield break;
         if (!PrepareDrawnHand())
             yield break;
 
-        // 获取 GameContext
-        if (GameLoop.Instance != null)
+        if (cardPrefab == null || cardParent == null || mainCardSlot == null
+            || emotionCardSlots == null || emotionCardSlots.Length < 3
+            || System.Array.Exists(emotionCardSlots, slot => slot == null))
         {
-            gameContext = GameLoop.Instance.Context;
+            Debug.LogError("[TarotDraw] 缺少牌阵或结果槽引用，无法播放抽牌。");
+            yield break;
         }
 
-        // 初始化
-        InitializeUI();
+        flowRunning = true;
+        int version = ++flowVersion;
+        // 演出由当前面板持有；隐藏面板时可以停止嵌套动画与等待。
+        flowRoutine = StartCoroutine(RunFlow(version));
+        while (flowRunning && version == flowVersion)
+            yield return null;
+    }
 
-        // 执行状态机
-        yield return RunState(TarotState.A_GuideDialogue);
-        yield return RunState(TarotState.B_FadeOutDialogue);
-        yield return RunState(TarotState.C_FirstCardDraw);
-        yield return RunState(TarotState.D_ContinuePrompt);
-        yield return RunState(TarotState.F_FullDisplay);
-        yield return RunState(TarotState.G_FadeToLevel);
+    private IEnumerator RunFlow(int version)
+    {
+        try
+        {
+            gameContext = GameLoop.Instance != null ? GameLoop.Instance.Context : null;
+            InitializeUI();
+            yield return RunState(TarotState.A_GuideDialogue);
+            yield return RunState(TarotState.B_FadeOutDialogue);
+            yield return RunState(TarotState.C_FirstCardDraw);
+            yield return RunState(TarotState.D_ContinuePrompt);
+            yield return RunState(TarotState.F_FullDisplay);
+            yield return RunState(TarotState.G_FadeToLevel);
+        }
+        finally
+        {
+            if (version == flowVersion)
+            {
+                acceptingCardClicks = false;
+                flowRunning = false;
+                flowRoutine = null;
+                StopIndicator();
+            }
+        }
+    }
+
+    private void OnDisable()
+    {
+        // 外部 PlayerGuideController 仍可能在等待本 IEnumerator，显式释放它。
+        ++flowVersion;
+        acceptingCardClicks = false;
+        flowRunning = false;
+        if (flowRoutine != null)
+            StopCoroutine(flowRoutine);
+        flowRoutine = null;
+        pendingClicks.Clear();
+        StopIndicator();
+    }
+
+    private void StopIndicator()
+    {
+        if (indicatorPulseRoutine != null)
+            StopCoroutine(indicatorPulseRoutine);
+        indicatorPulseRoutine = null;
+        SetPanelActive(continueIndicator, false);
     }
 
     #endregion
@@ -141,23 +190,36 @@ public class TarotDrawController : MonoBehaviour
         // 重置流程状态，支持重复进入
         drawnCardIndices.Clear();
         pendingClicks.Clear();
-        isWaitingForCardClick = false;
+        acceptingCardClicks = false;
         clickedCardIndex = -1;
+        cardBeingAnimated = -1;
+        resultDisplayProgress = 0f;
 
+        GuideUiLayout.ConfigureCanvas(this);
+        GuideUiLayout.Stretch(transform as RectTransform, Vector2.zero, Vector2.one);
+        GuideUiLayout.Stretch(cardParent as RectTransform, Vector2.zero, Vector2.one);
         ApplyTarotBackground();
 
         SetPanelActive(dialoguePanel, false);
         SetPanelActive(cardArrayContainer, false);
         SetPanelActive(mainCardSlot, false);
 
-        if (mainCardSlot != null)
-            mainCardSlot.transform.localScale = Vector3.one;
-
-        foreach (var slot in emotionCardSlots)
+        for (int i = 0; i < TarotResultData.SlotCount; i++)
         {
-            if (slot != null)
-                slot.gameObject.SetActive(false);
+            Transform slot = GetSlot(i);
+            slot.localScale = Vector3.one;
+            slot.localRotation = Quaternion.identity;
+            var backplate = slot.GetComponent<Image>();
+            if (backplate != null)
+                backplate.enabled = false;
+            var face = GetOrCreateSlotCardFace(slot);
+            face.sprite = null;
+            face.enabled = false;
+            if (i == 0)
+                mainCardImage = face;
+            slot.gameObject.SetActive(false);
         }
+        LayoutCards();
     }
 
     #endregion
@@ -166,372 +228,123 @@ public class TarotDrawController : MonoBehaviour
 
     private IEnumerator RunState(TarotState state)
     {
-        currentState = state;
-        Debug.Log($"[TarotDraw] Entering {state}");
-
         switch (state)
         {
             case TarotState.A_GuideDialogue:
-                yield return State_A_GuideDialogue();
+                SetPanelActive(cardArrayContainer, true);
+                SpawnCardArray();
+                acceptingCardClicks = true;
+                UpdateSelectionHint();
+                SetPanelActive(dialoguePanel, true);
+                if (dialoguePanel != null)
+                {
+                    GuideUiLayout.Stretch(dialoguePanel.transform as RectTransform,
+                        new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.22f));
+                    dialoguePanel.transform.SetAsLastSibling();
+                }
+                GuideUiLayout.ReadableText(dialogueSpeakerText, 28f, new Color(0.12f, 0.12f, 0.16f, 1f));
+                GuideUiLayout.ReadableText(dialogueContentText, 36f, new Color(0.12f, 0.12f, 0.16f, 1f));
+                if (dialogueSpeakerText != null)
+                {
+                    dialogueSpeakerText.text = "腓腓";
+                    GuideUiLayout.Stretch(dialogueSpeakerText.rectTransform,
+                        new Vector2(0.13f, 0.62f), new Vector2(0.86f, 0.88f));
+                }
+                if (dialogueContentText != null)
+                {
+                    dialogueContentText.text = stateADialogues[0];
+                    GuideUiLayout.Stretch(dialogueContentText.rectTransform,
+                        new Vector2(0.13f, 0.12f), new Vector2(0.86f, 0.6f));
+                }
+                yield return FadeCanvasGroup(dialogueCanvasGroup, 0f, 1f, 0.3f);
+                indicatorPulseRoutine = StartCoroutine(PulseContinueIndicator());
+                foreach (string line in stateADialogues)
+                {
+                    if (dialogueContentText != null)
+                        dialogueContentText.text = line;
+                    yield return new WaitForSecondsRealtime(stateADialogueDuration);
+                }
                 break;
 
             case TarotState.B_FadeOutDialogue:
-                yield return State_B_FadeOutDialogue();
+                if (indicatorPulseRoutine != null)
+                {
+                    StopCoroutine(indicatorPulseRoutine);
+                    indicatorPulseRoutine = null;
+                }
+                SetPanelActive(continueIndicator, false);
+                yield return FadeCanvasGroup(dialogueCanvasGroup, 1f, 0f, stateBFadeDuration);
+                SetPanelActive(dialoguePanel, false);
+                var feifei = Object.FindAnyObjectByType<FeifeiCharacterView>();
+                if (feifei != null)
+                {
+                    yield return feifei.FadeAlpha(1f, 0f, stateBFadeDuration);
+                    feifei.SetActive(false);
+                }
                 break;
 
             case TarotState.C_FirstCardDraw:
-                yield return State_C_FirstCardDraw();
+                yield return WaitForNextCard();
+                yield return FlipCard(clickedCardIndex, drawnCards[0], drawnReversed[0]);
+                yield return MoveCardToSlot(clickedCardIndex, 0, drawnCards[0], drawnReversed[0]);
+                yield return EmphasizeMainCard();
                 break;
 
             case TarotState.D_ContinuePrompt:
-                yield return State_D_ContinuePrompt();
+                for (int slot = 1; slot < TarotResultData.SlotCount; slot++)
+                {
+                    yield return WaitForNextCard();
+                    yield return FlipCard(clickedCardIndex, drawnCards[slot], drawnReversed[slot]);
+                    yield return MoveCardToSlot(clickedCardIndex, slot, drawnCards[slot], drawnReversed[slot]);
+                }
                 break;
 
             case TarotState.F_FullDisplay:
-                yield return State_F_FullDisplay();
+                acceptingCardClicks = false;
+                if (selectionHint != null)
+                    selectionHint.gameObject.SetActive(false);
+                yield return FadeOutRemainingCards();
+                yield return ExpandResultsForReading();
+                yield return new WaitForSecondsRealtime(stateFDisplayDuration);
+                if (gameContext != null)
+                {
+                    var result = new TarotResultData();
+                    result.BeginRun(drawnCards, drawnReversed);
+                    gameContext.TarotResult = result;
+                    Debug.Log("[TarotDraw] " + result.SummarizeDrawn());
+                }
                 break;
 
             case TarotState.G_FadeToLevel:
-                yield return State_G_FadeToLevel();
+                var transition = gameContext != null ? gameContext.SceneTransitionManager : null;
+                if (transition != null)
+                    yield return transition.FadeToBlack(stateGFadeDuration);
+                else
+                    yield return new WaitForSecondsRealtime(stateGFadeDuration);
+                if (GameLoop.Instance != null)
+                    GameLoop.Instance.ContinueToGameplay();
                 break;
         }
-    }
-
-    #endregion
-
-    #region State A: Guide Dialogue
-
-    private IEnumerator State_A_GuideDialogue()
-    {
-        // Figma 状态 A：22 张牌背与引导对白同时在场
-        SetPanelActive(cardArrayContainer, true);
-        SpawnCardArray(false);
-
-        SetPanelActive(dialoguePanel, true);
-        if (dialoguePanel != null)
-            dialoguePanel.transform.SetAsLastSibling();
-
-        if (dialogueCanvasGroup != null)
-        {
-            yield return FadeCanvasGroup(dialogueCanvasGroup, 0f, 1f, 0.3f);
-        }
-
-        if (dialogueSpeakerText != null)
-            dialogueSpeakerText.text = "腓腓";
-
-        // 启动省略号呼吸动画（表示还有后续台词）
-        indicatorPulseRoutine = StartCoroutine(PulseContinueIndicator());
-
-        // 播放 4 行对话
-        foreach (string line in stateADialogues)
-        {
-            if (dialogueContentText != null)
-                dialogueContentText.text = line;
-
-            yield return new WaitForSeconds(stateADialogueDuration);
-        }
-    }
-
-    #endregion
-
-    #region State B: Fade Out Dialogue
-
-    private IEnumerator State_B_FadeOutDialogue()
-    {
-        // 停止省略号呼吸
-        if (indicatorPulseRoutine != null)
-        {
-            StopCoroutine(indicatorPulseRoutine);
-            indicatorPulseRoutine = null;
-        }
-        if (continueIndicator != null)
-            continueIndicator.SetActive(false);
-
-        // 腓腓和对话淡出
-        if (dialogueCanvasGroup != null)
-        {
-            yield return FadeCanvasGroup(dialogueCanvasGroup, 1f, 0f, stateBFadeDuration);
-        }
-
-        SetPanelActive(dialoguePanel, false);
-
-        var feifei = Object.FindFirstObjectByType<FeifeiCharacterView>();
-        if (feifei != null)
-        {
-            yield return feifei.FadeAlpha(1f, 0f, stateBFadeDuration);
-            feifei.SetActive(false);
-        }
-    }
-
-    #endregion
-
-    #region State C: First Card Draw
-
-    private IEnumerator State_C_FirstCardDraw()
-    {
-        if (instantiatedCards.Count == 0)
-        {
-            SetPanelActive(cardArrayContainer, true);
-            SpawnCardArray(true);
-        }
-        else
-        {
-            BindCardButtons();
-        }
-
-        yield return new WaitForSeconds(0.25f);
-
-        // 等待玩家点击任意一张牌
-        isWaitingForCardClick = true;
-        clickedCardIndex = -1;
-
-        yield return new WaitUntil(() => !isWaitingForCardClick);
-
-        int mainCardIndex = clickedCardIndex;
-        drawnCardIndices.Add(mainCardIndex);
-
-        yield return FlipCard(mainCardIndex, drawnCards[0], drawnReversed[0]);
-
-        // TODO: 播放音效 "main_card_flip"（共鸣感）
-
-        // 上移到中上方主卡槽（设计稿状态 C：所选牌原位翻开 → 上移到中上方第 1 位）
-        yield return MoveCardToMainSlot(mainCardIndex);
-
-        // 主牌强调：轻微放大 105% + 淡光 + 停顿 0.6s
-        yield return EmphasizeMainCard();
-
-        // 设计稿状态 D：剩余牌仍在中下方原位可点击，牌阵不销毁
-    }
-
-    /// <summary>
-    /// 主牌强调效果：轻微放大到 105% 后回落，并停顿约 0.6s（设计稿状态 C）。
-    /// </summary>
-    private IEnumerator EmphasizeMainCard()
-    {
-        if (mainCardSlot == null)
-            yield break;
-
-        Transform slot = mainCardSlot.transform;
-        Vector3 baseScale = Vector3.one;
-        Vector3 upScale = baseScale * 1.05f;
-
-        const float scaleDuration = 0.18f;
-        float elapsed = 0f;
-        while (elapsed < scaleDuration)
-        {
-            float t = EaseOutCubic(elapsed / scaleDuration);
-            slot.localScale = Vector3.Lerp(baseScale, upScale, t);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        slot.localScale = upScale;
-
-        Image glowTarget = mainCardImage != null ? mainCardImage : slot.GetComponent<Image>();
-        Color glowStart = glowTarget != null ? glowTarget.color : Color.white;
-        if (glowTarget != null)
-            glowTarget.color = Color.Lerp(glowStart, Color.white, 0.55f);
-
-        yield return new WaitForSeconds(mainCardEmphasisHold > 0.5f ? mainCardEmphasisHold : 0.6f);
-
-        if (glowTarget != null)
-            glowTarget.color = glowStart;
-
-        elapsed = 0f;
-        while (elapsed < scaleDuration)
-        {
-            float t = EaseOutCubic(elapsed / scaleDuration);
-            slot.localScale = Vector3.Lerp(upScale, baseScale, t);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        slot.localScale = baseScale;
-    }
-
-    private void SpawnCardArray(bool enableClick = true)
-    {
-        if (cardPrefab == null || cardParent == null)
-        {
-            Debug.LogWarning("[TarotDraw] cardPrefab 或 cardParent 未设置！");
-            return;
-        }
-
-        foreach (var card in instantiatedCards)
-        {
-            if (card != null)
-                Destroy(card);
-        }
-        instantiatedCards.Clear();
-
-        int cardCount = Mathf.Max(1, arrayCardCount);
-        Vector2 size = arrayCardSize.x > 1f ? arrayCardSize : new Vector2(164f, 272f);
-        float spacing = arraySpacing > 1f ? arraySpacing : 60f;
-        float startX = -((cardCount - 1) * spacing) * 0.5f;
-
-        for (int i = 0; i < cardCount; i++)
-        {
-            GameObject cardObj = Instantiate(cardPrefab, cardParent, false);
-            instantiatedCards.Add(cardObj);
-
-            float t = cardCount <= 1 ? 0.5f : i / (float)(cardCount - 1);
-            float tilt = Mathf.Lerp(-arrayFanTilt, arrayFanTilt, t);
-            float arc = -Mathf.Abs(t - 0.5f) * 2f * arrayArcDrop;
-
-            RectTransform cardRect = cardObj.transform as RectTransform;
-            if (cardRect != null)
-            {
-                cardRect.anchorMin = new Vector2(0.5f, 0.5f);
-                cardRect.anchorMax = new Vector2(0.5f, 0.5f);
-                cardRect.pivot = new Vector2(0.5f, 0.5f);
-                cardRect.sizeDelta = size;
-                cardRect.anchoredPosition = new Vector2(startX + i * spacing, arrayRowY + arc);
-                cardRect.localRotation = Quaternion.Euler(0f, 0f, -tilt);
-                cardRect.localScale = Vector3.one;
-            }
-
-            cardObj.transform.SetAsLastSibling();
-        }
-
-        if (enableClick)
-            BindCardButtons();
-    }
-
-    /// <summary>
-    /// 点哪张牌就抽哪张（设计稿：任意点击第一张固定翻应龙，后续点中的牌上移）。
-    /// </summary>
-    private void BindCardButtons()
-    {
-        if (cardArrayContainer != null)
-        {
-            Transform existingArea = cardArrayContainer.transform.Find("FullscreenClickArea");
-            if (existingArea != null)
-                Destroy(existingArea.gameObject);
-        }
-
-        for (int i = 0; i < instantiatedCards.Count; i++)
-        {
-            GameObject card = instantiatedCards[i];
-            if (card == null)
-                continue;
-
-            int captured = i;
-            Button btn = card.GetComponent<Button>();
-            if (btn == null)
-                btn = card.AddComponent<Button>();
-
-            btn.transition = Selectable.Transition.None;
-            btn.onClick.RemoveAllListeners();
-            btn.onClick.AddListener(() => OnCardClicked(captured));
-
-            Image img = card.GetComponent<Image>();
-            if (img != null)
-                img.raycastTarget = true;
-        }
-    }
-
-    private void OnCardClicked(int index)
-    {
-        // 已被抽走的位置不可再点（设计稿程序需求：防止重复点击）
-        if (drawnCardIndices.Contains(index))
-            return;
-
-        // 如果当前不在等待点击状态（动画播放中），缓冲这次点击
-        if (!isWaitingForCardClick)
-        {
-            // 避免重复缓冲同一张牌，且最多缓冲 3 张（后三张情绪牌）
-            if (!pendingClicks.Contains(index) && pendingClicks.Count < 3)
-            {
-                pendingClicks.Enqueue(index);
-                // 给缓冲的点击一个轻微的视觉反馈
-                if (index >= 0 && index < instantiatedCards.Count)
-                {
-                    var card = instantiatedCards[index];
-                    if (card != null)
-                        StartCoroutine(QuickPunchScale(card.transform, 0.15f));
-                }
-            }
-            return;
-        }
-
-        // 即时视觉反馈：缩放动画
-        if (index >= 0 && index < instantiatedCards.Count)
-        {
-            var card = instantiatedCards[index];
-            if (card != null)
-                StartCoroutine(QuickPunchScale(card.transform, 0.1f));
-        }
-
-        clickedCardIndex = index;
-        isWaitingForCardClick = false;
-
-        // TODO: 播放音效 "card_click"
-    }
-
-    private IEnumerator FlipCard(int index, TarotCardData cardData, bool reversed = false)
-    {
-        if (index < 0 || index >= instantiatedCards.Count)
-            yield break;
-
-        GameObject cardObj = instantiatedCards[index];
-        if (cardObj == null)
-            yield break;
-
-        GuideSfx.PlayCardFlip();
-        Transform cardTransform = cardObj.transform;
-        Image cardImage = cardObj.GetComponent<Image>();
-
-        // Y 轴旋转 180 度
-        float elapsed = 0f;
-        Quaternion startRot = cardTransform.localRotation;
-        Quaternion endRot = startRot * Quaternion.Euler(0f, 180f, 0f);
-
-        while (elapsed < cardFlipDuration)
-        {
-            float t = elapsed / cardFlipDuration;
-            t = EaseOutCubic(t);  // 添加缓动，避免线性插值的生硬感
-            cardTransform.localRotation = Quaternion.Lerp(startRot, endRot, t);
-
-            // 中点切换图片
-            if (t >= 0.5f && cardImage != null && cardData != null && cardData.CardFace != null)
-            {
-                cardImage.sprite = cardData.CardFace;
-            }
-
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        cardTransform.localRotation = reversed
-            ? endRot * Quaternion.Euler(0f, 0f, 180f)
-            : endRot;
     }
 
     private bool PrepareDrawnHand()
     {
-        TarotCardData[] deck = deckCards != null && deckCards.Length >= TarotResultData.SlotCount
-            ? deckCards
-            : TarotCatalog.LoadDeck();
-
-        if (deck == null || deck.Length < TarotResultData.SlotCount)
+        TarotCardData[] deck = deckCards != null && deckCards.Length == TarotCatalog.All.Length
+            ? deckCards : TarotCatalog.LoadDeck();
+        var pool = new List<TarotCardData>();
+        var ids = new HashSet<string>();
+        if (deck != null)
         {
-            Debug.LogError("[TarotDraw] 牌组不足 4 张，无法开局。");
+            foreach (var card in deck)
+                if (card != null && ids.Add(card.CardId))
+                    pool.Add(card);
+        }
+        if (pool.Count != TarotCatalog.All.Length)
+        {
+            Debug.LogError("[TarotDraw] 需要完整的 22 张不重复牌组，无法开局。");
             return false;
         }
-
-        var pool = new List<TarotCardData>(deck.Length);
-        for (int i = 0; i < deck.Length; i++)
-        {
-            if (deck[i] != null)
-                pool.Add(deck[i]);
-        }
-
-        if (pool.Count < TarotResultData.SlotCount)
-        {
-            Debug.LogError("[TarotDraw] 有效牌不足 4 张。");
-            return false;
-        }
-
+        // 保留局内四张不放回随机，正逆位分别随机，点击顺序对应 T1–T4。
         for (int i = 0; i < TarotResultData.SlotCount; i++)
         {
             int pick = Random.Range(i, pool.Count);
@@ -541,275 +354,271 @@ public class TarotDrawController : MonoBehaviour
             drawnCards[i] = pool[i];
             drawnReversed[i] = Random.value < 0.5f;
         }
-
         return true;
     }
 
-    private IEnumerator MoveCardToMainSlot(int index)
+    private void SpawnCardArray()
     {
-        if (index < 0 || index >= instantiatedCards.Count || mainCardSlot == null)
-            yield break;
-
-        GameObject cardObj = instantiatedCards[index];
-        if (cardObj == null)
-            yield break;
-
-        SetPanelActive(mainCardSlot, true);
-
-        Vector3 startPos = cardObj.transform.position;
-        Vector3 endPos = mainCardSlot.transform.position;
-        Quaternion startRot = cardObj.transform.rotation;
-        Quaternion endRot = Quaternion.identity;
-
-        float elapsed = 0f;
-        while (elapsed < cardMoveDuration)
+        foreach (var card in instantiatedCards)
+            if (card != null)
+            {
+                card.SetActive(false);
+                Destroy(card);
+            }
+        instantiatedCards.Clear();
+        int cardCount = TarotCatalog.All.Length;
+        for (int i = 0; i < cardCount; i++)
         {
-            float t = elapsed / cardMoveDuration;
-            t = EaseOutCubic(t);
+            var card = Instantiate(cardPrefab, cardParent, false);
+            card.SetActive(true);
+            instantiatedCards.Add(card);
+            var image = card.GetComponent<Image>();
+            if (image != null)
+            {
+                image.color = Color.white;
+                image.preserveAspect = false;
+                image.type = Image.Type.Simple;
+                image.raycastTarget = true;
+            }
+            int captured = i;
+            var button = card.GetComponent<Button>();
+            if (button == null)
+                button = card.AddComponent<Button>();
+            button.interactable = true;
+            button.transition = Selectable.Transition.None;
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => OnCardClicked(captured));
+        }
+        // 兼容旧场景遗留的整屏点击层。
+        var clickArea = cardArrayContainer != null
+            ? cardArrayContainer.transform.Find("FullscreenClickArea") : null;
+        if (clickArea != null)
+            clickArea.gameObject.SetActive(false);
+        LayoutCards();
+    }
 
-            cardObj.transform.position = Vector3.Lerp(startPos, endPos, t);
-            cardObj.transform.rotation = Quaternion.Lerp(startRot, endRot, t);
+    private void OnCardClicked(int index)
+    {
+        if (!acceptingCardClicks || index < 0 || index >= instantiatedCards.Count
+            || instantiatedCards[index] == null || drawnCardIndices.Contains(index)
+            || drawnCardIndices.Count >= TarotResultData.SlotCount)
+            return;
+        // 回调内即预留位置，包含正在播放和排队的牌，同帧连点也不会重复入队。
+        drawnCardIndices.Add(index);
+        pendingClicks.Enqueue(index);
+        var card = instantiatedCards[index];
+        var button = card.GetComponent<Button>();
+        if (button != null)
+            button.interactable = false;
+        var image = card.GetComponent<Image>();
+        if (image != null)
+            image.color = new Color(1f, 0.85f, 0.6f, 1f);
+        // 颜色反馈不会与翻牌协程争抢缩放；禁用按钮仍挡住下层牌，避免点击穿透。
+        if (drawnCardIndices.Count == TarotResultData.SlotCount)
+            acceptingCardClicks = false;
+        UpdateSelectionHint();
+    }
 
-            elapsed += Time.deltaTime;
+    private IEnumerator WaitForNextCard()
+    {
+        // 首张与后续三张采用同一队列，开场和动画期间的选择不会被重置。
+        while (pendingClicks.Count == 0)
+            yield return null;
+        clickedCardIndex = pendingClicks.Dequeue();
+        cardBeingAnimated = clickedCardIndex;
+    }
+
+    private IEnumerator FlipCard(int index, TarotCardData cardData, bool reversed)
+    {
+        var card = instantiatedCards[index];
+        if (card == null)
+            yield break;
+        GuideSfx.PlayCardFlip();
+        var image = card.GetComponent<Image>();
+        card.transform.SetParent(transform, true);
+        card.transform.SetAsLastSibling();
+        Quaternion faceRotation = Quaternion.Euler(0f, 0f, reversed ? 180f : 0f);
+        bool faceShown = false;
+        float elapsed = 0f;
+        while (elapsed < cardFlipDuration)
+        {
+            float t = elapsed / cardFlipDuration;
+            // 收窄再展开，侧向不可见时换图；不再旋转到 Y=180 导致牌面镜像。
+            card.transform.localScale = new Vector3(Mathf.Abs(Mathf.Cos(t * Mathf.PI)), 1f, 1f);
+            if (t >= 0.5f && !faceShown)
+            {
+                faceShown = true;
+                if (image != null)
+                {
+                    image.sprite = cardData.CardFace;
+                    image.color = Color.white;
+                }
+                card.transform.localRotation = faceRotation;
+            }
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
-
-        // 将卡牌图片复制到主卡槽（场景搭建时 CardFace 默认禁用，此处必须显式启用）
-        if (mainCardImage != null && drawnCards[0] != null && drawnCards[0].CardFace != null)
+        if (image != null)
         {
-            mainCardImage.sprite = drawnCards[0].CardFace;
-            mainCardImage.color = Color.white;
-            mainCardImage.enabled = true;
-            mainCardImage.transform.localRotation = drawnReversed[0]
-                ? Quaternion.Euler(0f, 0f, 180f)
-                : Quaternion.identity;
+            image.sprite = cardData.CardFace;
+            image.color = Color.white;
         }
-
-        // 销毁临时卡牌对象，并在列表中置空，避免后续淡出访问已销毁对象
-        instantiatedCards[index] = null;
-        Destroy(cardObj);
+        card.transform.localScale = Vector3.one;
+        card.transform.localRotation = faceRotation;
     }
 
-    /// <summary>
-    /// 淡出并销毁牌阵中剩余的未抽牌（设计稿状态 F：剩余 18 张牌淡出 0.3s）。
-    /// 已抽走的牌在上移到槽位时已被销毁并在列表中置 null，此处自然跳过。
-    /// </summary>
-    private IEnumerator FadeOutRemainingCards()
+    private IEnumerator MoveCardToSlot(int index, int slotIndex, TarotCardData cardData, bool reversed)
     {
-        List<CanvasGroup> groups = new();
-
-        for (int i = 0; i < instantiatedCards.Count; i++)
-        {
-            if (instantiatedCards[i] == null)
-                continue;
-
-            CanvasGroup group = instantiatedCards[i].GetComponent<CanvasGroup>();
-            if (group == null)
-                group = instantiatedCards[i].AddComponent<CanvasGroup>();
-
-            groups.Add(group);
-        }
-
-        float elapsed = 0f;
-        while (elapsed < remainingFadeDuration)
-        {
-            float t = elapsed / remainingFadeDuration;
-            foreach (var group in groups)
-            {
-                if (group != null)
-                    group.alpha = 1f - t;
-            }
-
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        for (int i = 0; i < instantiatedCards.Count; i++)
-        {
-            if (instantiatedCards[i] != null)
-            {
-                Destroy(instantiatedCards[i]);
-                instantiatedCards[i] = null;
-            }
-        }
-
-        SetPanelActive(cardArrayContainer, false);
-    }
-
-    #endregion
-
-    #region State D: Continue Prompt
-
-    private IEnumerator State_D_ContinuePrompt()
-    {
-        for (int slot = 1; slot < TarotResultData.SlotCount; slot++)
-        {
-            if (pendingClicks.Count > 0)
-            {
-                clickedCardIndex = pendingClicks.Dequeue();
-            }
-            else
-            {
-                isWaitingForCardClick = true;
-                clickedCardIndex = -1;
-                yield return new WaitUntil(() => !isWaitingForCardClick);
-            }
-
-            int index = clickedCardIndex;
-            drawnCardIndices.Add(index);
-
-            TarotCardData card = drawnCards[slot];
-            yield return FlipCard(index, card, drawnReversed[slot]);
-            yield return MoveCardToEmotionSlot(index, slot - 1, card, drawnReversed[slot]);
-        }
-    }
-
-    /// <summary>
-    /// 把抽中的牌从牌阵原位上移到指定情绪卡槽，到位后销毁临时牌、由槽位承接牌面。
-    /// </summary>
-    private IEnumerator MoveCardToEmotionSlot(int index, int slotIndex, TarotCardData cardData, bool reversed)
-    {
-        if (index < 0 || index >= instantiatedCards.Count)
+        var card = instantiatedCards[index];
+        var rect = card != null ? card.transform as RectTransform : null;
+        var slot = GetSlot(slotIndex) as RectTransform;
+        if (rect == null || slot == null)
             yield break;
-        if (slotIndex < 0 || slotIndex >= emotionCardSlots.Length)
-            yield break;
-
-        GameObject cardObj = instantiatedCards[index];
-        Transform slot = emotionCardSlots[slotIndex];
-        if (cardObj == null || slot == null)
-            yield break;
-
-        slot.gameObject.SetActive(true);
-
-        Vector3 startPos = cardObj.transform.position;
-        Vector3 endPos = slot.position;
-        Quaternion startRot = cardObj.transform.rotation;
-        Quaternion endRot = Quaternion.identity;
-
+        Vector3 startPos = rect.position;
+        Vector2 startSize = rect.rect.size;
         float elapsed = 0f;
         while (elapsed < cardMoveDuration)
         {
             float t = EaseOutCubic(elapsed / cardMoveDuration);
-            cardObj.transform.position = Vector3.Lerp(startPos, endPos, t);
-            cardObj.transform.rotation = Quaternion.Lerp(startRot, endRot, t);
-            elapsed += Time.deltaTime;
+            rect.position = Vector3.Lerp(startPos, slot.position, t);
+            rect.sizeDelta = Vector2.Lerp(startSize, slot.rect.size, t);
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
-
-        // 槽位承接牌面，避免临时牌残留在牌阵父节点下影响后续淡出。
-        // 不能用 GetComponentInChildren：会先命中槽根自己的深色底板 Image，
-        // 牌面会被底板颜色染暗，必须写到独立的子 CardFace 上。
-        var slotImage = GetOrCreateSlotCardFace(slot);
-        if (slotImage != null && cardData != null && cardData.CardFace != null)
-        {
-            slotImage.sprite = cardData.CardFace;
-            slotImage.color = Color.white;
-            slotImage.enabled = true;
-            slotImage.transform.localRotation = reversed
-                ? Quaternion.Euler(0f, 0f, 180f)
-                : Quaternion.identity;
-        }
-
+        rect.position = slot.position;
+        rect.sizeDelta = slot.rect.size;
+        var face = GetOrCreateSlotCardFace(slot);
+        face.sprite = cardData.CardFace;
+        face.color = Color.white;
+        face.enabled = true;
+        face.transform.localRotation = Quaternion.Euler(0f, 0f, reversed ? 180f : 0f);
+        slot.gameObject.SetActive(true);
+        card.SetActive(false);
         instantiatedCards[index] = null;
-        Destroy(cardObj);
+        cardBeingAnimated = -1;
+        Destroy(card);
     }
 
-    /// <summary>
-    /// 取槽位下名为 CardFace 的子 Image（跳过槽根底板）；场景里没有就补建一个。
-    /// </summary>
     private Image GetOrCreateSlotCardFace(Transform slot)
     {
         Transform face = slot.Find("CardFace");
         if (face == null)
         {
-            var faceObj = new GameObject("CardFace", typeof(RectTransform));
-            face = faceObj.transform;
+            face = new GameObject("CardFace", typeof(RectTransform), typeof(Image)).transform;
             face.SetParent(slot, false);
-            var faceRect = (RectTransform)face;
-            faceRect.anchorMin = Vector2.zero;
-            faceRect.anchorMax = Vector2.one;
-            faceRect.sizeDelta = Vector2.zero;
-            var img = faceObj.AddComponent<Image>();
-            img.preserveAspect = true;
-            return img;
         }
-
-        return face.GetComponent<Image>();
+        var image = face.GetComponent<Image>();
+        if (image == null)
+            image = face.gameObject.AddComponent<Image>();
+        var fitter = face.GetComponent<AspectRatioFitter>();
+        if (fitter != null)
+            fitter.enabled = false;
+        GuideUiLayout.Stretch(face as RectTransform, Vector2.zero, Vector2.one);
+        image.type = Image.Type.Simple;
+        image.preserveAspect = false;
+        image.raycastTarget = false;
+        face.gameObject.SetActive(true);
+        return image;
     }
 
-    #endregion
-
-
-    #region State F: Full Display
-
-    private IEnumerator State_F_FullDisplay()
+    private IEnumerator EmphasizeMainCard()
     {
-        // 设计稿状态 F：剩余 18 张牌淡出 0.3s，四张结果保持在中上方完整展示 1.2-1.5s
-        yield return FadeOutRemainingCards();
-
-        yield return new WaitForSeconds(stateFDisplayDuration);
-
-        // 保存结果到 GameContext
-        if (gameContext != null)
+        Transform slot = mainCardSlot.transform;
+        const float duration = 0.18f;
+        float elapsed = 0f;
+        while (elapsed < duration)
         {
-            var result = new TarotResultData();
-            result.BeginRun(drawnCards, drawnReversed);
-            gameContext.TarotResult = result;
-            Debug.Log("[TarotDraw] " + result.SummarizeDrawn());
+            slot.localScale = Vector3.one * Mathf.Lerp(1f, 1.05f, EaseOutCubic(elapsed / duration));
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
         }
+        slot.localScale = Vector3.one * 1.05f;
+        // 后续牌已经排队时直接回落；单次选择仍保留最多 0.6 秒的呼吸停顿。
+        float hold = Mathf.Clamp(mainCardEmphasisHold, 0f, 0.6f);
+        elapsed = 0f;
+        while (elapsed < hold && pendingClicks.Count == 0)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        elapsed = 0f;
+        while (elapsed < duration)
+        {
+            slot.localScale = Vector3.one * Mathf.Lerp(1.05f, 1f, EaseOutCubic(elapsed / duration));
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        slot.localScale = Vector3.one;
     }
 
-    #endregion
-
-    #region State G: Fade to Level
-
-    private IEnumerator State_G_FadeToLevel()
+    private IEnumerator FadeOutRemainingCards()
     {
-        // 渐入黑屏后再切关；黑屏由 ContinueToGameplay → Loading 的入场淡出接管
-        var transitionManager = gameContext != null ? gameContext.SceneTransitionManager : null;
-        if (transitionManager != null)
+        // 剩余 Image 直接淡出，避免在这一帧给 18 张牌新增 CanvasGroup 和重建画布。
+        var images = new List<Image>();
+        foreach (var card in instantiatedCards)
+            if (card != null && card.TryGetComponent<Image>(out var image))
+            {
+                image.raycastTarget = false;
+                images.Add(image);
+            }
+        float elapsed = 0f;
+        while (elapsed < remainingFadeDuration)
         {
-            yield return transitionManager.FadeToBlack(stateGFadeDuration);
+            float alpha = 1f - elapsed / remainingFadeDuration;
+            foreach (var image in images)
+                image.color = new Color(1f, 1f, 1f, alpha);
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
         }
-        else
-        {
-            yield return new WaitForSeconds(stateGFadeDuration);
-        }
-
-        // 加载教学关
-        if (GameLoop.Instance != null)
-        {
-            GameLoop.Instance.ContinueToGameplay();
-        }
+        foreach (var card in instantiatedCards)
+            if (card != null)
+            {
+                card.SetActive(false);
+                Destroy(card);
+            }
+        instantiatedCards.Clear();
+        SetPanelActive(cardArrayContainer, false);
     }
 
-    #endregion
-
-    #region Utility Methods
+    private IEnumerator ExpandResultsForReading()
+    {
+        float elapsed = 0f;
+        const float duration = 0.3f;
+        while (elapsed < duration)
+        {
+            resultDisplayProgress = EaseOutCubic(elapsed / duration);
+            LayoutCards();
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        resultDisplayProgress = 1f;
+        LayoutCards();
+    }
 
     private void ApplyTarotBackground()
     {
-        Image panelImage = GetComponent<Image>();
-        if (panelImage == null)
-            return;
-
-        Sprite art = GuideArt.TarotBackground;
-        if (art == null)
-            return;
-
-        panelImage.sprite = art;
-        panelImage.color = Color.white;
-        panelImage.preserveAspect = false;
-        panelImage.raycastTarget = false;
-        panelImage.type = Image.Type.Simple;
-
+        // 面板本身保持全屏；单独的背景子节点负责等比覆盖，避免带着卡槽一起放大。
+        var panelImage = GetComponent<Image>();
+        if (panelImage != null)
+        {
+            panelImage.sprite = null;
+            panelImage.color = new Color(0.025f, 0.025f, 0.035f, 1f);
+            panelImage.raycastTarget = false;
+        }
+        var background = transform.Find("TarotBackground");
+        if (background == null)
+        {
+            background = new GameObject("TarotBackground", typeof(RectTransform), typeof(Image)).transform;
+            background.SetParent(transform, false);
+        }
+        background.SetAsFirstSibling();
+        GuideUiLayout.Cover(background.GetComponent<Image>(), GuideArt.TarotBackground);
         if (dialoguePanel != null)
         {
-            Image bar = dialoguePanel.GetComponent<Image>();
-            Sprite banner = GuideArt.DialogueBanner;
-            if (bar != null && banner != null)
+            var bar = dialoguePanel.GetComponent<Image>();
+            if (bar != null)
             {
-                bar.sprite = banner;
+                bar.sprite = GuideArt.DialogueBanner;
                 bar.color = Color.white;
                 bar.type = Image.Type.Sliced;
                 bar.raycastTarget = false;
@@ -823,27 +632,85 @@ public class TarotDrawController : MonoBehaviour
             panel.SetActive(active);
     }
 
-    /// <summary>
-    /// 即时反馈：快速缩放动画（punch scale），用于点击反馈。
-    /// </summary>
-    private IEnumerator QuickPunchScale(Transform target, float duration)
+    private Transform GetSlot(int index)
     {
-        if (target == null)
-            yield break;
+        return index == 0 ? mainCardSlot.transform : emotionCardSlots[index - 1];
+    }
 
-        Vector3 originalScale = target.localScale;
-        float elapsed = 0f;
+    private void LateUpdate()
+    {
+        if (!flowRunning || transform is not RectTransform rect)
+            return;
+        if (rect.rect.size != lastLayoutSize)
+            LayoutCards();
+    }
 
-        while (elapsed < duration)
+    private void LayoutCards()
+    {
+        if (transform is not RectTransform panel)
+            return;
+        Vector2 viewport = panel.rect.size;
+        if (viewport.x <= 0f || viewport.y <= 0f)
+            return;
+        lastLayoutSize = viewport;
+        float aspect = arrayCardSize.x > 1f && arrayCardSize.y > 1f
+            ? arrayCardSize.x / arrayCardSize.y : 260f / 458f;
+        float height = Mathf.Min(458f, viewport.y * 0.36f, viewport.x * 0.2f / aspect);
+        float readingHeight = Mathf.Min(640f, viewport.y * 0.68f, viewport.x * 0.205f / aspect);
+        height = Mathf.Lerp(height, readingHeight, resultDisplayProgress);
+        Vector2 size = new Vector2(height * aspect, height);
+        float gap = Mathf.Min(36f, viewport.x * 0.025f);
+        for (int i = 0; i < TarotResultData.SlotCount; i++)
         {
-            float t = elapsed / duration;
-            float scale = Mathf.Lerp(0.9f, 1f, EaseOutCubic(t));
-            target.localScale = originalScale * scale;
-            elapsed += Time.deltaTime;
-            yield return null;
+            var slot = GetSlot(i) as RectTransform;
+            if (slot == null)
+                continue;
+            var fitter = slot.GetComponent<AspectRatioFitter>();
+            if (fitter != null)
+                fitter.enabled = false;
+            slot.anchorMin = slot.anchorMax = new Vector2(0.5f, Mathf.Lerp(0.79f, 0.54f, resultDisplayProgress));
+            slot.pivot = new Vector2(0.5f, 0.5f);
+            slot.sizeDelta = size;
+            slot.anchoredPosition = new Vector2((i - 1.5f) * (size.x + gap), 0f);
         }
+        float fanHeight = Mathf.Min(arrayCardSize.y > 1f ? arrayCardSize.y : 458f, viewport.y * 0.3f);
+        Vector2 fanSize = new Vector2(fanHeight * aspect, fanHeight);
+        int count = instantiatedCards.Count;
+        float spacing = Mathf.Min(arraySpacing > 1f ? arraySpacing : 72f,
+            Mathf.Max(1f, (viewport.x * 0.92f - fanSize.x) / Mathf.Max(1, count - 1)));
+        for (int i = 0; i < count; i++)
+        {
+            if (instantiatedCards[i] == null || i == cardBeingAnimated)
+                continue;
+            var card = instantiatedCards[i].transform as RectTransform;
+            if (card == null)
+                continue;
+            float t = count <= 1 ? 0.5f : i / (float)(count - 1);
+            card.anchorMin = card.anchorMax = new Vector2(0.5f, 0.4f);
+            card.pivot = new Vector2(0.5f, 0.5f);
+            card.sizeDelta = fanSize;
+            card.anchoredPosition = new Vector2((i - (count - 1) * 0.5f) * spacing,
+                -Mathf.Abs(t - 0.5f) * 2f * Mathf.Min(arrayArcDrop, viewport.y * 0.015f));
+            card.localRotation = Quaternion.Euler(0f, 0f, -Mathf.Lerp(-arrayFanTilt, arrayFanTilt, t));
+            card.localScale = Vector3.one;
+        }
+    }
 
-        target.localScale = originalScale;
+    private void UpdateSelectionHint()
+    {
+        if (selectionHint == null)
+        {
+            var go = new GameObject("SelectionHint", typeof(RectTransform), typeof(TextMeshProUGUI));
+            go.transform.SetParent(transform, false);
+            selectionHint = go.GetComponent<TMP_Text>();
+            GuideUiLayout.Stretch(selectionHint.rectTransform, new Vector2(0.1f, 0.56f), new Vector2(0.9f, 0.6f));
+            GuideUiLayout.ReadableText(selectionHint, 26f, new Color(0.96f, 0.92f, 0.82f, 1f));
+            selectionHint.alignment = TextAlignmentOptions.Center;
+        }
+        selectionHint.gameObject.SetActive(true);
+        selectionHint.text = drawnCardIndices.Count < TarotResultData.SlotCount
+            ? $"选出四张回应你的牌 · {drawnCardIndices.Count}/4"
+            : "四张牌正在回应你……";
     }
 
     private IEnumerator FadeCanvasGroup(CanvasGroup group, float from, float to, float duration)
@@ -856,7 +723,7 @@ public class TarotDrawController : MonoBehaviour
         {
             float t = elapsed / duration;
             group.alpha = Mathf.Lerp(from, to, t);
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
 
@@ -889,7 +756,7 @@ public class TarotDrawController : MonoBehaviour
 
         while (true)
         {
-            float t = Mathf.PingPong(Time.time * indicatorPulseSpeed, 1f);
+            float t = Mathf.PingPong(Time.unscaledTime * indicatorPulseSpeed, 1f);
             Color color = image.color;
             color.a = Mathf.Lerp(indicatorMinAlpha, 1f, t);
             image.color = color;
