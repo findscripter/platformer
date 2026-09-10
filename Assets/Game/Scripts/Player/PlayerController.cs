@@ -15,6 +15,7 @@ public class PlayerController : MonoBehaviour
     [Header("Jump Assist")]
     [SerializeField, Min(0f)] private float coyoteTime = 0.2f;
     [SerializeField, Min(0f)] private float jumpBufferTime = 0.2f;
+    [SerializeField, Min(0)] private int extraAirJumps = 1;
 
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheck;
@@ -38,7 +39,6 @@ public class PlayerController : MonoBehaviour
 
     private bool allowMoveLeft = true;
     private float attackRangeMultiplier = 1f;
-    private int extraAirJumps;
     private int extraAirJumpsRemaining;
     private int airWalkLocks;
     private float defaultGravityScale = 1f;
@@ -95,6 +95,7 @@ public class PlayerController : MonoBehaviour
         attackFilter.useTriggers = true;
 
         currentHealth = maxHealth;
+        extraAirJumpsRemaining = extraAirJumps;
 
         if (animationController == null)
         {
@@ -125,10 +126,8 @@ public class PlayerController : MonoBehaviour
             jumpBufferTimeRemaining = jumpBufferTime;
         }
 
-        if (input.AttackPressed && attackCooldownRemaining <= 0f && animationController.TryStartAttack())
-        {
-            attackCooldownRemaining = attackCooldown;
-        }
+        if (input.AttackPressed)
+            TryAttack();
 
         if (animationController.IsMovementLocked)
         {
@@ -148,6 +147,16 @@ public class PlayerController : MonoBehaviour
             moveX = 0f;
     }
 
+    public bool TryAttack()
+    {
+        if (IsDead || !IsInputEnabled || attackCooldownRemaining > 0f)
+            return false;
+        if (animationController == null || !animationController.TryStartAttack())
+            return false;
+        attackCooldownRemaining = attackCooldown;
+        return true;
+    }
+
     public void SetAttackRangeMultiplier(float multiplier)
     {
         attackRangeMultiplier = Mathf.Max(1f, multiplier);
@@ -155,8 +164,13 @@ public class PlayerController : MonoBehaviour
 
     public void SetExtraAirJumps(int count)
     {
-        extraAirJumps = Mathf.Max(0, count);
-        extraAirJumpsRemaining = extraAirJumps;
+        int capacity = Mathf.Max(0, count);
+        int addedCapacity = capacity - extraAirJumps;
+        extraAirJumps = capacity;
+        // Reapplying a card (including returning from pause) must not refill spent jumps.
+        extraAirJumpsRemaining = IsGrounded
+            ? capacity
+            : Mathf.Clamp(extraAirJumpsRemaining + addedCapacity, 0, capacity);
     }
 
     public void SetMaxHealth(int value, bool fill)
@@ -232,14 +246,13 @@ public class PlayerController : MonoBehaviour
         {
             moveX = 0f;
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            RideMovingPlatform();
+            UpdateJumpBuffer(fixedDeltaTime);
             return;
         }
 
         Move(effectiveMoveX);
         RideMovingPlatform();
-
-        if (animationController.IsLandingAnimationPlaying)
-            return;
 
         if (!TryJump())
         {
@@ -249,12 +262,6 @@ public class PlayerController : MonoBehaviour
 
     private void CheckGround()
     {
-        if (rb.linearVelocity.y > 0f)
-        {
-            IsGrounded = false;
-            return;
-        }
-
         if (bodyCollider != null)
         {
             int hitCount = bodyCollider.Cast(
@@ -266,7 +273,14 @@ public class PlayerController : MonoBehaviour
             IsGrounded = false;
             for (int i = 0; i < hitCount; i++)
             {
-                if (groundHits[i].normal.y >= minimumGroundNormalY)
+                RaycastHit2D hit = groundHits[i];
+                float supportVelocityY = hit.rigidbody != null ? hit.rigidbody.linearVelocity.y : 0f;
+                MovingPlatform platform = hit.collider.GetComponentInParent<MovingPlatform>();
+                if (platform != null && Time.fixedDeltaTime > 0f)
+                    supportVelocityY = platform.FrameDelta.y / Time.fixedDeltaTime;
+
+                // An upward-moving lift carries the player upward without making them airborne.
+                if (hit.normal.y >= minimumGroundNormalY && rb.linearVelocity.y <= supportVelocityY + 0.05f)
                 {
                     IsGrounded = true;
                     break;
@@ -282,7 +296,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        IsGrounded = Physics2D.Raycast(
+        IsGrounded = rb.linearVelocity.y <= 0.05f && Physics2D.Raycast(
             groundCheck.position,
             Vector2.down,
             groundCheckRadius,
@@ -328,7 +342,7 @@ public class PlayerController : MonoBehaviour
 
     private float GetEffectiveMoveX()
     {
-        return moveX;
+        return allowMoveLeft ? moveX : Mathf.Max(0f, moveX);
     }
 
     private void UpdateCoyoteTime(float deltaTime)
@@ -352,27 +366,22 @@ public class PlayerController : MonoBehaviour
 
     private void UpdateJumpAvailability()
     {
-        if (!jumpConsumed)
-            return;
-
-        if (!IsGrounded)
-        {
-            leftGroundAfterJump = true;
-            return;
-        }
-
-        if (leftGroundAfterJump)
+        if (IsGrounded && (leftGroundAfterJump || rb.linearVelocity.y <= 0.05f))
         {
             jumpConsumed = false;
             leftGroundAfterJump = false;
             extraAirJumpsRemaining = extraAirJumps;
+            return;
         }
+
+        if (jumpConsumed && !IsGrounded)
+            leftGroundAfterJump = true;
     }
 
     private bool CanJump()
     {
         if (IsGrounded || coyoteTimeRemaining > 0f)
-            return !jumpConsumed;
+            return true;
 
         return extraAirJumpsRemaining > 0;
     }
@@ -382,7 +391,7 @@ public class PlayerController : MonoBehaviour
         if (jumpBufferTimeRemaining <= 0f || !CanJump())
             return false;
 
-        bool airJump = jumpConsumed && !IsGrounded && coyoteTimeRemaining <= 0f;
+        bool airJump = !IsGrounded && coyoteTimeRemaining <= 0f;
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
         jumpBufferTimeRemaining = 0f;
         coyoteTimeRemaining = 0f;
@@ -458,6 +467,13 @@ public class PlayerController : MonoBehaviour
         airWalkLocks = 0;
         ApplyAirWalkGravity();
         invulnerabilityRemaining = 0f;
+
+        // 重生后立即同步相机位置，避免玩家不在画面内
+        CameraTargetFollow cameraFollow = Object.FindFirstObjectByType<CameraTargetFollow>();
+        if (cameraFollow != null)
+        {
+            cameraFollow.Snap();
+        }
         attackCooldownRemaining = 0f;
         animationController.ResetState();
         animationController.UpdateAnimation(0f);
@@ -539,10 +555,12 @@ public class PlayerController : MonoBehaviour
         for (int i = 0; i < hitCount; i++)
         {
             MovingPlatform platform = groundHits[i].collider.GetComponentInParent<MovingPlatform>();
-            if (platform == null)
+            if (platform == null || groundHits[i].normal.y < minimumGroundNormalY)
                 continue;
 
             rb.position += platform.FrameDelta;
+            // Carry once through position, not again through last tick's collision velocity.
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
             return;
         }
     }

@@ -37,7 +37,7 @@ public class Frame1To5Controller
     {
         Debug.Log("[PlayerGuide] Frame 1: 梦境空间生成开始");
 
-        backgroundView.SetBackgroundSprite(view.DreamBackgroundSpriteEarly);
+        backgroundView.SetBackgroundSprite(GuideArt.DreamBackground != null ? GuideArt.DreamBackground : view.DreamBackgroundSpriteEarly);
 
         if (view.DreamSpaceParticles != null)
         {
@@ -135,12 +135,14 @@ public class Frame1To5Controller
 
         GuideSfx.PlayWhoosh();
 
-        backgroundView.SetBackgroundSprite(view.DreamBackgroundSpriteLate);
+        backgroundView.SetBackgroundSprite(GuideArt.DreamBackground != null ? GuideArt.DreamBackground : view.DreamBackgroundSpriteLate);
 
         if (view.DreamCoreObject != null)
         {
             dreamCoreView.SetActive(true);
             dreamCoreView.ApplyFigmaSize();
+            if (view.MainBubbleVisual != null)
+                dreamCoreView.PlaceAt(view.MainBubbleVisual.transform);
             yield return dreamCoreView.FadeIn(0.35f);
         }
 
@@ -155,8 +157,8 @@ public class Frame1To5Controller
         feifeiView.SetActive(true);
 
         Vector3 startPos = new Vector3(800f, 0f, 0f);
-        Vector3 endPos = Vector3.zero;
         feifeiView.SetLocalPosition(startPos);
+        Vector3 endPos = feifeiView.GetPickupPosition(view.DreamCoreObject != null ? view.DreamCoreObject.transform : null);
 
         // TODO: 播放脚步声音效（循环）
 
@@ -168,12 +170,14 @@ public class Frame1To5Controller
 
         feifeiView.SafeSetTrigger("PickUpCore");
 
+        // 拾取动作开始即挂到爪前，后续走位、扫尾和会面布局都会共同移动。
+        dreamCoreView.AttachTo(feifeiView.CoreHoldAnchor, Vector2.zero);
+
         // TODO: 播放拾取音效 "core_pickup"
 
         yield return new WaitForSeconds(view.Frame5PickupDuration);
         GuideSfx.PlayPickup();
-        if (view.FeifeiCharacter != null)
-            dreamCoreView.AttachTo(view.FeifeiCharacter.transform, new Vector2(42f, 18f));
+        feifeiView.SafePlayState("HoldCore");
 
         yield return feifeiView.PlayTailSweep(view.Frame5TailDuration);
         yield return dreamCoreView.CalmFromAgitated(0.4f);

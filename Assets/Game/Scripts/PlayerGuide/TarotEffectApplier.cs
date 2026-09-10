@@ -1,8 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// 把已解锁牌效接到现有角色/门/尖刺。Zone 快照未接线前，后激活效果按全局生效。
-/// E01/E05/E12/E14/E15/E17/E18 等仍缺专用载体，只记录状态不假装已完成。
+/// 把已解锁牌效接到角色、门和敌人。平台/尖刺/空中行走走 Zone 快照载体。
 /// </summary>
 public static class TarotEffectApplier
 {
@@ -18,7 +17,7 @@ public static class TarotEffectApplier
 
         player.SetMoveLeftAllowed(!run.HasActiveEffect(TarotEffectId.E13));
         player.SetAttackRangeMultiplier(run.HasActiveEffect(TarotEffectId.E04) ? 5f : 1f);
-        player.SetExtraAirJumps(run.HasActiveEffect(TarotEffectId.E03) ? 1 : 0);
+        player.SetExtraAirJumps(run.HasActiveEffect(TarotEffectId.E03) ? 2 : 1);
 
         if (run.HasActiveEffect(TarotEffectId.E07))
             player.SetMaxHealth(30, fill: true);

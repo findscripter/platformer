@@ -20,7 +20,7 @@ public static class DreamNoteWriter
     {
         string cardLine = string.IsNullOrWhiteSpace(cards) ? "尚未翻开的牌" : cards.Trim();
         string memory = string.IsNullOrWhiteSpace(dream)
-            ? "风声、脚步，和那些还没说完的话"
+            ? "那场还没说完的梦"
             : dream.Trim();
 
         if (memory.Length > 48)

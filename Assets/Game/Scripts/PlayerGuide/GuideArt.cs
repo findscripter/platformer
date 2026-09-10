@@ -1,7 +1,8 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 引导用到的现有项目贴图（按 GUID 取，避免再造占位圆）。
+/// 引导与动态关卡的现有美术入口，发布包通过 Resources 目录读取序列化引用。
 /// </summary>
 public static class GuideArt
 {
@@ -12,8 +13,18 @@ public static class GuideArt
     public const string DialogueBannerGuid = "2033fe5a018fd9b45a37ec8c64c15755";
     public const string HintDotGuid = "41e0bc7119da43045b92e5f75de4d944";
     public const string CircleGuid = "e79b4d6c863b4124e9f6b264f6d371cb";
-    public const string TarotBackgroundGuid = "7b2e4c91a8d64f3e9c5a1b0d8e6f4a2c";
-    public const string BubbleGuid = "cb83933569bc45344b1141bc6af262eb";
+    public const string TarotBackgroundGuid = "d2202ed4d2c36d8478ca29b1cbb5514c";
+    public const string DreamBackgroundGuid = TarotBackgroundGuid;
+    public const string EchoBackgroundGuid = TarotBackgroundGuid;
+    // 主梦泡使用 S01/0.png 的深色玻璃切图；Dialogues/0.png 带白色颗粒纹理，适合其他 UI 场景。
+    public const string BubbleGuid = "577b6198d75c3dc47af96ad3f63c5ede";
+    public const string SmallBubbleGuid = "392a2361d8439944ab64d4e1a478c736";
+
+    private static RuntimeArtCatalog catalog;
+    private static bool catalogLoaded;
+    private static readonly HashSet<string> MissingArt = new HashSet<string>();
+    private static Sprite dreamCoreSource;
+    private static Sprite dreamCoreDisplay;
 
     private static readonly string[] FeifeiGuids =
     {
@@ -48,18 +59,79 @@ public static class GuideArt
 
     public static Sprite Load(string guid)
     {
-        if (string.IsNullOrEmpty(guid))
+        if (string.IsNullOrWhiteSpace(guid))
             return null;
+        guid = guid.Trim();
+        Sprite sprite = Catalog != null ? Catalog.LoadGuid(guid) : null;
+        if (sprite != null)
+            return sprite;
 #if UNITY_EDITOR
         string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
         if (!string.IsNullOrEmpty(path))
         {
-            var sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
             if (sprite != null)
                 return sprite;
         }
 #endif
+        WarnMissing(guid);
         return null;
+    }
+
+    /// <summary>按 Assets/... 资产路径查找；支持 Windows 路径分隔符。</summary>
+    public static Sprite LoadPath(string assetPath)
+    {
+        if (string.IsNullOrWhiteSpace(assetPath))
+            return null;
+        string path = RuntimeArtCatalog.NormalizePath(assetPath);
+        Sprite sprite = Catalog != null ? Catalog.LoadPath(path) : null;
+        if (sprite != null)
+            return sprite;
+#if UNITY_EDITOR
+        sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (sprite != null)
+            return sprite;
+#endif
+        WarnMissing(path);
+        return null;
+    }
+
+    private static RuntimeArtCatalog Catalog
+    {
+        get
+        {
+            if (!catalogLoaded)
+            {
+                catalog = Resources.Load<RuntimeArtCatalog>(RuntimeArtCatalog.ResourcePath);
+                catalogLoaded = true;
+            }
+            return catalog;
+        }
+    }
+
+    private static void WarnMissing(string key)
+    {
+        if (MissingArt.Add(key))
+            Debug.LogWarning($"[GuideArt] 美术未收录或引用丢失：{key}。请执行 Tools/梦境引导/生成运行时美术目录。");
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    public static void ClearCache()
+    {
+        catalog = null;
+        catalogLoaded = false;
+        MissingArt.Clear();
+        dreamCoreSource = null;
+        if (dreamCoreDisplay != null)
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+                Object.DestroyImmediate(dreamCoreDisplay);
+            else
+#endif
+                Object.Destroy(dreamCoreDisplay);
+        }
+        dreamCoreDisplay = null;
     }
 
     public static Sprite[] LoadFeifeiFrames()
@@ -72,9 +144,34 @@ public static class GuideArt
 
     public static Sprite PlayerIdle => Load(PlayerIdleGuid);
     public static Sprite MonsterWalk => Load(MonsterWalkGuid);
-    public static Sprite DreamCore => Load(DreamCoreGuid);
+    public static Sprite DreamCore
+    {
+        get
+        {
+            Sprite source = Load(DreamCoreGuid);
+            if (source == null)
+                return null;
+            if (dreamCoreDisplay != null && dreamCoreSource == source)
+                return dreamCoreDisplay;
+
+            Rect trim = Catalog != null ? Catalog.DreamCoreContentRect : RuntimeArtCatalog.DefaultDreamCoreContentRect;
+            Rect sourceRect = source.rect;
+            Rect visibleRect = new Rect(sourceRect.x + trim.x * sourceRect.width,
+                sourceRect.y + trim.y * sourceRect.height, trim.width * sourceRect.width, trim.height * sourceRect.height);
+            // 只建立 Sprite 的取景矩形，不改原始 PNG、Alpha 或贴图导入设置。
+            dreamCoreDisplay = Sprite.Create(source.texture, visibleRect, new Vector2(0.5f, 0.5f),
+                source.pixelsPerUnit, 0, SpriteMeshType.FullRect);
+            dreamCoreDisplay.name = "DreamCore_Display";
+            dreamCoreSource = source;
+            return dreamCoreDisplay;
+        }
+    }
     public static Sprite DialogueBanner => Load(DialogueBannerGuid);
     public static Sprite HintDot => Load(HintDotGuid);
     public static Sprite Circle => Load(CircleGuid);
     public static Sprite TarotBackground => Load(TarotBackgroundGuid);
+    public static Sprite EchoBackground => Load(EchoBackgroundGuid);
+    public static Sprite DreamBackground => Load(DreamBackgroundGuid);
+    public static Sprite Bubble => Load(BubbleGuid);
+    public static Sprite SmallBubble => Load(SmallBubbleGuid);
 }

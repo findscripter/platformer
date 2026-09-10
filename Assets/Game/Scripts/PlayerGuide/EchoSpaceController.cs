@@ -8,10 +8,11 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Figma Frame 10：关卡完成后 Fade 至黑，再进入独立梦境回响空间。
-/// 低保真几何：近黑蓝紫底、腓腓/梦核/玩家三圆、四句对白、点梦核扩光晕、梦笺阅读。
+/// 使用独立深色背景、角色美术、四句对白与可滚动阅读的梦笺。
 /// </summary>
 public class EchoSpaceController : MonoBehaviour
 {
+    private static Sprite softHaloSprite;
     public bool IsFinished { get; private set; }
 
     private static readonly string[] DialogueLines =
@@ -30,6 +31,13 @@ public class EchoSpaceController : MonoBehaviour
     private CanvasGroup noteGroup;
     private TMP_Text noteText;
     private Button coreButton;
+    private Button noteContinueButton;
+    private ScrollRect noteScroll;
+    private bool acceptingCoreClick;
+    private bool waitingForCoreClick;
+    private int coreWaitStartedFrame;
+    private int noteWaitStartedFrame;
+    private int lastAdvanceFrame = -1;
     private bool waitingForNoteAdvance;
     private bool coreClicked;
     private bool noteClicked;
@@ -37,7 +45,7 @@ public class EchoSpaceController : MonoBehaviour
 
     public static EchoSpaceController Ensure()
     {
-        var existing = Object.FindFirstObjectByType<EchoSpaceController>();
+        var existing = Object.FindAnyObjectByType<EchoSpaceController>(FindObjectsInactive.Include);
         if (existing != null)
             return existing;
 
@@ -48,23 +56,68 @@ public class EchoSpaceController : MonoBehaviour
 
     public void Begin(GameContext gameContext)
     {
+        StopFlow();
         context = gameContext;
         IsFinished = false;
         waitingForNoteAdvance = false;
         coreClicked = false;
         noteClicked = false;
+        acceptingCoreClick = false;
+        lastAdvanceFrame = -1;
 
+        EnsureEventSystem();
         BuildUiIfNeeded();
         gameObject.SetActive(true);
         if (rootGroup != null)
+        {
             rootGroup.alpha = 0f;
+            rootGroup.blocksRaycasts = true;
+        }
+        if (noteGroup != null)
+        {
+            noteGroup.gameObject.SetActive(false);
+            noteGroup.alpha = 0f;
+            noteGroup.interactable = false;
+            noteGroup.blocksRaycasts = false;
+        }
+        if (noteText != null)
+            noteText.maxVisibleCharacters = int.MaxValue;
+        if (noteContinueButton != null)
+            noteContinueButton.interactable = false;
+        if (dialogueText != null)
+            dialogueText.text = string.Empty;
+        if (noteScroll != null)
+        {
+            noteScroll.StopMovement();
+            noteScroll.content.anchoredPosition = Vector2.zero;
+        }
+        if (coreButton != null)
+            coreButton.interactable = false;
+        if (coreImage != null)
+            coreImage.color = Color.white;
+        if (haloImage != null)
+        {
+            haloImage.transform.localScale = Vector3.one;
+            haloImage.color = new Color(0.55f, 0.42f, 0.88f, 0.18f);
+        }
 
-        if (flowRoutine != null)
-            StopCoroutine(flowRoutine);
         flowRoutine = StartCoroutine(RunFlow());
     }
 
     public void Hide()
+    {
+        StopFlow();
+        if (rootGroup != null)
+            rootGroup.alpha = 0f;
+        gameObject.SetActive(false);
+    }
+
+    private void OnDisable()
+    {
+        StopFlow();
+    }
+
+    private void StopFlow()
     {
         if (flowRoutine != null)
         {
@@ -72,9 +125,18 @@ public class EchoSpaceController : MonoBehaviour
             flowRoutine = null;
         }
 
+        acceptingCoreClick = false;
+        waitingForCoreClick = false;
+        waitingForNoteAdvance = false;
+        if (coreButton != null)
+            coreButton.interactable = false;
+        if (noteContinueButton != null)
+            noteContinueButton.interactable = false;
         if (rootGroup != null)
-            rootGroup.alpha = 0f;
-        gameObject.SetActive(false);
+        {
+            rootGroup.interactable = false;
+            rootGroup.blocksRaycasts = false;
+        }
     }
 
     private IEnumerator RunFlow()
@@ -93,24 +155,32 @@ public class EchoSpaceController : MonoBehaviour
                 SetCoreResponseState();
         }
 
-        coreClicked = false;
+        waitingForCoreClick = true;
+        coreWaitStartedFrame = Time.frameCount;
         while (!coreClicked)
             yield return null;
+        waitingForCoreClick = false;
+        acceptingCoreClick = false;
+        coreButton.interactable = false;
 
         GuideSfx.PlayWhoosh();
         yield return ExpandHalo();
         yield return ShowNote();
 
         waitingForNoteAdvance = true;
+        noteWaitStartedFrame = Time.frameCount;
         noteClicked = false;
+        noteContinueButton.interactable = true;
         while (!noteClicked)
             yield return null;
         waitingForNoteAdvance = false;
+        noteContinueButton.interactable = false;
 
         if (rootGroup != null)
             yield return FadeGroup(rootGroup, 1f, 0f, 0.35f);
 
         IsFinished = true;
+        flowRoutine = null;
     }
 
     private IEnumerator PlayLine(string line, float hold)
@@ -118,34 +188,23 @@ public class EchoSpaceController : MonoBehaviour
         if (dialogueText == null)
             yield break;
 
-        dialogueText.text = string.Empty;
-        for (int i = 0; i < line.Length; i++)
-        {
-            dialogueText.text = line.Substring(0, i + 1);
-            if (WasAdvancePressed())
-            {
-                dialogueText.text = line;
-                break;
-            }
-
-            yield return new WaitForSeconds(0.045f);
-        }
-
-        dialogueText.text = line;
+        yield return RevealText(dialogueText, line, 0.045f);
         float elapsed = 0f;
         while (elapsed < hold)
         {
             if (WasAdvancePressed())
                 break;
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
 
     private void SetCoreResponseState()
     {
+        acceptingCoreClick = true;
+        coreButton.interactable = true;
         if (coreImage != null)
-            coreImage.color = new Color(0.62f, 0.48f, 0.92f, 1f);
+            coreImage.color = Color.white;
         if (haloImage != null)
         {
             var color = haloImage.color;
@@ -176,7 +235,7 @@ public class EchoSpaceController : MonoBehaviour
             float t = elapsed / duration;
             halo.localScale = Vector3.Lerp(from, to, t);
             haloImage.color = Color.Lerp(start, end, t);
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
@@ -191,34 +250,39 @@ public class EchoSpaceController : MonoBehaviour
 
         noteGroup.gameObject.SetActive(true);
         yield return FadeGroup(noteGroup, 0f, 1f, 0.4f);
-        yield return new WaitForSeconds(1.35f);
+        yield return new WaitForSecondsRealtime(1.35f);
 
-        string body = DreamNoteWriter.Compose(
-            context != null ? context.PlayerDreamInput : null,
-            context != null ? context.TarotResult : null);
+        // 梦笺只展示牌名，日志用的 T1 / 效果编号不作为玩家文案。
+        string cards = "尚未翻开的牌";
+        if (context?.TarotResult != null && context.TarotResult.IsComplete())
+        {
+            var names = new string[TarotResultData.SlotCount];
+            for (int i = 0; i < names.Length; i++)
+                names[i] = context.TarotResult.GetCard(i).DisplayName;
+            cards = string.Join("、", names);
+        }
+        string body = DreamNoteWriter.Compose(context != null ? context.PlayerDreamInput : null, cards);
 
         if (noteText != null)
         {
-            noteText.text = string.Empty;
-            for (int i = 0; i < body.Length; i++)
-            {
-                noteText.text = body.Substring(0, i + 1);
-                if (WasAdvancePressed())
-                {
-                    noteText.text = body;
-                    break;
-                }
-
-                yield return new WaitForSeconds(0.03f);
-            }
-
-            noteText.text = body;
+            yield return RevealText(noteText, body, 0.03f);
         }
 
-        yield return new WaitForSeconds(0.35f);
+        yield return new WaitForSecondsRealtime(0.35f);
     }
 
     private bool WasAdvancePressed()
+    {
+        if (lastAdvanceFrame == Time.frameCount)
+            return false;
+        bool pressed = WasKeyboardAdvancePressed()
+            || (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame);
+        if (pressed)
+            lastAdvanceFrame = Time.frameCount;
+        return pressed;
+    }
+
+    private bool WasKeyboardAdvancePressed()
     {
         if (context != null && context.InputManager != null)
         {
@@ -226,21 +290,74 @@ public class EchoSpaceController : MonoBehaviour
                 return true;
         }
 
-        return Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+        return Keyboard.current != null && (Keyboard.current.enterKey.wasPressedThisFrame
+            || Keyboard.current.spaceKey.wasPressedThisFrame);
     }
 
     private void Update()
     {
-        if (waitingForNoteAdvance && (WasAdvancePressed() || noteClicked))
-            noteClicked = true;
+        // 最后一句尚在播放时，确认键只用于对白；开放梦核后需要一次新的确认。
+        if (waitingForCoreClick && Time.frameCount > coreWaitStartedFrame && ConsumeKeyboardAdvance())
+            AcceptCoreClick();
+        else if (waitingForNoteAdvance && Time.frameCount > noteWaitStartedFrame && ConsumeKeyboardAdvance())
+            AcceptNoteContinue();
+    }
+
+    private bool ConsumeKeyboardAdvance()
+    {
+        if (lastAdvanceFrame == Time.frameCount || !WasKeyboardAdvancePressed())
+            return false;
+        lastAdvanceFrame = Time.frameCount;
+        return true;
+    }
+
+    private void AcceptCoreClick()
+    {
+        if (!acceptingCoreClick || coreClicked)
+            return;
+        coreClicked = true;
+        acceptingCoreClick = false;
+        coreButton.interactable = false;
+        lastAdvanceFrame = Time.frameCount;
+    }
+
+    private void AcceptNoteContinue()
+    {
+        if (!waitingForNoteAdvance || noteClicked)
+            return;
+        noteClicked = true;
+        waitingForNoteAdvance = false;
+        noteContinueButton.interactable = false;
+        lastAdvanceFrame = Time.frameCount;
+    }
+
+    private IEnumerator RevealText(TMP_Text text, string content, float secondsPerCharacter)
+    {
+        text.text = content;
+        text.maxVisibleCharacters = 0;
+        text.ForceMeshUpdate();
+        int count = text.textInfo.characterCount;
+        if (text == noteText && noteScroll != null)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(noteScroll.content);
+            noteScroll.verticalNormalizedPosition = 1f;
+        }
+        float elapsed = 0f;
+        while (text.maxVisibleCharacters < count)
+        {
+            if (WasAdvancePressed())
+                break;
+            elapsed += Time.unscaledDeltaTime;
+            text.maxVisibleCharacters = Mathf.Min(count, Mathf.FloorToInt(elapsed / secondsPerCharacter));
+            yield return null;
+        }
+        text.maxVisibleCharacters = int.MaxValue;
     }
 
     private void BuildUiIfNeeded()
     {
         if (rootGroup != null)
             return;
-
-        EnsureEventSystem();
 
         var canvasGo = new GameObject("EchoSpaceCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         canvasGo.transform.SetParent(transform, false);
@@ -250,26 +367,17 @@ public class EchoSpaceController : MonoBehaviour
         var scaler = canvasGo.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
 
         var root = CreateStretch(canvasGo.transform, "Root");
         rootGroup = root.gameObject.AddComponent<CanvasGroup>();
         rootGroup.alpha = 0f;
 
         var bg = CreateStretch(root, "Background").gameObject.AddComponent<Image>();
-        var tarotBg = GuideArt.TarotBackground;
-        if (tarotBg != null)
-        {
-            bg.sprite = tarotBg;
-            bg.color = Color.white;
-            bg.preserveAspect = false;
-        }
-        else
-        {
-            bg.color = new Color(0.17f, 0.16f, 0.27f, 1f);
-        }
+        GuideUiLayout.Cover(bg, GuideArt.EchoBackground);
         bg.raycastTarget = true;
 
-        var label = CreateText(root, "SpaceLabel", "独立梦境回响空间", 22, TextAlignmentOptions.MidlineLeft);
+        var label = CreateText(root, "SpaceLabel", "梦的回响", 28, TextAlignmentOptions.MidlineLeft);
         var labelRect = label.rectTransform;
         labelRect.anchorMin = new Vector2(0.08f, 0.88f);
         labelRect.anchorMax = new Vector2(0.55f, 0.96f);
@@ -277,7 +385,7 @@ public class EchoSpaceController : MonoBehaviour
         labelRect.offsetMax = Vector2.zero;
         label.color = new Color(1f, 1f, 1f, 0.7f);
 
-        var box = CreatePanel(root, "DialogueBox", new Vector2(0.16f, 0.54f), new Vector2(0.84f, 0.8f), Color.white);
+        var box = CreatePanel(root, "DialogueBox", new Vector2(0.04f, 0.62f), new Vector2(0.96f, 0.88f), Color.white);
         var banner = GuideArt.DialogueBanner;
         if (banner != null)
         {
@@ -287,12 +395,13 @@ public class EchoSpaceController : MonoBehaviour
             boxImage.type = Image.Type.Sliced;
         }
 
-        dialogueText = CreateText(box, "DialogueText", string.Empty, 30, TextAlignmentOptions.Center);
-        Stretch(dialogueText.rectTransform, new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.88f));
-        dialogueText.color = new Color(0.16f, 0.16f, 0.2f, 1f);
+        dialogueText = CreateText(box, "DialogueText", string.Empty, 34, TextAlignmentOptions.Center);
+        Stretch(dialogueText.rectTransform, new Vector2(0.13f, 0.12f), new Vector2(0.87f, 0.88f));
+        dialogueText.color = new Color(0.12f, 0.12f, 0.16f, 1f);
+        dialogueText.outlineWidth = 0f;
         dialogueText.textWrappingMode = TextWrappingModes.Normal;
 
-        CreateCharacter(root, "Feifei", GuideArt.Load("cb83933569bc45344b1141bc6af262eb"), new Vector2(-320f, -210f), new Vector2(220f, 220f), false);
+        var feifeiRect = CreateCharacter(root, "Feifei", GuideArt.Load("cb83933569bc45344b1141bc6af262eb"), new Vector2(-300f, -80f), new Vector2(280f, 280f), false);
         var feifeiFrames = GuideArt.LoadFeifeiFrames();
         if (feifeiFrames != null && feifeiFrames.Length > 10 && feifeiFrames[10] != null)
         {
@@ -301,28 +410,55 @@ public class EchoSpaceController : MonoBehaviour
                 feifeiImg.sprite = feifeiFrames[10];
         }
 
-        var haloGo = CreateNamedCircle(root, "CoreHalo", new Vector2(0f, -210f), 160f, new Color(0.55f, 0.42f, 0.88f, 0.22f), null);
+        // Reuse the meeting pose's hand location, keeping the same core with Feifei.
+        var feifeiImage = feifeiRect.GetComponent<Image>();
+        Vector2 drawnSize = feifeiRect.rect.size;
+        if (feifeiImage.sprite != null)
+        {
+            Vector2 nativeSize = feifeiImage.sprite.rect.size;
+            drawnSize = nativeSize * Mathf.Min(drawnSize.x / nativeSize.x, drawnSize.y / nativeSize.y);
+        }
+        Vector2 handOffset = Vector2.Scale(new Vector2(0.14f, 0.36f) - new Vector2(0.5f, 0.5f), drawnSize);
+        var haloGo = CreateNamedCircle(feifeiRect, "CoreHalo", handOffset, 110f, new Color(0.55f, 0.42f, 0.88f, 0.18f), null);
         haloImage = haloGo.GetComponent<Image>();
+        haloImage.sprite = SoftHaloSprite();
 
-        var coreGo = CreateCharacter(root, "DreamCore", GuideArt.DreamCore, new Vector2(0f, -210f), new Vector2(88f, 120f), true);
+        var coreGo = CreateCharacter(feifeiRect, "DreamCore", GuideArt.DreamCore, handOffset, new Vector2(66f, 78f), true);
         coreImage = coreGo.GetComponent<Image>();
         coreButton = coreGo.gameObject.AddComponent<Button>();
         coreButton.transition = Selectable.Transition.None;
-        coreButton.onClick.AddListener(() => coreClicked = true);
+        coreButton.onClick.AddListener(AcceptCoreClick);
 
-        CreateCharacter(root, "Player", GuideArt.PlayerIdle, new Vector2(320f, -210f), new Vector2(180f, 220f), false);
+        CreateCharacter(root, "Player", GuideArt.PlayerIdle, new Vector2(340f, -80f), new Vector2(200f, 240f), false);
 
-        var note = CreatePanel(root, "DreamNote", new Vector2(0.22f, 0.12f), new Vector2(0.78f, 0.48f), new Color(0.96f, 0.93f, 0.86f, 1f));
+        var note = CreatePanel(root, "DreamNote", new Vector2(0.14f, 0.08f), new Vector2(0.86f, 0.6f), new Color(0.96f, 0.93f, 0.86f, 1f));
         noteGroup = note.gameObject.AddComponent<CanvasGroup>();
         noteGroup.alpha = 0f;
         note.gameObject.SetActive(false);
-        var noteButton = note.gameObject.AddComponent<Button>();
-        noteButton.transition = Selectable.Transition.None;
-        noteButton.onClick.AddListener(() => noteClicked = true);
-        noteText = CreateText(note, "NoteText", string.Empty, 28, TextAlignmentOptions.Center);
-        Stretch(noteText.rectTransform, new Vector2(0.08f, 0.1f), new Vector2(0.92f, 0.9f));
+        noteScroll = note.gameObject.AddComponent<ScrollRect>();
+        noteScroll.horizontal = false;
+        noteScroll.movementType = ScrollRect.MovementType.Clamped;
+        noteScroll.scrollSensitivity = 32f;
+        var viewport = CreateStretch(note, "Viewport");
+        Stretch(viewport, new Vector2(0.07f, 0.22f), new Vector2(0.93f, 0.92f));
+        viewport.gameObject.AddComponent<RectMask2D>();
+        noteText = CreateText(viewport, "NoteText", string.Empty, 30, TextAlignmentOptions.TopLeft);
+        Stretch(noteText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f));
+        noteText.rectTransform.pivot = new Vector2(0.5f, 1f);
+        noteText.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        noteScroll.viewport = viewport;
+        noteScroll.content = noteText.rectTransform;
         noteText.color = new Color(0.2f, 0.18f, 0.16f, 1f);
         noteText.textWrappingMode = TextWrappingModes.Normal;
+        noteText.richText = false;
+        var continuePanel = CreatePanel(note, "Continue", new Vector2(0.78f, 0.045f), new Vector2(0.94f, 0.17f), new Color(0.2f, 0.18f, 0.16f, 1f));
+        noteContinueButton = continuePanel.gameObject.AddComponent<Button>();
+        noteContinueButton.onClick.AddListener(AcceptNoteContinue);
+        var continueText = CreateText(continuePanel, "Label", "继续", 28f, TextAlignmentOptions.Center);
+        Stretch(continueText.rectTransform, Vector2.zero, Vector2.one);
+        var readHint = CreateText(note, "ReadHint", "滚动阅读", 24f, TextAlignmentOptions.MidlineLeft);
+        Stretch(readHint.rectTransform, new Vector2(0.07f, 0.045f), new Vector2(0.68f, 0.17f));
+        readHint.color = new Color(0.3f, 0.28f, 0.25f, 1f);
     }
 
     private static void EnsureEventSystem()
@@ -333,6 +469,28 @@ public class EchoSpaceController : MonoBehaviour
         var go = new GameObject("EchoSpaceEventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
         go.GetComponent<InputSystemUIInputModule>().AssignDefaultActions();
         Object.DontDestroyOnLoad(go);
+    }
+
+    private static Sprite SoftHaloSprite()
+    {
+        if (softHaloSprite != null) return softHaloSprite;
+        const int size = 96;
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        texture.name = "DreamCoreSoftHalo";
+        texture.filterMode = FilterMode.Bilinear;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        var pixels = new Color[size * size];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float radius = new Vector2((x + 0.5f) / size - 0.5f, (y + 0.5f) / size - 0.5f).magnitude * 2f;
+                float alpha = Mathf.Pow(Mathf.Clamp01(1f - radius), 2f);
+                pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        texture.SetPixels(pixels);
+        texture.Apply(false, true);
+        softHaloSprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size, 0, SpriteMeshType.FullRect);
+        return softHaloSprite;
     }
 
     private static RectTransform CreateStretch(Transform parent, string name)
@@ -382,7 +540,7 @@ public class EchoSpaceController : MonoBehaviour
         var image = go.GetComponent<Image>();
         image.color = color;
         image.raycastTarget = label == "梦核";
-        var circle = LoadCircleSprite();
+        var circle = GuideArt.Circle;
         if (circle != null)
         {
             image.sprite = circle;
@@ -411,7 +569,8 @@ public class EchoSpaceController : MonoBehaviour
         tmp.color = Color.white;
         tmp.raycastTarget = false;
         tmp.textWrappingMode = TextWrappingModes.NoWrap;
-        GuideUiFont.Apply(tmp);
+        tmp.enableAutoSizing = false;
+        tmp.font = GuideUiLayout.LoadFont();
         return tmp;
     }
 
@@ -423,30 +582,19 @@ public class EchoSpaceController : MonoBehaviour
         rect.offsetMax = Vector2.zero;
     }
 
-    private const string CircleSpriteGuid = "e79b4d6c863b4124e9f6b264f6d371cb";
-
-    private static Sprite LoadCircleSprite()
-    {
-#if UNITY_EDITOR
-        string path = UnityEditor.AssetDatabase.GUIDToAssetPath(CircleSpriteGuid);
-        var sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
-        if (sprite != null)
-            return sprite;
-#endif
-        return null;
-    }
-
     private static IEnumerator FadeGroup(CanvasGroup group, float from, float to, float duration)
     {
         if (group == null)
             yield break;
 
         group.alpha = from;
+        group.interactable = false;
+        group.blocksRaycasts = true;
         float elapsed = 0f;
         while (elapsed < duration)
         {
             group.alpha = Mathf.Lerp(from, to, elapsed / duration);
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
 

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// 按 v4 施工图在 Gameplay 里生成白盒关卡（场景A 0–30，场景B 34–64）。
+/// 按 v4 施工图在 Gameplay 里生成关卡（场景A 0–30，场景B 34–68）。
 /// 1 格 = 1 Unity 单位；HTML Y 向下，世界 Y = 8 - htmlY。
 /// </summary>
 public static class DreamremainsLevelBootstrap
@@ -27,8 +27,9 @@ public static class DreamremainsLevelBootstrap
             SpawnA = existing.Find("Scene_A/SP-A01");
             SpawnB = existing.Find("Scene_B/IN-B01");
             Goal = existing.Find("Scene_B/END");
+            BindEndReturn(Goal);
             PlayerController existingPlayer = FindActivePlayer();
-            bridge?.BindOfficial(existingPlayer, SpawnA, Goal != null ? Goal.GetComponent<Collider2D>() : null);
+            bridge?.BindOfficial(existingPlayer, SpawnA, Goal != null ? Goal.GetComponent<BoxCollider2D>() : null);
             return;
         }
 
@@ -44,8 +45,12 @@ public static class DreamremainsLevelBootstrap
         var sceneB = new GameObject("Scene_B").transform;
         sceneB.SetParent(root);
 
+        SpawnBackdrop(sceneA, 0f, "Assets/Game/Art/source/BG01.jpg");
+        SpawnBackdrop(sceneB, SceneBOrigin, "Assets/Game/Art/Scenes/S02/S02_BG.jpg");
         BuildScene(sceneA, 0f, DreamremainsLevelData.SceneA);
         BuildScene(sceneB, SceneBOrigin, DreamremainsLevelData.SceneB);
+        SpawnDecorations(sceneA, true);
+        SpawnDecorations(sceneB, false);
 
         SpawnA = root.Find("Scene_A/SP-A01");
         SpawnB = root.Find("Scene_B/IN-B01");
@@ -66,6 +71,7 @@ public static class DreamremainsLevelBootstrap
                 goalCol = end.gameObject.AddComponent<BoxCollider2D>();
             goalCol.isTrigger = true;
             goalCol.size = new Vector2(1.4f, 2.2f);
+            BindEndReturn(end);
         }
 
         PlayerController player = FindActivePlayer();
@@ -73,12 +79,20 @@ public static class DreamremainsLevelBootstrap
             player.transform.position = SpawnA.position + Vector3.up * 0.6f;
 
         CameraTargetFollow follow = Object.FindFirstObjectByType<CameraTargetFollow>();
-        follow?.SetRoom(0f, 5.7f, 0f, 8f);
+        follow?.SetRoom(0f, 30f, 0f, 8f);
         if (follow != null && player != null)
             follow.player = player.transform;
 
         if (bridge != null)
-            bridge.BindOfficial(player, SpawnA, Goal != null ? Goal.GetComponent<Collider2D>() : null);
+            bridge.BindOfficial(player, SpawnA, Goal != null ? Goal.GetComponent<BoxCollider2D>() : null);
+    }
+
+    private static void BindEndReturn(Transform end)
+    {
+        if (end == null)
+            return;
+        if (end.GetComponent<TarotReturnInteractable>() == null)
+            end.gameObject.AddComponent<TarotReturnInteractable>();
     }
 
     private static PlayerController FindActivePlayer()
@@ -109,7 +123,11 @@ public static class DreamremainsLevelBootstrap
             Vector3 center = new Vector3(surface.x, surface.y - height * 0.5f, 0f);
             int zone = DreamremainsLevelData.ZoneAt(p.X + p.W * 0.5f, originX < 1f);
 
-            GameObject platform = CreateBox(parent, p.Id, center, new Vector2(p.W, height), PlatformColor(p.Type, originX < 1f), ground);
+            Sprite platSprite = PlatformSprite(p, originX < 1f);
+            GameObject platform = CreateBox(parent, p.Id, center, new Vector2(p.W, height), PlatformColor(p.Type, originX < 1f), ground, platSprite);
+            Sprite visiblePlatform = originX < 1f && p.W < 3.2f && i % 3 == 1
+                ? LoadArt("Assets/Game/Art/Scenes/S01/12.png") : platSprite;
+            AttachSurfaceVisual(platform, visiblePlatform, false, PlatformColor(p.Type, originX < 1f));
             if (p.Type == "moving")
             {
                 Rigidbody2D body = platform.AddComponent<Rigidbody2D>();
@@ -137,6 +155,12 @@ public static class DreamremainsLevelBootstrap
 
             if (p.Raise)
             {
+                Rigidbody2D raiseBody = platform.GetComponent<Rigidbody2D>();
+                if (raiseBody == null)
+                    raiseBody = platform.AddComponent<Rigidbody2D>();
+                raiseBody.bodyType = RigidbodyType2D.Kinematic;
+                raiseBody.gravityScale = 0f;
+                raiseBody.freezeRotation = true;
                 RaisePlatform raise = platform.AddComponent<RaisePlatform>();
                 Vector3 high = center + Vector3.up * 1.6f;
                 raise.Configure(zone, center, high);
@@ -158,14 +182,28 @@ public static class DreamremainsLevelBootstrap
             zone.AddComponent<KillZone>();
         }
 
+        GameObject fall = CreateBox(
+            parent,
+            originX < 1f ? "H-FALL-A" : "H-FALL-B",
+            new Vector3(originX + 15f, -1.6f, 0f),
+            new Vector2(34f, 1.2f),
+            new Color(0.6f, 0.1f, 0.1f, 0.15f),
+            trigger);
+        fall.GetComponent<Collider2D>().isTrigger = true;
+        fall.GetComponent<SpriteRenderer>().enabled = false;
+        fall.AddComponent<KillZone>();
+
         for (int i = 0; i < spec.Spikes.Length; i++)
         {
             DreamremainsLevelData.SpikeSpec s = spec.Spikes[i];
             Vector2 surface = ToWorld(s.X + s.W * 0.5f, s.Y, originX);
-            var spike = CreateBox(parent, s.Id, new Vector3(surface.x, surface.y + 0.25f, 0f), new Vector2(s.W, 0.5f), new Color(0.75f, 0.12f, 0.12f), mech);
+            Sprite spikeSprite = LoadArt("Assets/Game/Art/Scenes/S01/11.png");
+            var spike = CreateBox(parent, s.Id, new Vector3(surface.x, surface.y + 0.25f, 0f), new Vector2(s.W, 0.5f), Color.white, mech, spikeSprite);
+            AttachSurfaceVisual(spike, spikeSprite, true, Color.white);
             spike.GetComponent<Collider2D>().isTrigger = true;
-            spike.AddComponent<SpikeTrap>();
-            spike.AddComponent<SpikeGrowth>().Configure(DreamremainsLevelData.ZoneAt(s.X, originX < 1f), 0.7f);
+            int spikeZone = DreamremainsLevelData.ZoneAt(s.X, originX < 1f);
+            spike.AddComponent<SpikeTrap>().ConfigureZone(spikeZone);
+            spike.AddComponent<SpikeGrowth>().Configure(spikeZone, 0.7f);
         }
 
         for (int i = 0; i < spec.Points.Length; i++)
@@ -202,11 +240,6 @@ public static class DreamremainsLevelBootstrap
                 BoxCollider2D block = node.AddComponent<BoxCollider2D>();
                 block.isTrigger = false;
                 block.size = Vector2.one;
-                SpriteRenderer sr = node.AddComponent<SpriteRenderer>();
-                sr.sprite = WhiteSprite();
-                sr.color = new Color(0.45f, 0.2f, 0.55f);
-                sr.sortingLayerName = GameLayers.InteractiveDownSorting;
-                sr.sortingOrder = 12;
                 node.transform.localScale = new Vector3(0.4f, 2.2f, 1f);
                 DoorInteractable door = node.AddComponent<DoorInteractable>();
                 door.Configure(point.Id, false, "Door_Open");
@@ -221,12 +254,8 @@ public static class DreamremainsLevelBootstrap
                 CircleCollider2D circle = node.AddComponent<CircleCollider2D>();
                 circle.isTrigger = true;
                 circle.radius = 0.35f;
-                SpriteRenderer sr = node.AddComponent<SpriteRenderer>();
-                sr.sprite = WhiteSprite();
-                sr.color = new Color(0.95f, 0.8f, 0.2f);
-                sr.sortingLayerName = GameLayers.InteractiveUpSorting;
-                sr.sortingOrder = 5;
                 node.transform.localScale = Vector3.one * 0.45f;
+                AddDreamCore(node.transform, 0.42f, Vector2.zero);
                 node.AddComponent<CollectibleItem>();
             }
             else if (point.Kind == "enemy")
@@ -239,17 +268,26 @@ public static class DreamremainsLevelBootstrap
                 CircleCollider2D circle = node.AddComponent<CircleCollider2D>();
                 circle.isTrigger = true;
                 circle.radius = 0.4f;
-                SpriteRenderer sr = node.AddComponent<SpriteRenderer>();
-                sr.sprite = WhiteSprite();
-                sr.color = new Color(0.7f, 0.15f, 0.15f);
-                sr.sortingLayerName = GameLayers.InteractiveUpSorting;
-                sr.sortingOrder = 5;
                 node.transform.localScale = Vector3.one * 0.7f;
+                // 只复用原 Prefab 的 Visual 素材/动画；不复制其胶囊碰撞、生命值或移动参数。
+                Sprite enemySprite = LoadArt("Assets/Game/Art/Characters/monster/walk/1.png");
+                SpriteRenderer visual = AddVisual(node.transform, "Visual", enemySprite,
+                    enemySprite != null ? (Vector2)enemySprite.bounds.size * 0.126f : Vector2.one, Vector2.zero, GameLayers.InteractiveUpSorting, 5);
+                if (visual != null)
+                {
+                    // 原怪物帧以脚底为 pivot，沿用 Prefab 0.18 × 当前根缩放 0.7 的比例。
+                    visual.transform.localPosition = Vector3.down * circle.radius;
+                    Animator animator = visual.gameObject.AddComponent<Animator>();
+                    animator.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>("Enemy/PatrolEnemy");
+                    animator.applyRootMotion = false;
+                }
                 PatrolEnemy enemy = node.AddComponent<PatrolEnemy>();
                 enemy.ConfigurePatrol(
                     new Vector2(point.PatrolX1 - point.X, 0f),
                     new Vector2(point.PatrolX2 - point.X, 0f));
             }
+
+            DecoratePoint(node, point, originX < 1f);
         }
 
         for (int i = 0; i < spec.Folds.Length; i++)
@@ -272,6 +310,13 @@ public static class DreamremainsLevelBootstrap
             GameObject volume = CreateBox(parent, aw.Id, center, new Vector2(aw.W, aw.H), new Color(0.3f, 0.6f, 1f, 0.12f), trigger);
             volume.GetComponent<Collider2D>().isTrigger = true;
             volume.AddComponent<AirWalkVolume>().Configure(DreamremainsLevelData.ZoneAt(aw.X + aw.W * 0.5f, originX < 1f));
+            SpriteRenderer current = AddArt(volume.transform, "AirCurrent", "Assets/Game/Art/Scenes/S02/7.png", 0.32f, Vector2.zero,
+                GameLayers.MidgroundSorting, -4);
+            if (current != null)
+            {
+                current.color = new Color(1f, 1f, 1f, 0.2f);
+                volume.GetComponent<SpriteRenderer>().forceRenderingOff = true;
+            }
         }
 
         for (int i = 0; i < spec.Rooms.Length; i++)
@@ -318,28 +363,199 @@ public static class DreamremainsLevelBootstrap
     private static Color PlatformColor(string type, bool sceneA)
     {
         if (type == "moving")
-            return new Color(0.45f, 0.75f, 1f);
+            return new Color(0.78f, 0.92f, 1f);
         if (type == "fading")
-            return new Color(1f, 0.85f, 0.25f);
+            return new Color(1f, 0.91f, 0.68f);
         if (type == "hidden")
-            return new Color(0.75f, 0.5f, 1f);
-        return sceneA ? new Color(0.85f, 0.85f, 0.88f) : new Color(0.55f, 0.75f, 0.9f);
+            return new Color(0.86f, 0.83f, 1f);
+        return Color.white;
     }
 
-    private static GameObject CreateBox(Transform parent, string name, Vector3 center, Vector2 size, Color color, int layer)
+    private static Sprite PlatformSprite(DreamremainsLevelData.PlatformSpec p, bool sceneA)
+    {
+        if (sceneA)
+            return LoadArt(p.W >= 3.2f ? "Assets/Game/Art/Scenes/S01/13.png" : "Assets/Game/Art/Scenes/S01/10.png");
+        return LoadArt(p.W >= 3f ? "Assets/Game/Art/Scenes/S02/15.png" : "Assets/Game/Art/Scenes/S02/16.png");
+    }
+
+    private static void SpawnBackdrop(Transform parent, float originX, string path)
+    {
+        Sprite sprite = LoadArt(path);
+        if (sprite == null)
+            return;
+
+        GameObject go = new GameObject("Backdrop");
+        go.transform.SetParent(parent);
+        go.transform.position = new Vector3(originX + 15f, 4f, 1f);
+        SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = sprite;
+        sr.sortingLayerName = GameLayers.BackgroundSorting;
+        sr.sortingOrder = -40;
+        sr.color = Color.white;
+        go.AddComponent<LevelDecorationBackdrop>().Configure(sr, originX, originX < 1f ? 30f : 68f);
+    }
+
+    private static Sprite LoadArt(string path)
+    {
+        return GuideArt.LoadPath(path);
+    }
+
+    private static void AttachSurfaceVisual(GameObject root, Sprite sprite, bool fillCollider, Color tint)
+    {
+        if (sprite == null)
+            return;
+        SpriteRenderer source = root.GetComponent<SpriteRenderer>();
+        SpriteRenderer visual = AddVisual(root.transform, "Visual", sprite, Vector2.one, Vector2.zero,
+            GameLayers.InteractiveDownSorting, 10);
+        // FadingPlatform 仍写入根 SpriteRenderer，呈现层只读并转发它的颜色/可见状态。
+        source.forceRenderingOff = true;
+        visual.gameObject.AddComponent<LevelDecorationSurface>().Configure(root.GetComponent<BoxCollider2D>(), source, visual, fillCollider, tint);
+    }
+
+    private static SpriteRenderer AddVisual(Transform parent, string name, Sprite sprite, Vector2 worldSize,
+        Vector2 offset, string sortingLayer, int order)
+    {
+        if (sprite == null)
+            return null;
+        GameObject go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.layer = parent.gameObject.layer;
+        SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = sprite;
+        sr.sortingLayerName = sortingLayer;
+        sr.sortingOrder = order;
+        Vector3 native = sprite.bounds.size;
+        Vector3 scale = new Vector3(worldSize.x / Mathf.Max(0.001f, native.x), worldSize.y / Mathf.Max(0.001f, native.y), 1f);
+        Vector3 inherited = parent.lossyScale;
+        go.transform.localScale = new Vector3(scale.x / inherited.x, scale.y / inherited.y, 1f);
+        go.transform.position = parent.position + (Vector3)offset - Vector3.Scale(sprite.bounds.center, scale);
+        return sr;
+    }
+
+    private static SpriteRenderer AddArt(Transform parent, string name, string path, float height, Vector2 offset,
+        string sortingLayer = GameLayers.InteractiveDownSorting, int order = 14)
+    {
+        Sprite sprite = LoadArt(path);
+        if (sprite == null)
+            return null;
+        Vector2 size = sprite.bounds.size;
+        return AddVisual(parent, name, sprite, size * (height / Mathf.Max(0.001f, size.y)), offset, sortingLayer, order);
+    }
+
+    private static SpriteRenderer AddDreamCore(Transform parent, float height, Vector2 offset)
+    {
+        Sprite sprite = LoadArt("Assets/Game/Art/Scenes/S01/26.png");
+        if (sprite == null)
+            return null;
+        // 26.png 的泪滴位于 120×264 透明画布的 (31,112)-(86,207)（左上坐标）。
+        // 只补偿可见内容的尺寸和中心，不读像素、不改源 Sprite 或物理根节点。
+        Vector2 canvas = sprite.rect.size / sprite.pixelsPerUnit;
+        float scale = height / (canvas.y * (95f / 264f));
+        Vector2 contentCenter = new Vector2(canvas.x * (58.5f / 120f), canvas.y * (104.5f / 264f)) - sprite.pivot / sprite.pixelsPerUnit;
+        Vector2 centerCorrection = contentCenter - (Vector2)sprite.bounds.center;
+        return AddVisual(parent, "DreamCore", sprite, (Vector2)sprite.bounds.size * scale, offset - centerCorrection * scale,
+            GameLayers.InteractiveUpSorting, 14);
+    }
+
+    private static void DecoratePoint(GameObject node, DreamremainsLevelData.PointSpec point, bool sceneA)
+    {
+        Transform root = node.transform;
+        switch (point.Kind)
+        {
+            case "tarot":
+                AddArt(root, "Tarot", "Assets/Game/Art/UI/Tarot/card-back.png", 0.64f, new Vector2(0f, 0.22f));
+                AddArt(root, "Seal", "Assets/Game/Art/Scenes/S01/5.png", 0.7f, new Vector2(0f, 0.22f), GameLayers.InteractiveDownSorting, 13);
+                break;
+            case "cp":
+                AddArt(root, "DreamShrine", "Assets/Game/Art/Scenes/S01/25.png", 0.38f, new Vector2(0f, -0.24f));
+                SpriteRenderer checkpointCore = AddDreamCore(root, 0.32f, new Vector2(0f, 0.14f));
+                if (checkpointCore != null)
+                    checkpointCore.sortingLayerName = GameLayers.InteractiveDownSorting;
+                break;
+            case "door":
+                AddVisual(root, "Visual", LoadArt(sceneA ? "Assets/Game/Art/Scenes/S01/9.png" : "Assets/Game/Art/Scenes/S02/24.png"),
+                    new Vector2(0.4f, 2.2f), Vector2.zero, GameLayers.InteractiveDownSorting, 12);
+                break;
+            case "trg":
+                AddArt(root, "SwitchSeal", "Assets/Game/Art/Scenes/S01/25.png", 0.24f, new Vector2(0f, -0.18f));
+                break;
+            case "fold":
+                AddArt(root, "FoldEcho", "Assets/Game/Art/Scenes/S01/5.png", point.Id.StartsWith("FE-") ? 0.55f : 0.32f, Vector2.zero);
+                break;
+            case "trans":
+            case "end":
+                AddArt(root, "Passage", "Assets/Game/Art/Scenes/S01/5.png", 1.1f, Vector2.zero);
+                AddArt(root, "LightLeft", "Assets/Game/Art/Scenes/S01/8.png", 1.4f, new Vector2(-0.38f, 0f));
+                AddArt(root, "LightRight", "Assets/Game/Art/Scenes/S01/8.png", 1.4f, new Vector2(0.38f, 0f));
+                if (point.Kind == "end")
+                    AddDreamCore(root, 0.48f, Vector2.zero);
+                break;
+            default:
+                return;
+        }
+        node.AddComponent<LevelDecorationNode>().Configure(point.Kind, point.Slot, point.Id.StartsWith("FA-"));
+    }
+
+    private static void SpawnDecorations(Transform scene, bool sceneA)
+    {
+        // 有意逐处构图，不按 Zone 复制整段；均在玩家与平台后方，无 Collider/交互组件。
+        Transform group = new GameObject("Decorations").transform;
+        group.SetParent(scene, false);
+        group.position = new Vector3(sceneA ? 0f : SceneBOrigin, 0f, 0f);
+        if (sceneA)
+        {
+            Decoration(group, "LotusNear", "S01/18.png", 1.1f, 3.8f, 0.55f, 0.44f, false);
+            Decoration(group, "LowMist", "S01/24.png", 1.8f, 8.3f, 0.45f, 0.2f, true);
+            Decoration(group, "DistantLotus", "S01/17.png", 1.4f, 11.1f, 0.65f, 0.35f, true);
+            Decoration(group, "HighFish", "S01/7.png", 0.42f, 15.6f, 7.9f, 0.32f, false);
+            Decoration(group, "MistReturn", "S01/4.png", 2.3f, 19.1f, 0.2f, 0.22f, false);
+            Decoration(group, "LotusFar", "S01/18.png", 0.85f, 24.2f, 0.4f, 0.38f, true);
+            Decoration(group, "Dragonfly", "S01/23.png", 0.26f, 27.3f, 6.8f, 0.4f, false);
+        }
+        else
+        {
+            Decoration(group, "CloudEntry", "S02/8.png", 0.6f, 2.5f, 6.6f, 0.3f, false);
+            Decoration(group, "ReedsLow", "S02/11.png", 0.8f, 7.3f, 0.35f, 0.35f, true);
+            Decoration(group, "CloudHigh", "S02/6.png", 0.55f, 10.2f, 7.7f, 0.27f, true);
+            Decoration(group, "CloudRibbon", "S02/7.png", 0.75f, 15.2f, 0.2f, 0.23f, false);
+            Decoration(group, "GoldFan", "S02/25.png", 0.8f, 18.6f, 7.45f, 0.25f, false);
+            Decoration(group, "CloudCurl", "S02/19.png", 0.48f, 22.8f, 0.6f, 0.3f, true);
+            Decoration(group, "ReedEnd", "S02/12.png", 0.7f, 28.3f, 0.5f, 0.34f, false);
+            Decoration(group, "CloudEnd", "S02/8.png", 0.55f, 32.1f, 4.45f, 0.25f, true);
+        }
+    }
+
+    private static void Decoration(Transform parent, string name, string file, float height, float x, float y, float alpha, bool flip)
+    {
+        SpriteRenderer sr = AddArt(parent, name, "Assets/Game/Art/Scenes/" + file, height, new Vector2(x, y), GameLayers.MidgroundSorting, -5);
+        if (sr == null)
+            return;
+        sr.color = new Color(1f, 1f, 1f, alpha);
+        sr.flipX = flip;
+    }
+
+    // 保留原 CreateBox 的物理计算和原 PlatformSprite / 地刺引用。
+    // 它们仅初始化一次物理 root；替换/动画/裁切只作用于下挂 Visual。
+    // 尤其不可把 E14 使用的根缩放改为 1，否则 extraHeight 的世界距离会改变。
+    private static GameObject CreateBox(Transform parent, string name, Vector3 center, Vector2 size, Color color, int layer, Sprite sprite = null)
     {
         GameObject go = new GameObject(name);
         go.transform.SetParent(parent);
         go.transform.position = center;
         go.layer = layer >= 0 ? layer : 0;
-        go.transform.localScale = new Vector3(Mathf.Max(0.05f, size.x), Mathf.Max(0.05f, size.y), 1f);
         SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = WhiteSprite();
-        sr.color = color;
+        Sprite use = sprite != null ? sprite : WhiteSprite();
+        sr.sprite = use;
+        sr.color = sprite != null ? Color.white : color;
+        sr.drawMode = SpriteDrawMode.Simple;
         sr.sortingLayerName = GameLayers.InteractiveDownSorting;
         sr.sortingOrder = 10;
+        Vector2 native = use.bounds.size;
+        float nx = Mathf.Max(0.01f, native.x);
+        float ny = Mathf.Max(0.01f, native.y);
+        go.transform.localScale = new Vector3(Mathf.Max(0.05f, size.x / nx), Mathf.Max(0.05f, size.y / ny), 1f);
         BoxCollider2D col = go.AddComponent<BoxCollider2D>();
-        col.size = Vector2.one;
+        col.size = new Vector2(nx, ny);
         return go;
     }
 

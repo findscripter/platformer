@@ -3,6 +3,13 @@ using UnityEngine;
 [RequireComponent(typeof(Collider2D))]
 public sealed class SpikeTrap : MonoBehaviour
 {
+    [SerializeField] private int zoneIndex = -1;
+
+    public void ConfigureZone(int zone)
+    {
+        zoneIndex = zone;
+    }
+
     private void Reset()
     {
         Collider2D trapCollider = GetComponent<Collider2D>();
@@ -19,14 +26,13 @@ public sealed class SpikeTrap : MonoBehaviour
         TryKillPlayer(other);
     }
 
-    private static void TryKillPlayer(Collider2D other)
+    private void TryKillPlayer(Collider2D other)
     {
         PlayerController player = other.GetComponentInParent<PlayerController>();
         if (player == null)
             return;
 
-        TarotResultData run = GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null;
-        if (run != null && run.HasActiveEffect(TarotEffectId.E02))
+        if (TarotZoneQuery.HasEffect(zoneIndex, TarotEffectId.E02))
             return;
 
         player.TryKill();

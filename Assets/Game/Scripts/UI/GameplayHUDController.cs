@@ -24,9 +24,7 @@ public class GameplayHUDController : MonoBehaviour
     [SerializeField] private Sprite collectIconSprite;     // 逗号标点 Dialogues/4
     [SerializeField] private Sprite panelSprite;           // 发光圆片 circle_sprite
 
-    private const string FontAssetGuid = "7e794ed8003821b4dac6b110719e0135";
-    private const string HealthIconGuid = "d506798f8970fb645bec879362217bd6";   // S01/26
-    private const string CollectIconGuid = "";                                  // 运行时按路径兜底
+    private const string CollectIconGuid = "50089d2a43f97f1478dc32c428473d8a";    // Dialogues/4
     private const string PanelSpriteGuid = "e79b4d6c863b4124e9f6b264f6d371cb"; // circle_sprite
 
     private TMP_FontAsset cachedFont;
@@ -45,9 +43,11 @@ public class GameplayHUDController : MonoBehaviour
 
     private PlayerController player;
     private CollectibleTracker tracker;
+    private float nextBindingAttempt;
 
     private void Awake()
     {
+        GuideUiLayout.ConfigureCanvas(this);
         CacheFont();
         BuildHud();
     }
@@ -61,6 +61,9 @@ public class GameplayHUDController : MonoBehaviour
 
     private void ResolveBindings()
     {
+        if ((player != null && tracker != null) || Time.unscaledTime < nextBindingAttempt)
+            return;
+        nextBindingAttempt = Time.unscaledTime + 0.5f;
         if (player == null)
         {
             player = Object.FindAnyObjectByType<PlayerController>();
@@ -79,14 +82,7 @@ public class GameplayHUDController : MonoBehaviour
             return;
         }
 
-        TMP_FontAsset asset = null;
-#if UNITY_EDITOR
-        asset = UnityEditor.AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
-            UnityEditor.AssetDatabase.GUIDToAssetPath(FontAssetGuid));
-#else
-        asset = Resources.Load<TMP_FontAsset>("Game/Art/source/dialogue_font_TMP");
-#endif
-        cachedFont = asset != null ? asset : TMP_Settings.defaultFontAsset;
+        cachedFont = GuideUiLayout.LoadFont();
     }
 
     private Sprite LoadSpriteByGuid(string guid, string fallbackPath)
@@ -96,14 +92,11 @@ public class GameplayHUDController : MonoBehaviour
             return LoadSpriteByPath(fallbackPath);
         }
 
-#if UNITY_EDITOR
-        var loaded = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(
-            UnityEditor.AssetDatabase.GUIDToAssetPath(guid));
+        var loaded = GuideArt.Load(guid);
         if (loaded != null)
         {
             return loaded;
         }
-#endif
         return LoadSpriteByPath(fallbackPath);
     }
 
@@ -117,15 +110,19 @@ public class GameplayHUDController : MonoBehaviour
 #if UNITY_EDITOR
         return UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
 #else
-        return Resources.Load<Sprite>(path.Substring("Assets/".Length).Replace(".png", ""));
+        return null; // 发布包由 GuideArt 的美术目录解析，不把 Assets 路径误作 Resources 路径。
 #endif
     }
 
     private void BuildHud()
     {
+        // HUD 画布只承载浮动信息，不保留铺满顶部的原型底色。
+        var canvasBackground = GetComponent<Image>();
+        if (canvasBackground != null)
+            canvasBackground.enabled = false;
         if (healthIconSprite == null)
         {
-            healthIconSprite = LoadSpriteByGuid(HealthIconGuid, "Assets/Game/Art/Scenes/S01/26.png");
+            healthIconSprite = GuideArt.DreamCore;
         }
 
         if (collectIconSprite == null)
@@ -150,15 +147,11 @@ public class GameplayHUDController : MonoBehaviour
         panelRect.anchorMin = new Vector2(0f, 1f);
         panelRect.anchorMax = new Vector2(0f, 1f);
         panelRect.pivot = new Vector2(0f, 1f);
-        panelRect.anchoredPosition = new Vector2(24f, -20f);
-        panelRect.sizeDelta = new Vector2(280f, 52f);
+        panelRect.anchoredPosition = new Vector2(28f, -24f);
+        panelRect.sizeDelta = new Vector2(320f, 64f);
 
         var panelImage = panelGo.GetComponent<Image>();
-        if (panelSprite != null)
-        {
-            panelImage.sprite = panelSprite;
-        }
-        panelImage.color = new Color(0.05f, 0.08f, 0.12f, 0.55f);
+        StylePanel(panelImage);
 
         var iconGo = new GameObject("HealthIcon", typeof(RectTransform), typeof(Image));
         iconGo.transform.SetParent(panelGo.transform, false);
@@ -166,25 +159,26 @@ public class GameplayHUDController : MonoBehaviour
         iconRect.anchorMin = new Vector2(0f, 0.5f);
         iconRect.anchorMax = new Vector2(0f, 0.5f);
         iconRect.pivot = new Vector2(0f, 0.5f);
-        iconRect.anchoredPosition = new Vector2(8f, 0f);
-        iconRect.sizeDelta = new Vector2(34f, 34f);
+        iconRect.anchoredPosition = new Vector2(10f, 0f);
+        iconRect.sizeDelta = new Vector2(36f, 48f);
         var iconImage = iconGo.GetComponent<Image>();
         iconImage.sprite = healthIconSprite;
         iconImage.color = Color.white;
         iconImage.preserveAspect = true;
+        iconImage.raycastTarget = false;
 
         healthText = BuildText("HealthText", panelGo.transform,
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f),
-            new Vector2(-8f, 0f), new Vector2(0f, 18f), 14, TextAlignmentOptions.TopRight);
+            new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+            new Vector2(-16f, 0f), new Vector2(70f, 40f), 26, TextAlignmentOptions.MidlineRight);
 
         var slotsGo = new GameObject("HealthSlots", typeof(RectTransform));
         slotsGo.transform.SetParent(panelGo.transform, false);
         var slotsRect = slotsGo.GetComponent<RectTransform>();
-        slotsRect.anchorMin = new Vector2(0.46f, 0f);
-        slotsRect.anchorMax = new Vector2(1f, 0f);
-        slotsRect.pivot = new Vector2(0f, 0f);
-        slotsRect.anchoredPosition = new Vector2(0f, 10f);
-        slotsRect.sizeDelta = new Vector2(0f, 26f);
+        slotsRect.anchorMin = new Vector2(0f, 0.5f);
+        slotsRect.anchorMax = new Vector2(0f, 0.5f);
+        slotsRect.pivot = new Vector2(0f, 0.5f);
+        slotsRect.anchoredPosition = new Vector2(56f, 0f);
+        slotsRect.sizeDelta = new Vector2(180f, 32f);
 
         healthFillMask = slotsRect;
         healthSegments = new RectTransform[0];
@@ -202,15 +196,11 @@ public class GameplayHUDController : MonoBehaviour
         panelRect.anchorMin = new Vector2(1f, 1f);
         panelRect.anchorMax = new Vector2(1f, 1f);
         panelRect.pivot = new Vector2(1f, 1f);
-        panelRect.anchoredPosition = new Vector2(-24f, -20f);
-        panelRect.sizeDelta = new Vector2(150f, 40f);
+        panelRect.anchoredPosition = new Vector2(-28f, -24f);
+        panelRect.sizeDelta = new Vector2(180f, 52f);
 
         var panelImage = panelGo.GetComponent<Image>();
-        if (panelSprite != null)
-        {
-            panelImage.sprite = panelSprite;
-        }
-        panelImage.color = new Color(0.05f, 0.08f, 0.12f, 0.55f);
+        StylePanel(panelImage);
 
         var iconGo = new GameObject("CollectIcon", typeof(RectTransform), typeof(Image));
         iconGo.transform.SetParent(panelGo.transform, false);
@@ -224,10 +214,19 @@ public class GameplayHUDController : MonoBehaviour
         iconImage.sprite = collectIconSprite;
         iconImage.color = Color.white;
         iconImage.preserveAspect = true;
+        iconImage.raycastTarget = false;
 
         return BuildText("CollectText", panelGo.transform,
             new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 0f), new Vector2(0f, 0f), 20, TextAlignmentOptions.Center);
+            new Vector2(18f, 0f), new Vector2(-52f, 0f), 26, TextAlignmentOptions.Center);
+    }
+
+    private static void StylePanel(Image image)
+    {
+        image.sprite = GuideArt.DialogueBanner;
+        image.type = Image.Type.Sliced;
+        image.color = new Color(0.12f, 0.11f, 0.13f, 0.88f);
+        image.raycastTarget = false;
     }
 
     private TMP_Text BuildText(
@@ -253,9 +252,13 @@ public class GameplayHUDController : MonoBehaviour
         var text = go.GetComponent<TMP_Text>();
         text.font = cachedFont;
         text.fontSize = fontSize;
-        text.color = Color.white;
+        text.color = new Color(0.98f, 0.95f, 0.86f, 1f);
+        text.enableAutoSizing = false;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
         text.alignment = alignment;
         text.raycastTarget = false;
+        text.outlineWidth = 0.06f;
+        text.outlineColor = new Color(0f, 0f, 0f, 0.8f);
         return text;
     }
 
@@ -269,21 +272,19 @@ public class GameplayHUDController : MonoBehaviour
         int max = Mathf.Max(1, player.MaxHealth);
         int current = Mathf.Clamp(player.CurrentHealth, 0, max);
 
-        if (max != lastMaxHealth)
+        bool maximumChanged = max != lastMaxHealth;
+        if (maximumChanged)
         {
             RebuildHealthSegments(max);
             lastMaxHealth = max;
         }
 
-        if (current != lastHealth)
+        if (current != lastHealth || maximumChanged)
         {
             ApplyHealth(current);
             lastHealth = current;
-        }
-
-        if (healthText != null)
-        {
-            healthText.text = $"{current}/{max}";
+            if (healthText != null)
+                healthText.text = $"{current}/{max}";
         }
     }
 
@@ -301,21 +302,19 @@ public class GameplayHUDController : MonoBehaviour
         healthSegmentImages = new Image[max];
         healthSlotImages = new Image[max];
 
-        float slotWidth = 26f;
-        float gap = 4f;
-        float totalWidth = max * slotWidth + (max - 1) * gap;
-
-        float startX = -totalWidth * 0.5f;
+        float availableWidth = healthFillMask.rect.width;
+        float gap = Mathf.Min(8f, availableWidth / (max * 4f));
+        float slotWidth = Mathf.Min(28f, (availableWidth - gap * (max - 1)) / max);
 
         for (int i = 0; i < max; i++)
         {
-            float x = startX + i * (slotWidth + gap) + slotWidth * 0.5f;
+            float x = slotWidth * 0.5f + i * (slotWidth + gap);
 
             var slotGo = new GameObject($"Slot_{i}", typeof(RectTransform), typeof(Image));
             slotGo.transform.SetParent(healthFillMask, false);
             var slotRect = slotGo.GetComponent<RectTransform>();
-            slotRect.anchorMin = new Vector2(0.5f, 0.5f);
-            slotRect.anchorMax = new Vector2(0.5f, 0.5f);
+            slotRect.anchorMin = new Vector2(0f, 0.5f);
+            slotRect.anchorMax = new Vector2(0f, 0.5f);
             slotRect.pivot = new Vector2(0.5f, 0.5f);
             slotRect.anchoredPosition = new Vector2(x, 0f);
             slotRect.sizeDelta = new Vector2(slotWidth, slotWidth);
@@ -324,7 +323,9 @@ public class GameplayHUDController : MonoBehaviour
             {
                 slotImage.sprite = panelSprite;
             }
-            slotImage.color = new Color(0.2f, 0.25f, 0.3f, 0.8f);
+            slotImage.color = new Color(0.55f, 0.49f, 0.4f, 0.65f);
+            slotImage.preserveAspect = true;
+            slotImage.raycastTarget = false;
 
             var fillGo = new GameObject($"Fill_{i}", typeof(RectTransform), typeof(Image));
             fillGo.transform.SetParent(slotGo.transform, false);
@@ -339,6 +340,7 @@ public class GameplayHUDController : MonoBehaviour
                 fillImage.sprite = panelSprite;
             }
             fillImage.color = Color.white;
+            fillImage.preserveAspect = true;
             fillImage.raycastTarget = false;
 
             healthSegments[i] = slotRect;
@@ -359,8 +361,8 @@ public class GameplayHUDController : MonoBehaviour
             }
 
             healthSegmentImages[i].color = i < current
-                ? new Color(0.62f, 0.9f, 1f, 1f)
-                : new Color(0.25f, 0.3f, 0.35f, 0.55f);
+                ? new Color(0.98f, 0.89f, 0.7f, 1f)
+                : new Color(0.28f, 0.25f, 0.23f, 0.4f);
         }
     }
 

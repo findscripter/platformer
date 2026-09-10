@@ -58,6 +58,7 @@ public class InputManager : MonoBehaviour
         MoveX = 0f;
         InteractPressed = false;
         JumpPressed = false;
+        AttackPressed = false;
         PausePressed = false;
         ConfirmPressed = false;
 
