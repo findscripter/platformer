@@ -467,6 +467,13 @@ public class PlayerController : MonoBehaviour
         airWalkLocks = 0;
         ApplyAirWalkGravity();
         invulnerabilityRemaining = 0f;
+
+        // 重生后立即同步相机位置，避免玩家不在画面内
+        CameraTargetFollow cameraFollow = Object.FindFirstObjectByType<CameraTargetFollow>();
+        if (cameraFollow != null)
+        {
+            cameraFollow.Snap();
+        }
         attackCooldownRemaining = 0f;
         animationController.ResetState();
         animationController.UpdateAnimation(0f);
