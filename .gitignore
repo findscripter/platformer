@@ -119,11 +119,23 @@ Thumbs.db
 Desktop.ini
 ~UnityDirMonSyncFile~*
 
-# 临时诊断/核验截图（Assets/Screenshots 下带 _inspect / inspect- / verify- / screenshot- 前缀的）
-/[Aa]ssets/[Ss]creenshots/_inspect*
-/[Aa]ssets/[Ss]creenshots/inspect-*
-/[Aa]ssets/[Ss]creenshots/verify-*
-/[Aa]ssets/[Ss]creenshots/screenshot-*
+# 本地验证截图
+Assets/Screenshots/
+Assets/Screenshots.meta
+
+# Unity 崩溃恢复场景
+/[Aa]ssets/_Recovery/
+/[Aa]ssets/_Recovery.meta
+
+# 误把环境变量当目录写进仓库
+/%ALLUSERSPROFILE%/
+
+# Agent 一次性脚本
+__pycache__/
+*.pyc
+/_unity_mcp.py
+/_walk_a.py
+/CAMERA_FIX_SUMMARY.md
 
 # 美术原始压缩包（解压后的内容才入库）
 *.rar
@@ -133,8 +145,6 @@ Desktop.ini
 /美术资源/extracted/元件/_inspect/
 /美术资源/extracted/元件/*/\_preview/
 
-# 本地验证截图（不入库，避免被 Unity 当纹理导入）
-Assets/Screenshots/
 /production/screenshots/
 
 # 会话草稿
