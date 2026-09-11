@@ -27,6 +27,7 @@ public class GameContext
     // Player Guide Runtime Data
     public string PlayerDreamInput;
     public TarotResultData TarotResult;
+    public DreamRunRecorder DreamRun = new DreamRunRecorder();
 
     public void ResetRuntimeFlags()
     {
@@ -40,5 +41,6 @@ public class GameContext
     {
         PlayerDreamInput = null;
         TarotResult = null;
+        DreamRun = new DreamRunRecorder();
     }
 }

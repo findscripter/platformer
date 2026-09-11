@@ -97,7 +97,7 @@ public static class DreamremainsLevelData
             P("PL-A12", 26.7f, 5.3f, 2.0f, "normal"),
             P("PL-A13", 28.8f, 4.5f, 1.6f, "normal"),
             P("FP-A01a", 12.3f, 5.5f, 0.9f, "fading"),
-            P("FP-A01b", 13.5f, 5.1f, 0.9f, "fading"),
+  P("FP-A01b", 13.5f, 5.2f, 0.9f, "fading"),
             P("FP-A01c", 14.7f, 5.5f, 0.9f, "fading"),
             P("TH-A01", 12.7f, 0.8f, 1.8f, "hidden"),
             P("TH-A02", 15.0f, 0.8f, 1.6f, "hidden"),
@@ -112,7 +112,7 @@ public static class DreamremainsLevelData
         },
         Spikes = new[]
         {
-            new SpikeSpec { Id = "SG-A01", X = 7.2f, Y = 1.85f, W = 1.2f },
+            new SpikeSpec { Id = "SG-A01", X = 7.0f, Y = 6.0f, W = 1.7f },
             new SpikeSpec { Id = "SG-A02", X = 15.2f, Y = 5.65f, W = 2.0f },
             new SpikeSpec { Id = "SG-A03", X = 23.2f, Y = 5.65f, W = 1.3f }
         },
@@ -189,7 +189,7 @@ public static class DreamremainsLevelData
             R("PL-B14", 31.5f, 1.5f, 1.6f),
             P("FP-B01a", 13.8f, 4.8f, 0.9f, "fading"),
             P("FP-B01b", 15.1f, 4.3f, 0.9f, "fading"),
-            P("FP-B01c", 16.4f, 4.8f, 0.9f, "fading"),
+            P("FP-B01c", 16.4f, 4.7f, 0.9f, "fading"),
             P("FP-B02a", 24.4f, 3.9f, 0.9f, "fading"),
             P("FP-B02b", 25.7f, 3.4f, 0.9f, "fading"),
             P("FP-B02c", 27.0f, 3.9f, 0.9f, "fading"),
@@ -230,7 +230,7 @@ public static class DreamremainsLevelData
             N("IT-B02", "item", 26.2f, 6.05f),
             N("TRG-B01", "trg", 12.9f, 3.05f),
             N("TRG-B02", "trg", 23.4f, 2.7f),
-            N("D3", "door", 20.3f, 5.5f),
+            N("D3", "door", 18.9f, 4.75f),
             N("FE-B02", "fold", 5.3f, 3.6f),
             N("FA-B02", "fold", 11.5f, 1.65f),
             N("FE-B03", "fold", 12.2f, 5.9f),

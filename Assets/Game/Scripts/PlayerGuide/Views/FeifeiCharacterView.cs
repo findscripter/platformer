@@ -22,6 +22,9 @@ public class FeifeiCharacterView : MonoBehaviour
     private int frameIndex;
     private bool walking;
     private RectTransform coreHoldAnchor;
+    private float poseTiltZ;
+    private Vector2 restAnchored;
+    private Vector2 offerShift;
 
     public RectTransform CoreHoldAnchor
     {
@@ -125,18 +128,18 @@ public class FeifeiCharacterView : MonoBehaviour
             feifeiCharacter.transform.localPosition = position;
     }
 
-    /// <summary>第一次相遇：居中偏上，给底部对白条留空。</summary>
+    /// <summary>第一次相遇：中偏右、对白条上方，和左侧玩家对看。</summary>
     public void SetMeetingLayout()
     {
         SetActive(true);
-        ApplyAnchored(new Vector2(0.52f, 0.58f), 240f);
+        ApplyAnchored(new Vector2(0.58f, 0.54f), 300f);
     }
 
-    /// <summary>写梦陪伴位：问话框左下外侧，不压输入区。</summary>
+    /// <summary>写梦陪伴位：问话框左下外侧，不压按钮。</summary>
     public void SetCompanionLayout()
     {
         SetActive(true);
-        ApplyAnchored(new Vector2(0.12f, 0.22f), 150f);
+        ApplyAnchored(new Vector2(0.07f, 0.105f), 180f);
     }
 
     private void ApplyAnchored(Vector2 anchor, float size)
@@ -147,9 +150,13 @@ public class FeifeiCharacterView : MonoBehaviour
 
         rect.anchorMin = rect.anchorMax = anchor;
         rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = Vector2.zero;
+        restAnchored = Vector2.zero;
+        offerShift = Vector2.zero;
+        poseTiltZ = 0f;
+        rect.anchoredPosition = restAnchored;
         rect.sizeDelta = new Vector2(size, size);
         rect.localScale = Vector3.one;
+        rect.localRotation = Quaternion.identity;
     }
 
     private void ApplySize(float size)
@@ -207,29 +214,98 @@ public class FeifeiCharacterView : MonoBehaviour
 
     public void SafePlayState(string stateName)
     {
+        PlayMeetingBeat(stateName);
+    }
+
+    /// <summary>
+    /// Frame 6 八拍：待机图几乎同一姿势，用倾角、递出位移和切帧区间读出看核/看玩家/轻抚。
+    /// </summary>
+    public void PlayMeetingBeat(string stateName)
+    {
         if (string.IsNullOrWhiteSpace(stateName))
             return;
 
         switch (stateName)
         {
+            case "CatchCore":
             case "HoldCore":
-                SetPose(9, 16, 8f);
+                SetPose(0, 7, 7f);
+                SetBeatTransform(8f, Vector2.zero);
                 break;
             case "LookDown":
-                SetPose(0, 8, 8f);
+                SetPose(0, 4, 5f);
+                SetBeatTransform(14f, Vector2.zero);
                 break;
-            case "ThinkPose":
+            case "TouchCore":
+                SetPose(16, 18, 6f);
+                SetBeatTransform(10f, Vector2.zero);
+                break;
             case "LookAtPlayer":
+            case "ThinkPose":
             case "Smile":
-                SetPose(17, 24, 9f);
+                SetPose(19, 23, 7f);
+                SetBeatTransform(-8f, new Vector2(-10f, 6f));
+                break;
+            case "QuietHold":
+                SetPose(8, 15, 5f);
+                SetBeatTransform(6f, Vector2.zero);
+                break;
+            case "OfferCore":
+                SetPose(16, 20, 6f);
+                SetBeatTransform(-4f, new Vector2(-72f, 16f));
                 break;
             case "Sad":
                 SetPose(0, 7, 6f);
+                SetBeatTransform(10f, Vector2.zero);
                 break;
             default:
                 SetPose(0, 26, 10f);
+                SetBeatTransform(0f, Vector2.zero);
                 break;
         }
+    }
+
+    public IEnumerator PlayCatchBob(float duration)
+    {
+        var rect = feifeiCharacter != null ? feifeiCharacter.transform as RectTransform : null;
+        if (rect == null)
+            yield break;
+
+        Vector2 origin = restAnchored + offerShift;
+        Vector2 dip = origin + new Vector2(0f, -16f);
+        float safe = duration > 0f ? duration : 0.35f;
+        float elapsedBob = 0f;
+        while (elapsedBob < safe)
+        {
+            float t = elapsedBob / safe;
+            float wave = Mathf.Sin(t * Mathf.PI);
+            rect.anchoredPosition = Vector2.Lerp(origin, dip, wave);
+            elapsedBob += Time.deltaTime;
+            yield return null;
+        }
+
+        rect.anchoredPosition = origin;
+    }
+
+    public IEnumerator PlayQuietTail(float duration)
+    {
+        var rect = feifeiCharacter != null ? feifeiCharacter.transform as RectTransform : null;
+        if (rect == null)
+            yield break;
+
+        SetPose(8, 15, 5f);
+        float safeDuration = duration > 0f ? duration : 1f;
+        float elapsedSweep = 0f;
+        while (elapsedSweep < safeDuration)
+        {
+            float t = elapsedSweep / safeDuration;
+            float swing = Mathf.Sin(t * Mathf.PI) * 6f;
+            rect.localRotation = Quaternion.Euler(0f, 0f, poseTiltZ + swing);
+            elapsedSweep += Time.deltaTime;
+            yield return null;
+        }
+
+        ApplyBeatTransform();
     }
 
     public IEnumerator PlayTailSweep(float duration)
@@ -239,20 +315,35 @@ public class FeifeiCharacterView : MonoBehaviour
 
         SetPose(19, 26, 12f);
         Transform target = feifeiCharacter.transform;
-        Quaternion origin = target.localRotation;
         float elapsedSweep = 0f;
         float safeDuration = duration > 0f ? duration : 1f;
         while (elapsedSweep < safeDuration)
         {
             float t = elapsedSweep / safeDuration;
             float swing = Mathf.Sin(t * Mathf.PI * 2f) * 8f;
-            target.localRotation = origin * Quaternion.Euler(0f, 0f, swing);
+            target.localRotation = Quaternion.Euler(0f, 0f, poseTiltZ + swing);
             elapsedSweep += Time.deltaTime;
             yield return null;
         }
 
-        target.localRotation = origin;
+        ApplyBeatTransform();
         SetPose(9, 16, 8f);
+    }
+
+    private void SetBeatTransform(float tiltZ, Vector2 shift)
+    {
+        poseTiltZ = tiltZ;
+        offerShift = shift;
+        ApplyBeatTransform();
+    }
+
+    private void ApplyBeatTransform()
+    {
+        var rect = feifeiCharacter != null ? feifeiCharacter.transform as RectTransform : null;
+        if (rect == null)
+            return;
+        rect.localRotation = Quaternion.Euler(0f, 0f, poseTiltZ);
+        rect.anchoredPosition = restAnchored + offerShift;
     }
 
     public IEnumerator FadeAlpha(float from, float to, float duration)

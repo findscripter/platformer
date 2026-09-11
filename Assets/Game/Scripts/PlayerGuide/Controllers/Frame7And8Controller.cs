@@ -68,7 +68,7 @@ public class Frame7And8Controller
     {
         string userInput = gameContext?.PlayerDreamInput ?? "";
 
-        if (DreamInputValidator.NeedsFollowUp(userInput))
+        if (!dreamInputView.UsedSampleDream && DreamInputValidator.NeedsFollowUp(userInput))
         {
             inputState.IsInFollowUpState = true;
 
@@ -91,6 +91,9 @@ public class Frame7And8Controller
             yield return dreamInputView.FadeOut(0.3f);
         }
         dreamInputView.SetPanelActive(false);
+
+        if (GameLoop.Instance != null && gameContext != null)
+            GameLoop.Instance.StartCoroutine(DreamLetterClient.Analyze(gameContext));
     }
 
     private void HandleReInputSubmit()

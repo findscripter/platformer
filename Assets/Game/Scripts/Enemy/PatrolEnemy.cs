@@ -118,10 +118,19 @@ public sealed class PatrolEnemy : MonoBehaviour
             return;
 
         PlayerController player = other.GetComponentInParent<PlayerController>();
-        if (player != null)
+        if (player == null)
+            return;
+
+        Rigidbody2D playerBody = player.GetComponent<Rigidbody2D>();
+        if (playerBody != null && playerBody.linearVelocity.y < -0.15f &&
+            player.transform.position.y > transform.position.y + 0.1f)
         {
-            player.TakeDamage(contactDamage);
+            TakeDamage(1);
+            playerBody.linearVelocity = new Vector2(playerBody.linearVelocity.x, 6.5f);
+            return;
         }
+
+        player.TakeDamage(contactDamage);
     }
 
     public void SetHealthMultiplier(int multiplier)
@@ -145,6 +154,10 @@ public sealed class PatrolEnemy : MonoBehaviour
     {
         if (!IsAlive || amount <= 0)
             return false;
+
+        GameLoop.Instance?.Context?.DreamRun?.Log(
+            "combat",
+            currentHealth <= amount ? "击退了路上的阻力" : "与路上的阻力接触");
 
         currentHealth = Mathf.Max(0, currentHealth - amount);
 

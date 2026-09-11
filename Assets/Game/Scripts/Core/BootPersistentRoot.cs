@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 public class BootPersistentRoot : MonoBehaviour
 {
@@ -22,25 +21,13 @@ public class BootPersistentRoot : MonoBehaviour
     private void EnsureInteractionPrompt()
     {
         Transform prompt = transform.Find("UI/Canvas_Prompt/InteractionPrompt");
-        if (prompt == null || prompt.GetComponent<InteractionPromptController>() != null)
+        if (prompt == null)
             return;
 
-        var labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
-        labelObject.transform.SetParent(prompt, false);
-        RectTransform labelRect = labelObject.GetComponent<RectTransform>();
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = Vector2.zero;
-        labelRect.offsetMax = Vector2.zero;
-
-        var promptText = labelObject.GetComponent<Text>();
-        promptText.alignment = TextAnchor.MiddleCenter;
-        promptText.color = Color.white;
-        promptText.fontSize = 22;
-        promptText.text = "[E] 交互";
-
-        prompt.gameObject.AddComponent<InteractionPromptController>();
-        prompt.gameObject.SetActive(false);
+        // 主机必须一直开着才能订阅交互焦点；只隐藏文案，不要把整个物体关掉。
+        prompt.gameObject.SetActive(true);
+        if (prompt.GetComponent<InteractionPromptController>() == null)
+            prompt.gameObject.AddComponent<InteractionPromptController>();
     }
 
     private void FixZeroScaleCanvases()

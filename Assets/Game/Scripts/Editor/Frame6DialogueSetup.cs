@@ -28,29 +28,69 @@ public static class Frame6DialogueSetup
             AssetDatabase.CreateAsset(config, OutputPath);
         }
 
-        var segments = new Frame6DialogueConfig.DialogueSegment[3];
+        var segments = new Frame6DialogueConfig.DialogueSegment[8];
         segments[0] = new Frame6DialogueConfig.DialogueSegment
         {
-            text = "如果你还记得那场梦。",
-            suggestedDuration = 1.6f,
-            feifeiAnimation = "LookAtPlayer",
-            coreGlowIntensity = 0.5f,
+            text = "……你也听见了吗？",
+            suggestedDuration = 1.5f,
+            feifeiAnimation = "CatchCore",
+            coreGlowIntensity = 0.35f,
             playCoreRipple = false
         };
         segments[1] = new Frame6DialogueConfig.DialogueSegment
         {
-            text = "我们就从那里开始吧。",
-            suggestedDuration = 2f,
-            feifeiAnimation = "Smile",
-            coreGlowIntensity = 0.8f,
-            playCoreRipple = true
+            text = "已经很久，没有人停下来听它们说话了。",
+            suggestedDuration = 1.8f,
+            feifeiAnimation = "LookDown",
+            coreGlowIntensity = 0.4f,
+            playCoreRipple = false
         };
         segments[2] = new Frame6DialogueConfig.DialogueSegment
         {
+            text = "它刚刚……还有很多话没说完。",
+            suggestedDuration = 1.9f,
+            feifeiAnimation = "TouchCore",
+            coreGlowIntensity = 0.55f,
+            playCoreRipple = true
+        };
+        segments[3] = new Frame6DialogueConfig.DialogueSegment
+        {
+            text = "每一个梦，好像都想告诉主人一些事情。",
+            suggestedDuration = 1.8f,
+            feifeiAnimation = "LookAtPlayer",
+            coreGlowIntensity = 0.5f,
+            playCoreRipple = false
+        };
+        segments[4] = new Frame6DialogueConfig.DialogueSegment
+        {
+            text = "只是很多人醒来以后，就忘记回头听了。",
+            suggestedDuration = 2f,
+            feifeiAnimation = "QuietHold",
+            coreGlowIntensity = 0.28f,
+            playCoreRipple = false
+        };
+        segments[5] = new Frame6DialogueConfig.DialogueSegment
+        {
+            text = "如果你还记得。",
+            suggestedDuration = 1.3f,
+            feifeiAnimation = "LookAtPlayer",
+            coreGlowIntensity = 0.6f,
+            playCoreRipple = true
+        };
+        segments[6] = new Frame6DialogueConfig.DialogueSegment
+        {
+            text = "我们一起去看看，它到底想告诉你什么。",
+            suggestedDuration = 2.1f,
+            feifeiAnimation = "OfferCore",
+            coreGlowIntensity = 0.85f,
+            playCoreRipple = false
+        };
+        segments[7] = new Frame6DialogueConfig.DialogueSegment
+        {
             text = "",
-            suggestedDuration = 0.8f,
-            feifeiAnimation = "",
-            coreGlowIntensity = 0f,
+            suggestedDuration = 0.9f,
+            feifeiAnimation = "HoldCore",
+            coreGlowIntensity = 1f,
             playCoreRipple = false
         };
 

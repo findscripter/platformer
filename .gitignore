@@ -132,6 +132,10 @@ Assets/Screenshots.meta
 
 # Agent 一次性脚本
 __pycache__/
+
+# 本地梦笺代理密钥，不得入库
+Tools/DreamLetterProxy/.env
+.env
 *.pyc
 /_unity_mcp.py
 /_walk_a.py

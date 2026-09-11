@@ -297,6 +297,17 @@
                 },
                 {
                     "name": "",
+                    "id": "c8e1a04f-6b2d-4f11-9a33-7d0b2e91c4aa",
+                    "path": "<Keyboard>/k",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "Attack",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
                     "id": "f9b7dbc3-9975-4e6d-b8b9-4ac6dbc64055",
                     "path": "<Keyboard>/f",
                     "interactions": "",

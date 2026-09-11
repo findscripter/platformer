@@ -69,10 +69,6 @@ public class PlayingState : IGameState
         if (!clear)
             return;
 
-        TarotResultData run = context.TarotResult;
-        if (run != null && run.IsComplete() && !run.AllNodesActivated)
-            return;
-
         if (context.Player != null)
             context.Player.FreezePhysics();
 

@@ -7,9 +7,9 @@ public class CameraTargetFollow : MonoBehaviour
 
     public float minX = 0f;
     public float minY = 0f;
-    public float maxX = 68f;
-    public float maxY = 8f;
-    [SerializeField] private Vector3 followOffset = new Vector3(0.6f, 0.35f, 0f);
+    public float maxX = 500f;
+    public float maxY = 16f;
+    [SerializeField] private Vector3 followOffset = new Vector3(0.6f, 1.05f, 0f);
     [SerializeField] private float verticalLookAhead = 1.5f;
 
     private Camera cam;
@@ -29,37 +29,25 @@ public class CameraTargetFollow : MonoBehaviour
         if (player == null)
             return;
 
-        if (cam == null)
-            cam = GetComponent<Camera>();
+        ResolveViewCamera();
 
-        float halfH = cam != null && cam.orthographic ? cam.orthographicSize : 2.8f;
+        float halfH = cam != null && cam.orthographic ? cam.orthographicSize : 5.5f;
         float halfW = halfH * (cam != null ? cam.aspect : 16f / 9f);
 
-        // 计算垂直预判：如果玩家向上移动（跳跃），相机稍微往上看
         float verticalOffset = 0f;
-        if (lastPlayerPosition != Vector3.zero)
+        if (lastPlayerPosition != Vector3.zero && Time.deltaTime > 0.0001f)
         {
             float verticalVelocity = (player.position.y - lastPlayerPosition.y) / Time.deltaTime;
             if (verticalVelocity > 0.1f)
-            {
                 verticalOffset = Mathf.Clamp(verticalVelocity * 0.2f, 0f, verticalLookAhead);
-            }
+            else if (verticalVelocity < -0.1f)
+                verticalOffset = Mathf.Clamp(verticalVelocity * 0.15f, -verticalLookAhead, 0f);
         }
         lastPlayerPosition = player.position;
 
         Vector3 pos = player.position + followOffset + new Vector3(0f, verticalOffset, 0f);
         pos.z = transform.position.z;
-
-        float xMin = minX + halfW;
-        float xMax = maxX - halfW;
-        if (xMin <= xMax)
-            pos.x = Mathf.Clamp(pos.x, xMin, xMax);
-
-        float yMin = minY + halfH;
-        float yMax = maxY - halfH;
-        if (yMin <= yMax)
-            pos.y = Mathf.Clamp(pos.y, yMin, yMax);
-
+        ClampToFollowBounds(ref pos, halfW, halfH);
         transform.position = pos;
     }
 
@@ -71,25 +59,14 @@ public class CameraTargetFollow : MonoBehaviour
         if (player == null)
             return;
 
-        if (cam == null)
-            cam = GetComponent<Camera>();
+        ResolveViewCamera();
 
-        float halfH = cam != null && cam.orthographic ? cam.orthographicSize : 2.8f;
+        float halfH = cam != null && cam.orthographic ? cam.orthographicSize : 5.5f;
         float halfW = halfH * (cam != null ? cam.aspect : 16f / 9f);
 
         Vector3 pos = player.position + followOffset;
         pos.z = transform.position.z;
-
-        float xMin = minX + halfW;
-        float xMax = maxX - halfW;
-        if (xMin <= xMax)
-            pos.x = Mathf.Clamp(pos.x, xMin, xMax);
-
-        float yMin = minY + halfH;
-        float yMax = maxY - halfH;
-        if (yMin <= yMax)
-            pos.y = Mathf.Clamp(pos.y, yMin, yMax);
-
+        ClampToFollowBounds(ref pos, halfW, halfH);
         transform.position = pos;
         lastPlayerPosition = player.position;
 
@@ -108,6 +85,32 @@ public class CameraTargetFollow : MonoBehaviour
         minX = roomMinX;
         maxX = roomMaxX;
         minY = roomMinY;
-        maxY = roomMaxY;
+        maxY = Mathf.Max(roomMaxY, roomMinY + 16f);
+    }
+
+    private void ClampToFollowBounds(ref Vector3 pos, float halfW, float halfH)
+    {
+        float xMin = minX + halfW;
+        float xMax = maxX - halfW;
+        if (xMin <= xMax)
+            pos.x = Mathf.Clamp(pos.x, xMin, xMax);
+
+        // 视口约 11 高时，用整屏 halfH 夹紧会把 Y 锁死在中线。
+        // 垂直跟随时只留一点边，让镜头能跟着跳跃和高台走。
+        float yPad = Mathf.Min(halfH * 0.25f, 1.2f);
+        float yMin = minY + yPad;
+        float yMaxBound = maxY - yPad;
+        if (yMin <= yMaxBound)
+            pos.y = Mathf.Clamp(pos.y, yMin, yMaxBound);
+    }
+
+    private void ResolveViewCamera()
+    {
+        if (cam != null && cam.isActiveAndEnabled)
+            return;
+
+        cam = Camera.main;
+        if (cam == null)
+            cam = GetComponent<Camera>();
     }
 }

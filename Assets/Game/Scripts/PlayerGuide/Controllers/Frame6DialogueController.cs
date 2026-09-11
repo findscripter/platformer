@@ -77,32 +77,33 @@ public class Frame6DialogueController
         if (segment == null)
             yield break;
 
+        string beat = segment.feifeiAnimation;
+        feifeiView.PlayMeetingBeat(beat);
+
         if (string.IsNullOrWhiteSpace(segment.text))
         {
-            // TODO: 播放 Fade 动画
-            yield return new WaitForSeconds(segment.suggestedDuration);
+            yield return dreamCoreView.ExpandHalo(Mathf.Max(0.7f, segment.suggestedDuration));
+            yield return dialogueView.FadeOut(0.35f);
             yield break;
         }
+
+        if (beat == "CatchCore")
+            yield return feifeiView.PlayCatchBob(0.4f);
+
+        if (segment.playCoreRipple)
+            dreamCoreView.StartCoroutine(dreamCoreView.PlayPurpleRipple());
+        else
+            dreamCoreView.StartCoroutine(dreamCoreView.LerpGlow(segment.coreGlowIntensity, 0.28f));
+
+        if (beat == "QuietHold")
+            feifeiView.StartCoroutine(feifeiView.PlayQuietTail(segment.suggestedDuration));
 
         dialogueView.SetSpeaker("腓腓");
         yield return dialogueView.PlayTypewriter(segment.text, 0.05f);
 
-        feifeiView.SafePlayState(segment.feifeiAnimation);
-
-        if (segment.coreGlowIntensity > 0f)
-        {
-            dreamCoreView.SetGlowAlpha(segment.coreGlowIntensity);
-        }
-
-        if (segment.playCoreRipple)
-        {
-            yield return dreamCoreView.PlayRipple();
-        }
-
         dialogueState.IsWaitingForDialogueAdvance = true;
         float elapsed = 0f;
         float hold = Mathf.Max(0.4f, segment.suggestedDuration);
-
         while (dialogueState.IsWaitingForDialogueAdvance && elapsed < hold)
         {
             elapsed += Time.deltaTime;

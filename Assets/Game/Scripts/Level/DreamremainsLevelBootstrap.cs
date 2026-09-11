@@ -75,7 +75,7 @@ public static class DreamremainsLevelBootstrap
             player.transform.position = SpawnA.position + Vector3.up * 0.6f;
 
         CameraTargetFollow follow = Object.FindFirstObjectByType<CameraTargetFollow>();
-        follow?.SetRoom(0f, 30f, 0f, 8f);
+        follow?.SetRoom(0f, 30f, 0f, 16f);
         if (follow != null && player != null)
             follow.player = player.transform;
 
@@ -315,10 +315,10 @@ public static class DreamremainsLevelBootstrap
                 node.layer = LayerMask.NameToLayer(GameLayers.Collectible);
                 CircleCollider2D circle = node.AddComponent<CircleCollider2D>();
                 circle.isTrigger = true;
-                circle.radius = 0.35f;
-                node.transform.localScale = Vector3.one * 0.45f;
+                circle.radius = 0.7f;
+                node.transform.localScale = Vector3.one;
                 AddDreamCore(node.transform, 0.42f, Vector2.zero);
-                node.AddComponent<CollectibleItem>();
+                node.AddComponent<CollectibleItem>().ConfigureRegion(originX < 1f);
             }
             else if (point.Kind == "enemy")
             {
@@ -682,14 +682,15 @@ public static class DreamremainsLevelBootstrap
         string sortingLayer, int order, bool flipX = false)
     {
         SpriteRenderer sr = AddArt(parent, name, "Assets/Game/Art/Scenes/" + file, height,
-            new Vector2(x, y), sortingLayer, order);
+            new Vector2(x, y), GameLayers.BackgroundSorting, order);
         if (sr != null)
             sr.flipX = flipX;
         return sr;
     }
 
     internal static void Decoration(Transform parent, string name, string file, float height, float x, float y, float alpha,
-        bool flip, System.Random variation, float cropFraction = 1f, bool cropFromRight = false)
+        bool flip, System.Random variation, float cropFraction = 1f, bool cropFromRight = false,
+        string sortingLayer = GameLayers.BackgroundSorting, int order = -5)
     {
         Sprite sprite = LoadArt("Assets/Game/Art/Scenes/" + file);
         if (sprite == null)
@@ -704,7 +705,7 @@ public static class DreamremainsLevelBootstrap
         float opacity = Mathf.Clamp01(alpha * (0.88f + Next01(variation) * 0.18f));
         SpriteRenderer sr = AddVisual(parent, name, sprite,
             (Vector2)sprite.bounds.size * (height * scale / Mathf.Max(0.001f, sprite.bounds.size.y)),
-            new Vector2(x + jitterX, y + jitterY), GameLayers.MidgroundSorting, -5);
+            new Vector2(x + jitterX, y + jitterY), sortingLayer, order);
         if (sr == null)
             return;
         sr.color = new Color(1f, 1f, 1f, opacity);

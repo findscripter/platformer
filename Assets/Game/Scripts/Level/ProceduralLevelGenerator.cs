@@ -11,12 +11,12 @@ using System.Collections.Generic;
 ///   → 单跳水平约 6.5、爬升约 3.26
 /// 取 3.5–5.5（约 60%–85% 极限）保证可跳且不无脑。
 /// </summary>
-public class ProceduralLevelGenerator : MonoBehaviour
+public partial class ProceduralLevelGenerator : MonoBehaviour
 {
     [Header("生成参数")]
     [SerializeField] private int platformCount = 25;
     [SerializeField] private Vector2 horizontalGapRange = new Vector2(3.5f, 5.5f);
-    [SerializeField] private Vector2 verticalOffsetRange = new Vector2(-2.5f, 3.0f);
+    [SerializeField] private Vector2 verticalOffsetRange = new Vector2(-1.4f, 1.6f);
     [SerializeField] private Vector2 platformSizeRange = new Vector2(2.0f, 5f);
     // 相机房间高度是 0–8；纯累加会让高度漂出房间，夹紧又会全贴天花板。
     // 用「随机步进 + 向中线回拉」在房间内起伏。
@@ -36,8 +36,8 @@ public class ProceduralLevelGenerator : MonoBehaviour
     [Header("背景/装饰")]
     // A 区用 BG01.jpg（荷花/远山/光柱主题），B 区用 S02_BG.jpg（芦苇/云海/月亮主题）；
     // 具体由 isSceneA 决定，见 ResolveBackdropPath()。
-    [SerializeField, Range(0f, 1f)] private float smallDecorChance = 0.6f;
-    [SerializeField, Range(0f, 1f)] private float bigDecorChance = 0.4f;
+    [SerializeField, Range(0f, 1f)] private float smallDecorChance = 0.75f;
+    [SerializeField, Range(0f, 1f)] private float bigDecorChance = 0.7f;
 
     [Header("区域 / Zone")]
     // 每隔多少个平台切一段 Zone，和旧 DreamremainsLevelData 的 RoomSpec 语义一致：
@@ -68,7 +68,7 @@ public class ProceduralLevelGenerator : MonoBehaviour
     private const string SceneBBackdrop = "Assets/Game/Art/Scenes/S02/S02_BG.jpg";
 
     private readonly List<Platform> platforms = new List<Platform>();
-    private int enemyLayer, groundLayer, triggerLayer, collectibleLayer;
+    private int enemyLayer, groundLayer, triggerLayer, collectibleLayer, mechanismLayer;
     private System.Random decorRandom;
 
     private struct Platform
@@ -135,8 +135,7 @@ private static readonly DecorEntry[] SceneBSmallDecor =
 decorRandom = new System.Random(Random.Range(int.MinValue, int.MaxValue));
 
         Vector2 cursor = spawnPoint != null ? (Vector2)spawnPoint.position : Vector2.zero;
-   cursor.y = Mathf.Clamp(cursor.y, minY, maxY);
-        float midY = (minY + maxY) * 0.5f;
+   cursor.y = isSceneA ? 3.2f : 3.55f;
       RegionMinX = cursor.x;
 
     // 起始台按 cursor.y 摆放，spawnPoint 本身的 y 也要跟着夹紧后的值走，
@@ -151,20 +150,28 @@ decorRandom = new System.Random(Random.Range(int.MinValue, int.MaxValue));
    Transform savePoints = Category("SavePoints");
         Transform cameraRooms = Category("CameraRooms");
 Transform decorGroup = Category("Decorations");
+        Transform hazards = Category("Hazards");
 
 // 出生点正下方必须有一块起始台，否则玩家落地瞬间脚下空空会直接掉死。
-        BuildPlatform(terrain, -1, cursor, Mathf.Max(platformSizeRange.y, 4f), true);
+        BuildPlatform(terrain, -1, cursor, 5.4f, true);
 
+      float[] stepY = { 0.55f, 0.4f, -0.3f, 0f, -0.5f, 0.65f, 0.15f, -0.2f };
+      float[] stepX = { 4.05f, 4.15f, 3.95f, 4.3f, 4.1f, 4.0f, 4.2f, 4.35f };
+      float[] widths = { 3.7f, 2.9f, 3.4f, 4.3f, 3.2f, 2.8f, 3.8f, 4.1f };
       for (int i = 0; i < platformCount; i++)
         {
-       float w = Random.Range(platformSizeRange.x, platformSizeRange.y);
-   cursor.x += Random.Range(horizontalGapRange.x, horizontalGapRange.y);
+        int phrase = i % 8;
+       float w = widths[phrase];
+   cursor.x += stepX[phrase];
 
- // 向中线回拉，避免高度差逐段累积后漂出房间。
-     float offsetY = Random.Range(verticalOffsetRange.x, verticalOffsetRange.y);
-    cursor.y = Mathf.Clamp(cursor.y + offsetY + (midY - cursor.y) * 0.35f, minY, maxY);
+        bool isLast = i == platformCount - 1;
+     float offsetY = stepY[phrase];
+        if (i >= platformCount - 3)
+            offsetY = Mathf.Max(0.2f, Mathf.Abs(offsetY) * 0.45f);
+        if (isLast)
+            w = Mathf.Max(w, 4.8f);
+    cursor.y = Mathf.Clamp(cursor.y + offsetY, minY, maxY);
 
-  bool isLast = i == platformCount - 1;
  BuildPlatform(terrain, i, cursor, w, isLast);
 
    // 最后一个平台只做终点，不再叠玩法对象。
@@ -174,17 +181,21 @@ Transform decorGroup = Category("Decorations");
           if (i > 0)
             {
        MaybeSpawnEnemy(enemiesGroup, cursor, w, i);
+        if (i < platformCount - 4)
    MaybeSpawnCollectible(itemsGroup, cursor, w);
-     MaybeSpawnDecoration(decorGroup, cursor, i);
       }
     }
 
-        RegionMaxX = platforms.Count > 0 ? platforms[platforms.Count - 1].center.x + 4f : RegionMinX;
+        RegionMaxX = platforms.Count > 0
+            ? platforms[platforms.Count - 1].center.x + platforms[platforms.Count - 1].width * 0.5f + 12f
+            : RegionMinX;
         SpawnZoneTriggers(cameraRooms);
         SpawnCheckpoints(savePoints);
         SpawnTarotPoints(tarotGroup);
-        SpawnBackgroundDecor(decorGroup);
+        ComposeDesignedScenery(decorGroup);
+        EnsureMinimumCollectibles(itemsGroup);
         PlaceGoal();
+        SpawnTarotCarriers(terrain, hazards, tarotGroup, itemsGroup);
 
         LevelRegionRegistry.Register(isSceneA,
             new LevelRegionInfo(RegionMinX, RegionMaxX, zoneIndexBase, ZoneCount, platformsPerZone));
@@ -234,7 +245,7 @@ Transform decorGroup = Category("Decorations");
             Vector2 b = center + Vector2.up * Random.Range(1.2f, 2.2f);
        mover.Configure(a, b, Random.Range(1.2f, 1.8f));
         }
-        else if (!isGoalPlatform && Random.value < fadingPlatformChance)
+        else if (!isGoalPlatform && (index == 7 || index == 15 || Random.value < fadingPlatformChance))
         {
             Rigidbody2D body = platform.AddComponent<Rigidbody2D>();
     body.bodyType = RigidbodyType2D.Kinematic;
@@ -294,73 +305,65 @@ Sprite enemySprite = DreamremainsLevelBootstrap.LoadArt(EnemyArt);
     if (Random.value >= collectibleSpawnChance)
           return;
 
-        Vector2 pos = platformCenter + Vector2.up * 1.2f;
+        if (platforms.Count >= 2)
+        {
+            float drop = platforms[platforms.Count - 2].center.y - platformCenter.y;
+            if (drop > 1.2f)
+                return;
+        }
+
+        SpawnCollectible(parent, platformCenter);
+    }
+
+    /// <summary>
+    /// A 区传送门要收齐梦核碎片。随机可能一个都不出，这里在主路上补到至少 2 个，
+    /// 并且不放在大落差平台上，避免捡完回不到门。
+    /// </summary>
+    private void EnsureMinimumCollectibles(Transform parent)
+    {
+        if (!isSceneA || parent == null)
+            return;
+
+        const int minCount = 2;
+        int have = CollectibleTracker.Active != null ? CollectibleTracker.Active.AreaASpawned : 0;
+        if (have >= minCount || platforms.Count < 6)
+            return;
+
+        for (int i = 2; i < platforms.Count - 4 && have < minCount; i++)
+        {
+            Platform p = platforms[i];
+            float drop = platforms[i - 1].center.y - p.center.y;
+            if (drop > 1.2f)
+                continue;
+
+            SpawnCollectible(parent, p.center);
+            have++;
+        }
+
+        for (int i = 2; i < platforms.Count - 4 && have < minCount; i++)
+        {
+            SpawnCollectible(parent, platforms[i].center);
+            have++;
+        }
+    }
+
+    private void SpawnCollectible(Transform parent, Vector2 platformCenter)
+    {
+        Vector2 pos = platformCenter + Vector2.up * 1.05f;
         GameObject node = new GameObject("IT-" + Mathf.RoundToInt(pos.x));
         node.transform.SetParent(parent);
         node.transform.position = pos;
         node.layer = collectibleLayer >= 0 ? collectibleLayer : 0;
 
- CircleCollider2D circle = node.AddComponent<CircleCollider2D>();
+        CircleCollider2D circle = node.AddComponent<CircleCollider2D>();
         circle.isTrigger = true;
-        circle.radius = 0.35f;
-        node.transform.localScale = Vector3.one * 0.45f;
+        circle.radius = 0.7f;
 
-     DreamremainsLevelBootstrap.AddDreamCore(node.transform, 0.42f, Vector2.zero);
- node.AddComponent<CollectibleItem>();
-  }
-
-/// <summary>
-    /// 沿关卡长度散布纯表现层装饰（无碰撞、不影响玩法）：小型近景按较高概率逐平台撒点，
-    /// 大型远景剪影按较低概率撒点、摆在画面偏高处制造纵深。复用旧关卡的
-    /// DreamremainsLevelBootstrap.Decoration()——同样的抖动/裁切/翻转逻辑，只是改成
-    /// 沿整条随机长度的路线撒，而不是像旧版那样只摆在出生点附近的固定构图里。
-    /// </summary>
-    private void MaybeSpawnDecoration(Transform parent, Vector2 platformCenter, int index)
-    {
-        DecorEntry[] smallPool = isSceneA ? SceneASmallDecor : SceneBSmallDecor;
-
-        if (smallPool.Length > 0 && Random.value < smallDecorChance)
-        {
-            DecorEntry pick = smallPool[Random.Range(0, smallPool.Length)];
-            float y = Random.Range(0.2f, 1.0f);
-            float x = platformCenter.x + Random.Range(-1.5f, 1.5f);
-            DreamremainsLevelBootstrap.Decoration(parent, $"Decor-{index}-s", pick.File, pick.Height,
-                x, y, pick.Alpha, pick.Flip, decorRandom, pick.CropFraction, false);
-        }
+        DreamremainsLevelBootstrap.AddDreamCore(node.transform, 0.42f, Vector2.zero);
+        node.AddComponent<CollectibleItem>().ConfigureRegion(isSceneA);
     }
 
-    /// <summary>
-    /// 在整个区域范围内撒大型远景剪影，不绑在单个平台上，避免短关卡里远景全挤在出生点附近。
-    /// </summary>
-    private void SpawnBackgroundDecor(Transform parent)
-    {
-        DecorEntry[] bigPool = isSceneA ? SceneABigDecor : SceneBBigDecor;
-        if (bigPool.Length == 0 || platforms.Count == 0)
-            return;
-
-        float regionWidth = Mathf.Max(0.001f, RegionMaxX - RegionMinX);
-        int decorCount = Mathf.CeilToInt(regionWidth / 8f * bigDecorChance * 3f);
-        decorCount = Mathf.Max(3, decorCount);
-
-        float minX = RegionMinX + 5f;
-        float maxX = RegionMaxX - 5f;
-        if (maxX <= minX)
-        {
-            minX = RegionMinX;
-            maxX = RegionMaxX;
-        }
-
-        for (int i = 0; i < decorCount; i++)
-        {
-            DecorEntry pick = bigPool[Random.Range(0, bigPool.Length)];
-            float x = Random.Range(minX, maxX);
-            float y = Random.Range(2f, 8f);
-            DreamremainsLevelBootstrap.Decoration(parent, $"BgDecor-{i}", pick.File, pick.Height,
-                x, y, pick.Alpha * 0.85f, Random.value > 0.5f, decorRandom, pick.CropFraction, false);
-        }
-    }
-
-    /// <summary>
+        /// <summary>
     /// A 区负责 slot 0/1（T1/T2），B 区负责 slot 2/3（T3/T4）——按塔罗系统的固定语义
     /// 分配，不能让两个实例都生成 4 个，否则静态注册表会被互相覆盖。
     /// </summary>
@@ -385,6 +388,7 @@ Sprite enemySprite = DreamremainsLevelBootstrap.LoadArt(EnemyArt);
 
   TarotNodeInteractable tarot = node.AddComponent<TarotNodeInteractable>();
             tarot.ConfigureSlot(slot);
+            tarot.Configure("T" + (slot + 1), tarot.InteractPrompt, 2.0f);
 
             // 金色菱形标记，与检查点/机关区分开。
           SpriteRenderer mark = DreamremainsLevelBootstrap.AddVisual(node.transform, "TarotMark",
@@ -412,7 +416,7 @@ WhiteSprite(), new Vector2(0.34f, 0.34f), new Vector2(0f, 0.22f),
             node.transform.position = pos;
             node.layer = triggerLayer >= 0 ? triggerLayer : 0;
 
-   node.AddComponent<CheckpointInteractable>().Configure("CP-" + i, "记录梦核", 1.4f);
+   node.AddComponent<CheckpointInteractable>().Configure("CP-" + i, "记录梦核", 1.8f);
 
         DreamremainsLevelBootstrap.AddArt(node.transform, "DreamShrine",
  "Assets/Game/Art/Scenes/S01/25.png", 0.38f, new Vector2(0f, -0.24f));
@@ -429,7 +433,11 @@ WhiteSprite(), new Vector2(0.34f, 0.34f), new Vector2(0f, 0.22f),
 
         Platform last = platforms[platforms.Count - 1];
         if (goalPoint != null)
-       goalPoint.position = new Vector3(last.center.x, last.top + 2f, 0f);
+        {
+            goalPoint.position = new Vector3(last.center.x, last.top + 0.95f, 0f);
+            if (goalPoint.Find("Passage") == null)
+                DreamremainsLevelBootstrap.AddArt(goalPoint, "Passage", "Assets/Game/Art/Scenes/S01/5.png", 1.1f, Vector2.zero);
+        }
     }
 
     // ---- 基础设施 ----
@@ -451,6 +459,7 @@ WhiteSprite(), new Vector2(0.34f, 0.34f), new Vector2(0f, 0.22f),
         enemyLayer = LayerMask.NameToLayer(GameLayers.Enemy);
         triggerLayer = LayerMask.NameToLayer(GameLayers.Trigger);
         collectibleLayer = LayerMask.NameToLayer(GameLayers.Collectible);
+        mechanismLayer = LayerMask.NameToLayer(GameLayers.Mechanism);
         if (groundLayer < 0) groundLayer = 0;
     }
 
@@ -485,12 +494,13 @@ WhiteSprite(), new Vector2(0.34f, 0.34f), new Vector2(0f, 0.22f),
 
       GameObject node = new GameObject($"RT-{zoneIndexBase + z:D2}");
     node.transform.SetParent(parent);
-   node.transform.position = new Vector3(startX, 4f, 0f);
+        float midX = (startX + endX) * 0.5f;
+   node.transform.position = new Vector3(midX, 4f, 0f);
     node.layer = triggerLayer >= 0 ? triggerLayer : 0;
 
             BoxCollider2D box = node.AddComponent<BoxCollider2D>();
       box.isTrigger = true;
-  box.size = new Vector2(0.4f, 8f);
+  box.size = new Vector2(Mathf.Max(1f, endX - startX), 16f);
 
             node.AddComponent<ZoneTrigger>().Configure(zoneIndexBase + z, startX, endX, -4f, 12f);
       }

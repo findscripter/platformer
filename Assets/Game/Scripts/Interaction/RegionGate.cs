@@ -11,10 +11,37 @@ public sealed class RegionGate : InteractableBase
     {
         get
         {
-            TarotResultData run = GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null;
-            int missing = TarotReturnInteractable.FirstMissingNode(run, 2);
-            return missing >= 0 ? TarotReturnInteractable.ReturnPrompt(missing) : "进入下一区域";
+            CollectibleTracker tracker = CollectibleTracker.Active;
+            if (tracker != null && !tracker.AreaAComplete)
+                return "收集全部梦核碎片后进入  " + tracker.AreaACollected + "/" + tracker.AreaASpawned;
+            return "进入下一区域";
         }
+    }
+
+    protected override void OnTriggerEnter2D(Collider2D other)
+    {
+        base.OnTriggerEnter2D(other);
+        TryAutoEnter(other);
+    }
+
+    private void OnTriggerStay2D(Collider2D other)
+    {
+        TryAutoEnter(other);
+    }
+
+    private void TryAutoEnter(Collider2D other)
+    {
+        if (other.GetComponentInParent<PlayerController>() == null)
+            return;
+
+        GameContext context = GameLoop.Instance != null ? GameLoop.Instance.Context : null;
+        if (context == null)
+            return;
+
+        if (CollectibleTracker.Active != null && !CollectibleTracker.Active.AreaAComplete)
+            return;
+
+        Interact(context);
     }
 
     public override void Interact(GameContext context)
@@ -22,20 +49,14 @@ public sealed class RegionGate : InteractableBase
         if (context?.Player == null)
             return;
 
-        int missing = TarotReturnInteractable.FirstMissingNode(context.TarotResult, 2);
-        bool moved;
-        if (missing >= 0)
-        {
-            moved = TarotReturnInteractable.ReturnToSafePoint(context, missing);
-        }
-        else
-        {
-            LevelRegionInfo? regionB = LevelRegionRegistry.Get(false);
-            float minX = regionB.HasValue ? regionB.Value.MinX : destination != null ? destination.position.x - 15f : 0f;
-            float maxX = regionB.HasValue ? regionB.Value.MaxX : destination != null ? destination.position.x + 15f : 0f;
-            int zone = regionB.HasValue ? regionB.Value.ZoneBase : 4;
-            moved = MovePreservingRun(context, destination, zone, minX, maxX, false);
-        }
+        if (CollectibleTracker.Active != null && !CollectibleTracker.Active.AreaAComplete)
+            return;
+
+        LevelRegionInfo? regionB = LevelRegionRegistry.Get(false);
+        float minX = regionB.HasValue ? regionB.Value.MinX : destination != null ? destination.position.x - 15f : 0f;
+        float maxX = regionB.HasValue ? regionB.Value.MaxX : destination != null ? destination.position.x + 15f : 0f;
+        int zone = regionB.HasValue ? regionB.Value.ZoneBase : 4;
+        bool moved = MovePreservingRun(context, destination, zone, minX, maxX, false);
 
         if (moved)
             context.InteractionManager?.Unregister(this);
@@ -68,7 +89,7 @@ public sealed class RegionGate : InteractableBase
         CameraTargetFollow follow = player.GetComponentInChildren<CameraTargetFollow>();
         if (follow == null)
             follow = Object.FindAnyObjectByType<CameraTargetFollow>();
-        follow?.SetRoom(minX, maxX, 0f, 8f);
+        follow?.SetRoom(minX, maxX, 0f, 16f);
 
         // 回流不是重新结算区域：仅切换查询指针，避免 EnterZone 冻结尚未结算的离开区。
         // 正常 A→B 保留原有离区快照语义；已存在的 zone 快照两种路径都不修改。
@@ -81,6 +102,6 @@ public sealed class RegionGate : InteractableBase
     public void ConfigureDestination(Transform dest)
     {
         destination = dest;
-        Configure("TRANS-A-B", InteractPrompt, 1.4f);
+        Configure("TRANS-A-B", InteractPrompt, 2.4f);
     }
 }

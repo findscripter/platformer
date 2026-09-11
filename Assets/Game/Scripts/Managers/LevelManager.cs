@@ -60,9 +60,13 @@ public class LevelManager : MonoBehaviour
 
         if (cachedPlayerCollider != null)
         {
-            return goalTrigger.IsTouching(cachedPlayerCollider);
+            if (goalTrigger.IsTouching(cachedPlayerCollider))
+                return true;
+            ColliderDistance2D distance = goalTrigger.Distance(cachedPlayerCollider);
+            if (distance.isOverlapped || distance.distance <= 0.2f)
+                return true;
         }
 
-        return goalTrigger.bounds.Contains(player.transform.position);
+        return goalTrigger.bounds.Intersects(new Bounds(player.transform.position, Vector3.one * 0.8f));
     }
 }

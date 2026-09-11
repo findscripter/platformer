@@ -212,22 +212,95 @@ public class DreamCoreView : MonoBehaviour
 
     public IEnumerator PulseGlowToFull(float duration)
     {
+        yield return LerpGlow(1f, duration);
+    }
+
+    public void SetGlowPurple(float alpha)
+    {
+        if (dreamCoreGlow == null)
+            return;
+        dreamCoreGlow.enabled = true;
+        dreamCoreGlow.color = new Color(0.62f, 0.48f, 0.96f, Mathf.Clamp01(alpha));
+        dreamCoreGlow.rectTransform.localScale = Vector3.one * 1.18f;
+    }
+
+    public IEnumerator LerpGlow(float alpha, float duration)
+    {
         if (dreamCoreGlow == null)
             yield break;
 
-        Color startColor = dreamCoreGlow.color;
-        Color endColor = startColor;
-        endColor.a = 1f;
+        dreamCoreGlow.enabled = true;
+        Color start = dreamCoreGlow.color;
+        Color end = new Color(0.62f, 0.48f, 0.96f, Mathf.Clamp01(alpha));
+        if (duration <= 0f)
+        {
+            dreamCoreGlow.color = end;
+            yield break;
+        }
 
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            float t = elapsed / duration;
-            dreamCoreGlow.color = Color.Lerp(startColor, endColor, t);
+            dreamCoreGlow.color = Color.Lerp(start, end, elapsed / duration);
             elapsed += Time.deltaTime;
             yield return null;
         }
 
-        dreamCoreGlow.color = endColor;
+        dreamCoreGlow.color = end;
+    }
+
+    public IEnumerator PlayPurpleRipple()
+    {
+        if (dreamCoreGlow != null)
+        {
+            Transform glow = dreamCoreGlow.transform;
+            Vector3 glowFrom = Vector3.one * 1.18f;
+            Vector3 glowTo = Vector3.one * 1.85f;
+            Color start = new Color(0.62f, 0.48f, 0.96f, 0.7f);
+            Color end = new Color(0.62f, 0.48f, 0.96f, 0.2f);
+            glow.localScale = glowFrom;
+            dreamCoreGlow.color = start;
+            const float duration = 0.45f;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                float t = elapsed / duration;
+                glow.localScale = Vector3.Lerp(glowFrom, glowTo, t);
+                dreamCoreGlow.color = Color.Lerp(start, end, t);
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            glow.localScale = glowFrom;
+            dreamCoreGlow.color = new Color(0.62f, 0.48f, 0.96f, 0.45f);
+        }
+
+        yield return PlayRipple();
+    }
+
+    public IEnumerator ExpandHalo(float duration)
+    {
+        if (dreamCoreGlow == null)
+            yield break;
+
+        dreamCoreGlow.enabled = true;
+        Transform glow = dreamCoreGlow.transform;
+        Vector3 from = Vector3.one * 1.2f;
+        Vector3 to = Vector3.one * 7.5f;
+        Color start = new Color(0.58f, 0.42f, 0.95f, 0.8f);
+        Color end = new Color(0.58f, 0.42f, 0.95f, 0.02f);
+        glow.localScale = from;
+        dreamCoreGlow.color = start;
+        float safe = duration > 0.2f ? duration : 0.8f;
+        float elapsed = 0f;
+        while (elapsed < safe)
+        {
+            float t = elapsed / safe;
+            float eased = 1f - (1f - t) * (1f - t);
+            glow.localScale = Vector3.LerpUnclamped(from, to, eased);
+            dreamCoreGlow.color = Color.Lerp(start, end, t);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
     }
 }

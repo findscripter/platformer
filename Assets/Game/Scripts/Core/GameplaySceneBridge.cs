@@ -29,6 +29,7 @@ public class GameplaySceneBridge : MonoBehaviour
     private void BuildProceduralLevel()
     {
         LevelRegionRegistry.Clear();
+        CollectibleTracker.Ensure(transform).ResetRun();
 
         if (sceneAGenerator == null || sceneBGenerator == null)
         {
@@ -53,13 +54,29 @@ public class GameplaySceneBridge : MonoBehaviour
         WireFinalGoal();
 
         Transform spawnA = sceneAGenerator.GetSpawnPoint();
-        if (player != null && spawnA != null)
-            player.transform.position = spawnA.position + Vector3.up * 0.6f;
+        if (player != null)
+        {
+            int playerLayer = GameLayers.PlayerLayer;
+            if (playerLayer >= 0)
+                SetLayerRecursively(player.gameObject, playerLayer);
+            if (spawnA != null)
+            {
+                Vector3 spawnPos = spawnA.position + Vector3.up * 0.6f;
+                player.transform.position = spawnPos;
+                Rigidbody2D body = player.GetComponent<Rigidbody2D>();
+                if (body != null)
+                {
+                    body.position = spawnPos;
+                    body.linearVelocity = Vector2.zero;
+                    body.angularVelocity = 0f;
+                }
+            }
+        }
 
         CameraTargetFollow follow = FindFirstObjectByType<CameraTargetFollow>();
         if (follow != null)
         {
-            follow.SetRoom(sceneAGenerator.RegionMinX, sceneAGenerator.RegionMaxX, 0f, 8f);
+            follow.SetRoom(sceneAGenerator.RegionMinX, sceneAGenerator.RegionMaxX, 0f, 16f);
             if (player != null)
                 follow.player = player.transform;
         }
@@ -97,7 +114,11 @@ public class GameplaySceneBridge : MonoBehaviour
         if (box == null)
             box = bGoal.gameObject.AddComponent<BoxCollider2D>();
         box.isTrigger = true;
-        box.size = new Vector2(1.4f, 2.2f);
+        box.size = new Vector2(2.2f, 2.8f);
+        box.offset = new Vector2(0f, 0.2f);
+        int triggerLayer = GameLayers.TriggerLayer;
+        if (triggerLayer >= 0)
+            bGoal.gameObject.layer = triggerLayer;
 
         if (bGoal.GetComponent<TarotReturnInteractable>() == null)
             bGoal.gameObject.AddComponent<TarotReturnInteractable>();
@@ -168,5 +189,13 @@ public class GameplaySceneBridge : MonoBehaviour
     {
         var transform = FindTransform(path);
         return transform != null ? transform.GetComponent<Collider2D>() : null;
+    }
+
+    private static void SetLayerRecursively(GameObject node, int layer)
+    {
+        node.layer = layer;
+        Transform t = node.transform;
+        for (int i = 0; i < t.childCount; i++)
+            SetLayerRecursively(t.GetChild(i).gameObject, layer);
     }
 }

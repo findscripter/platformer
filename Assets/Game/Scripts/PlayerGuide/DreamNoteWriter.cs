@@ -5,7 +5,7 @@ public static class DreamNoteWriter
 {
     public static string WaitingLine()
     {
-        return "梦核正把这场旅程轻轻收进笺里……";
+        return "梦核轻轻呼吸\n等待 AI 正文返回";
     }
 
     public static string Compose(string dream, TarotResultData run)
@@ -23,12 +23,11 @@ public static class DreamNoteWriter
             ? "那场还没说完的梦"
             : dream.Trim();
 
-        if (memory.Length > 48)
-            memory = memory.Substring(0, 48) + "…";
+        if (memory.Length > 80)
+            memory = memory.Substring(0, 80) + "…";
 
-        return "梦核轻轻展开一页笺。\n"
-            + cardLine + "\n"
-            + "你还记得：" + memory + "\n"
-            + "打开看看吧。它已经替你收好了。";
+        return "梦核把这场旅程轻轻收进一页笺里。你还记得：" + memory
+            + "。这一路上遇见的是" + cardLine
+            + "。打开看看吧，它已经替你收好了。";
     }
 }
