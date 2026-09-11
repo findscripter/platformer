@@ -287,8 +287,14 @@ public class PlayerController : MonoBehaviour
                 if (platform != null && Time.fixedDeltaTime > 0f)
                     supportVelocityY = platform.FrameDelta.y / Time.fixedDeltaTime;
 
-                // An upward-moving lift carries the player upward without making them airborne.
-                if (hit.normal.y >= minimumGroundNormalY && rb.linearVelocity.y <= supportVelocityY + 0.05f)
+                if (hit.normal.y < minimumGroundNormalY)
+                    continue;
+
+                // 升降台下降时，玩家相对平台会像在「往上走」，不能因此判离地，
+                // 否则会播落地动画，也不能跟着台子下去。
+                float leaveSpeed = rb.linearVelocity.y - supportVelocityY;
+                bool jumpingOff = leaveSpeed > 2.4f;
+                if (!jumpingOff)
                 {
                     IsGrounded = true;
                     break;

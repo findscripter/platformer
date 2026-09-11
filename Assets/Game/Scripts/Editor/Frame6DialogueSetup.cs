@@ -33,7 +33,7 @@ public static class Frame6DialogueSetup
         {
             text = "……你也听见了吗？",
             suggestedDuration = 1.5f,
-            feifeiAnimation = "HoldCore",
+            feifeiAnimation = "CatchCore",
             coreGlowIntensity = 0.35f,
             playCoreRipple = false
         };
@@ -49,7 +49,7 @@ public static class Frame6DialogueSetup
         {
             text = "它刚刚……还有很多话没说完。",
             suggestedDuration = 1.9f,
-            feifeiAnimation = "HoldCore",
+            feifeiAnimation = "TouchCore",
             coreGlowIntensity = 0.55f,
             playCoreRipple = true
         };
@@ -65,7 +65,7 @@ public static class Frame6DialogueSetup
         {
             text = "只是很多人醒来以后，就忘记回头听了。",
             suggestedDuration = 2f,
-            feifeiAnimation = "HoldCore",
+            feifeiAnimation = "QuietHold",
             coreGlowIntensity = 0.28f,
             playCoreRipple = false
         };

@@ -114,7 +114,11 @@ public class GameplaySceneBridge : MonoBehaviour
         if (box == null)
             box = bGoal.gameObject.AddComponent<BoxCollider2D>();
         box.isTrigger = true;
-        box.size = new Vector2(1.4f, 2.2f);
+        box.size = new Vector2(2.2f, 2.8f);
+        box.offset = new Vector2(0f, 0.2f);
+        int triggerLayer = GameLayers.TriggerLayer;
+        if (triggerLayer >= 0)
+            bGoal.gameObject.layer = triggerLayer;
 
         if (bGoal.GetComponent<TarotReturnInteractable>() == null)
             bGoal.gameObject.AddComponent<TarotReturnInteractable>();

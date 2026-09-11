@@ -13,12 +13,12 @@ public partial class ProceduralLevelGenerator
 
         SpawnFallKill(hazards);
 
-        int aw = PickIndex(0.22f, 2, 5);
-        int hp = PickIndex(0.34f, 3, 5);
-        int sg = PickIndex(0.48f, 3, 4);
-        int fold = PickIndex(0.40f, 3, 6);
-        int hiddenA = PickIndex(0.58f, 4, 4);
-        int hiddenB = PickIndex(0.78f, 5, 3);
+        int aw = Mathf.Clamp(3, 2, platforms.Count - 3);
+        int hp = Mathf.Clamp(8, 3, platforms.Count - 3);
+        int sg = Mathf.Clamp(6, 3, platforms.Count - 3);
+        int fold = Mathf.Clamp(9, 3, platforms.Count - 4);
+        int hiddenA = Mathf.Clamp(10, 4, platforms.Count - 3);
+        int hiddenB = Mathf.Clamp(13, 5, platforms.Count - 3);
 
         SpawnAirWalk(tarotGroup, aw);
         SpawnRaiseIsland(terrain, items, hp);
@@ -89,7 +89,7 @@ public partial class ProceduralLevelGenerator
         volume.AddComponent<AirWalkVolume>().Configure(ZoneFor(index));
         SpriteRenderer current = DreamremainsLevelBootstrap.AddArt(
             volume.transform, "AirCurrent", "Assets/Game/Art/Scenes/S02/7.png",
-            0.32f, Vector2.zero, GameLayers.MidgroundSorting, -4);
+            0.32f, Vector2.zero, GameLayers.BackgroundSorting, -4);
         if (current != null)
             current.color = new Color(1f, 1f, 1f, 0.22f);
     }
@@ -100,7 +100,7 @@ public partial class ProceduralLevelGenerator
             return;
 
         Platform p = platforms[index];
-        Vector3 restTop = new Vector3(p.center.x, p.top + 1.7f, 0f);
+        Vector3 restTop = SideLedge(p, 1.4f, 0.7f, 2.4f);
         GameObject island = MakeSidePlatform(terrain, isSceneA ? "HP-A01" : "HP-B01", restTop, 2.4f);
         Rigidbody2D body = island.GetComponent<Rigidbody2D>();
         if (body == null)
@@ -140,7 +140,7 @@ public partial class ProceduralLevelGenerator
             return;
 
         Platform p = platforms[index];
-        Vector3 extra = new Vector3(p.center.x + 0.4f, p.top + heightOffset, 0f);
+        Vector3 extra = SideLedge(p, 1.5f, Mathf.Max(0.55f, heightOffset * 0.35f), 2.8f);
         extra.y = Mathf.Clamp(extra.y, minY, maxY + 2f);
         MakeSidePlatform(terrain, doorId + "-PL", extra, 2.8f);
 
@@ -190,8 +190,8 @@ public partial class ProceduralLevelGenerator
             return;
 
         Platform p = platforms[index];
-        Vector3 a = new Vector3(p.center.x, p.top + 2.3f, 0f);
-        Vector3 b = new Vector3(p.center.x + Mathf.Max(2.8f, p.width), p.top + 2.5f, 0f);
+        Vector3 a = SideLedge(p, 1.3f, 0.55f, 2.2f);
+        Vector3 b = new Vector3(a.x + 2.2f * 0.5f + 0.5f + 1.1f, a.y + 0.35f, 0f);
         a.y = Mathf.Clamp(a.y, minY, maxY + 2.2f);
         b.y = Mathf.Clamp(b.y, minY, maxY + 2.2f);
 
@@ -203,6 +203,12 @@ public partial class ProceduralLevelGenerator
         group.transform.SetParent(terrain);
         HiddenPathController controller = group.AddComponent<HiddenPathController>();
         controller.Configure(slot, new[] { plA, plB, loot });
+    }
+
+    private static Vector3 SideLedge(Platform p, float gap, float dy, float width)
+    {
+        float x = p.center.x + p.width * 0.5f + gap + width * 0.5f;
+        return new Vector3(x, p.top + dy, 0f);
     }
 
     private GameObject MakeSidePlatform(Transform parent, string id, Vector3 topCenter, float width)

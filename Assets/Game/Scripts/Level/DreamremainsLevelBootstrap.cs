@@ -682,7 +682,7 @@ public static class DreamremainsLevelBootstrap
         string sortingLayer, int order, bool flipX = false)
     {
         SpriteRenderer sr = AddArt(parent, name, "Assets/Game/Art/Scenes/" + file, height,
-            new Vector2(x, y), sortingLayer, order);
+            new Vector2(x, y), GameLayers.BackgroundSorting, order);
         if (sr != null)
             sr.flipX = flipX;
         return sr;
@@ -690,7 +690,7 @@ public static class DreamremainsLevelBootstrap
 
     internal static void Decoration(Transform parent, string name, string file, float height, float x, float y, float alpha,
         bool flip, System.Random variation, float cropFraction = 1f, bool cropFromRight = false,
-        string sortingLayer = GameLayers.MidgroundSorting, int order = -5)
+        string sortingLayer = GameLayers.BackgroundSorting, int order = -5)
     {
         Sprite sprite = LoadArt("Assets/Game/Art/Scenes/" + file);
         if (sprite == null)

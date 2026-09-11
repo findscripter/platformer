@@ -366,7 +366,7 @@ public class TarotDrawController : MonoBehaviour
             if (image != null)
             {
                 image.color = Color.white;
-                image.preserveAspect = false;
+                image.preserveAspect = true;
                 image.type = Image.Type.Simple;
                 image.raycastTarget = true;
             }
@@ -427,13 +427,12 @@ public class TarotDrawController : MonoBehaviour
         var image = card.GetComponent<Image>();
         card.transform.SetParent(transform, true);
         card.transform.SetAsLastSibling();
-        Quaternion faceRotation = Quaternion.Euler(0f, 0f, reversed ? 180f : 0f);
         bool faceShown = false;
         float elapsed = 0f;
         while (elapsed < cardFlipDuration)
         {
             float t = elapsed / cardFlipDuration;
-            // 收窄再展开，侧向不可见时换图；不再旋转到 Y=180 导致牌面镜像。
+            // 收窄再展开，侧向不可见时换图。逆位不再把立绘倒过来，改用角标。
             card.transform.localScale = new Vector3(Mathf.Abs(Mathf.Cos(t * Mathf.PI)), 1f, 1f);
             if (t >= 0.5f && !faceShown)
             {
@@ -442,8 +441,10 @@ public class TarotDrawController : MonoBehaviour
                 {
                     image.sprite = cardData.CardFace;
                     image.color = Color.white;
+                    image.preserveAspect = true;
                 }
-                card.transform.localRotation = faceRotation;
+                card.transform.localRotation = Quaternion.identity;
+                SetOrientationMark(card.transform, reversed);
             }
             elapsed += Time.unscaledDeltaTime;
             yield return null;
@@ -452,9 +453,11 @@ public class TarotDrawController : MonoBehaviour
         {
             image.sprite = cardData.CardFace;
             image.color = Color.white;
+            image.preserveAspect = true;
         }
         card.transform.localScale = Vector3.one;
-        card.transform.localRotation = faceRotation;
+        card.transform.localRotation = Quaternion.identity;
+        SetOrientationMark(card.transform, reversed);
     }
 
     private IEnumerator MoveCardToSlot(int index, int slotIndex, TarotCardData cardData, bool reversed)
@@ -481,7 +484,9 @@ public class TarotDrawController : MonoBehaviour
         face.sprite = cardData.CardFace;
         face.color = Color.white;
         face.enabled = true;
-        face.transform.localRotation = Quaternion.Euler(0f, 0f, reversed ? 180f : 0f);
+        face.preserveAspect = true;
+        face.transform.localRotation = Quaternion.identity;
+        SetOrientationMark(slot, reversed);
         slot.gameObject.SetActive(true);
         card.SetActive(false);
         instantiatedCards[index] = null;
@@ -505,10 +510,42 @@ public class TarotDrawController : MonoBehaviour
             fitter.enabled = false;
         GuideUiLayout.Stretch(face as RectTransform, Vector2.zero, Vector2.one);
         image.type = Image.Type.Simple;
-        image.preserveAspect = false;
+        image.preserveAspect = true;
         image.raycastTarget = false;
         face.gameObject.SetActive(true);
         return image;
+    }
+
+    private static void SetOrientationMark(Transform parent, bool reversed)
+    {
+        Transform existing = parent.Find("OrientationMark");
+        if (!reversed)
+        {
+            if (existing != null)
+                existing.gameObject.SetActive(false);
+            return;
+        }
+
+        GameObject go = existing != null ? existing.gameObject : new GameObject("OrientationMark", typeof(RectTransform));
+        if (existing == null)
+            go.transform.SetParent(parent, false);
+
+        var rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(1f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(1f, 1f);
+        rect.sizeDelta = new Vector2(72f, 32f);
+        rect.anchoredPosition = new Vector2(-8f, -8f);
+
+        var tmp = go.GetComponent<TMP_Text>();
+        if (tmp == null)
+            tmp = go.AddComponent<TextMeshProUGUI>();
+        GuideUiLayout.ReadableText(tmp, 22f, new Color(0.95f, 0.86f, 0.55f, 1f));
+        tmp.alignment = TextAlignmentOptions.MidlineRight;
+        tmp.text = "逆位";
+        tmp.raycastTarget = false;
+        go.SetActive(true);
+        go.transform.SetAsLastSibling();
     }
 
     private IEnumerator EmphasizeMainCard()

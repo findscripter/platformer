@@ -77,36 +77,33 @@ public class Frame6DialogueController
         if (segment == null)
             yield break;
 
+        string beat = segment.feifeiAnimation;
+        feifeiView.PlayMeetingBeat(beat);
+
         if (string.IsNullOrWhiteSpace(segment.text))
         {
-            // 6-8：梦核光晕扩开，对白淡出后进入写梦。
-            feifeiView.SafePlayState(segment.feifeiAnimation);
-            if (segment.coreGlowIntensity > 0f)
-                dreamCoreView.SetGlowAlpha(segment.coreGlowIntensity);
-            yield return dreamCoreView.PulseGlowToFull(Mathf.Max(0.45f, segment.suggestedDuration * 0.55f));
+            yield return dreamCoreView.ExpandHalo(Mathf.Max(0.7f, segment.suggestedDuration));
             yield return dialogueView.FadeOut(0.35f);
             yield break;
         }
 
-        dialogueView.SetSpeaker("腓腓");
-        yield return dialogueView.PlayTypewriter(segment.text, 0.05f);
-
-        feifeiView.SafePlayState(segment.feifeiAnimation);
-
-        if (segment.coreGlowIntensity > 0f)
-        {
-            dreamCoreView.SetGlowAlpha(segment.coreGlowIntensity);
-        }
+        if (beat == "CatchCore")
+            yield return feifeiView.PlayCatchBob(0.4f);
 
         if (segment.playCoreRipple)
-        {
-            yield return dreamCoreView.PlayRipple();
-        }
+            dreamCoreView.StartCoroutine(dreamCoreView.PlayPurpleRipple());
+        else
+            dreamCoreView.StartCoroutine(dreamCoreView.LerpGlow(segment.coreGlowIntensity, 0.28f));
+
+        if (beat == "QuietHold")
+            feifeiView.StartCoroutine(feifeiView.PlayQuietTail(segment.suggestedDuration));
+
+        dialogueView.SetSpeaker("腓腓");
+        yield return dialogueView.PlayTypewriter(segment.text, 0.05f);
 
         dialogueState.IsWaitingForDialogueAdvance = true;
         float elapsed = 0f;
         float hold = Mathf.Max(0.4f, segment.suggestedDuration);
-
         while (dialogueState.IsWaitingForDialogueAdvance && elapsed < hold)
         {
             elapsed += Time.deltaTime;

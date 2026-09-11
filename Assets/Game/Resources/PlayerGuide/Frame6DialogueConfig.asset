@@ -15,7 +15,7 @@ MonoBehaviour:
   segments:
   - text: "\u2026\u2026\u4F60\u4E5F\u542C\u89C1\u4E86\u5417\uFF1F"
     suggestedDuration: 1.5
-    feifeiAnimation: HoldCore
+    feifeiAnimation: CatchCore
     coreGlowIntensity: 0.35
     playCoreRipple: 0
   - text: "\u5DF2\u7ECF\u5F88\u4E45\uFF0C\u6CA1\u6709\u4EBA\u505C\u4E0B\u6765\u542C\u5B83\u4EEC\u8BF4\u8BDD\u4E86\u3002"
@@ -25,7 +25,7 @@ MonoBehaviour:
     playCoreRipple: 0
   - text: "\u5B83\u521A\u521A\u2026\u2026\u8FD8\u6709\u5F88\u591A\u8BDD\u6CA1\u8BF4\u5B8C\u3002"
     suggestedDuration: 1.9
-    feifeiAnimation: HoldCore
+    feifeiAnimation: TouchCore
     coreGlowIntensity: 0.55
     playCoreRipple: 1
   - text: "\u6BCF\u4E00\u4E2A\u68A6\uFF0C\u597D\u50CF\u90FD\u60F3\u544A\u8BC9\u4E3B\u4EBA\u4E00\u4E9B\u4E8B\u60C5\u3002"
@@ -35,7 +35,7 @@ MonoBehaviour:
     playCoreRipple: 0
   - text: "\u53EA\u662F\u5F88\u591A\u4EBA\u9192\u6765\u4EE5\u540E\uFF0C\u5C31\u5FD8\u8BB0\u56DE\u5934\u542C\u4E86\u3002"
     suggestedDuration: 2
-    feifeiAnimation: HoldCore
+    feifeiAnimation: QuietHold
     coreGlowIntensity: 0.28
     playCoreRipple: 0
   - text: "\u5982\u679C\u4F60\u8FD8\u8BB0\u5F97\u3002"
