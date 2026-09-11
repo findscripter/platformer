@@ -12,7 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ffe84b753dbc88f42a2862785490ea86, type: 3}
   m_Name: RuntimeArtCatalog
   m_EditorClassIdentifier: Assembly-CSharp::RuntimeArtCatalog
-  uiFont: {fileID: 11400000, guid: 7e794ed8003821b4dac6b110719e0135, type: 2}
   entries:
   - guid: cb83933569bc45344b1141bc6af262eb
     assetPath: Assets/Game/Art/Characters/feifei_idle/1.png
@@ -359,6 +358,7 @@ MonoBehaviour:
   - guid: 2033fe5a018fd9b45a37ec8c64c15755
     assetPath: Assets/Game/Art/source/Dialogue.png
     sprite: {fileID: 21300000, guid: 2033fe5a018fd9b45a37ec8c64c15755, type: 3}
+  uiFont: {fileID: 11400000, guid: 7e794ed8003821b4dac6b110719e0135, type: 2}
   dreamCoreContentRect:
     serializedVersion: 2
     x: 0.24166666
