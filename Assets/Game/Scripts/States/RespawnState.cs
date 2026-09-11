@@ -22,6 +22,7 @@ public class RespawnState : IGameState
         }
 
         context.LevelManager.ResetLevel();
+        context.DreamRun?.Log("retry", "从刚才停下的地方再走一次");
         TarotEffectApplier.Apply(context);
 
         context.StateMachine.ChangeState(GameStateType.Playing);

@@ -125,18 +125,18 @@ public class FeifeiCharacterView : MonoBehaviour
             feifeiCharacter.transform.localPosition = position;
     }
 
-    /// <summary>第一次相遇：居中偏上，给底部对白条留空。</summary>
+    /// <summary>第一次相遇：中偏右、对白条上方，和左侧玩家对看。</summary>
     public void SetMeetingLayout()
     {
         SetActive(true);
-        ApplyAnchored(new Vector2(0.52f, 0.58f), 240f);
+        ApplyAnchored(new Vector2(0.58f, 0.54f), 300f);
     }
 
-    /// <summary>写梦陪伴位：问话框左下外侧，不压输入区。</summary>
+    /// <summary>写梦陪伴位：问话框左下外侧，不压按钮。</summary>
     public void SetCompanionLayout()
     {
         SetActive(true);
-        ApplyAnchored(new Vector2(0.12f, 0.22f), 150f);
+        ApplyAnchored(new Vector2(0.07f, 0.105f), 180f);
     }
 
     private void ApplyAnchored(Vector2 anchor, float size)
@@ -222,6 +222,9 @@ public class FeifeiCharacterView : MonoBehaviour
             case "LookAtPlayer":
             case "Smile":
                 SetPose(17, 24, 9f);
+                break;
+            case "OfferCore":
+                SetPose(17, 24, 8f);
                 break;
             case "Sad":
                 SetPose(0, 7, 6f);

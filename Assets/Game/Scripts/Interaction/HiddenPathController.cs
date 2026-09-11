@@ -7,6 +7,7 @@ public sealed class HiddenPathController : MonoBehaviour
 {
     [SerializeField, Range(0, 3)] private int slotIndex;
     [SerializeField] private GameObject[] targets;
+    private bool loggedEnter;
 
     private void OnEnable()
     {
@@ -44,6 +45,37 @@ public sealed class HiddenPathController : MonoBehaviour
     {
         slotIndex = Mathf.Clamp(slot, 0, 3);
         targets = pathTargets;
+        loggedEnter = false;
         Apply(GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null);
+    }
+
+    private void Update()
+    {
+        if (loggedEnter || targets == null)
+            return;
+
+        TarotResultData run = GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null;
+        if (run == null || !run.IsHiddenPathUnlocked(slotIndex))
+            return;
+
+        PlayerController player = GameLoop.Instance.Context?.Player;
+        if (player == null)
+            return;
+
+        Vector3 pos = player.transform.position;
+        for (int i = 0; i < targets.Length; i++)
+        {
+            if (targets[i] == null || !targets[i].activeInHierarchy)
+                continue;
+            if ((targets[i].transform.position - pos).sqrMagnitude > 2.6f * 2.6f)
+                continue;
+
+            loggedEnter = true;
+            GameLoop.Instance.Context.DreamRun?.LogOnce(
+                "hidden-" + slotIndex,
+                "hidden_route_enter",
+                "走进一条原先看不见的路");
+            return;
+        }
     }
 }

@@ -8,6 +8,7 @@ public class InteractionPromptController : MonoBehaviour
     [SerializeField] private TMP_Text promptText;
 
     private const string FontAssetGuid = "7e794ed8003821b4dac6b110719e0135";
+    private IInteractable currentFocus;
 
     private void Awake()
     {
@@ -25,8 +26,17 @@ public class InteractionPromptController : MonoBehaviour
         EventCenter.Unsubscribe(GameEvents.InteractionFocusChanged, OnFocusChanged);
     }
 
+    private void Update()
+    {
+        if (currentFocus == null || promptText == null || root == null || !root.activeSelf)
+            return;
+
+        promptText.text = "[E/F]  " + currentFocus.InteractPrompt;
+    }
+
     private void OnFocusChanged(IInteractable focus)
     {
+        currentFocus = focus;
         if (focus == null || !focus.CanInteract)
         {
             Hide();
@@ -35,7 +45,7 @@ public class InteractionPromptController : MonoBehaviour
 
         EnsurePrompt();
         if (promptText != null)
-            promptText.text = "[E]  " + focus.InteractPrompt;
+            promptText.text = "[E/F]  " + focus.InteractPrompt;
 
         if (root != null)
             root.SetActive(true);
@@ -43,6 +53,7 @@ public class InteractionPromptController : MonoBehaviour
 
     private void Hide()
     {
+        currentFocus = null;
         if (root != null)
             root.SetActive(false);
     }

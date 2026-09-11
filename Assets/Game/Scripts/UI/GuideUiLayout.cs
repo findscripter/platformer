@@ -78,4 +78,56 @@ public static class GuideUiLayout
             text.outlineWidth = 0f;
         text.rectTransform.localScale = Vector3.one;
     }
+
+    public static readonly Color DialogueInk = new Color(0.12f, 0.12f, 0.16f, 1f);
+
+    /// <summary>
+    /// Dialogue.png 的 PPU 是 128，默认 9-slice 边只有几像素，金扇会被拉扁。
+    /// 把 multiplier 调到 1 纹理像素 = 1 画布单位，左右 293px 的扇才能保住形状。
+    /// </summary>
+    public static void ApplyDialogueBanner(Image image)
+    {
+        if (image == null)
+            return;
+
+        Sprite banner = GuideArt.DialogueBanner;
+        if (banner != null)
+        {
+            image.sprite = banner;
+            image.color = Color.white;
+        }
+
+        image.type = Image.Type.Sliced;
+        image.fillCenter = true;
+        image.preserveAspect = false;
+        image.raycastTarget = false;
+
+        Canvas canvas = image.canvas != null ? image.canvas.rootCanvas : null;
+        float canvasPpu = canvas != null ? canvas.referencePixelsPerUnit : 100f;
+        float spritePpu = image.sprite != null ? image.sprite.pixelsPerUnit : canvasPpu;
+        image.pixelsPerUnitMultiplier = canvasPpu / Mathf.Max(1f, spritePpu);
+    }
+
+    /// <summary>底栏对白：横幅 9-slice，正文落在左右金扇之间。</summary>
+    public static void LayoutDialogueBar(RectTransform panel, TMP_Text speaker, TMP_Text content)
+    {
+        Stretch(panel, new Vector2(0.05f, 0.045f), new Vector2(0.95f, 0.26f));
+        ApplyDialogueBanner(panel != null ? panel.GetComponent<Image>() : null);
+
+        if (speaker != null)
+        {
+            Stretch(speaker.rectTransform, new Vector2(0.24f, 0.64f), new Vector2(0.76f, 0.88f));
+            ReadableText(speaker, 26f, DialogueInk);
+            speaker.alignment = TextAlignmentOptions.Center;
+            speaker.textWrappingMode = TextWrappingModes.NoWrap;
+        }
+
+        if (content != null)
+        {
+            Stretch(content.rectTransform, new Vector2(0.24f, 0.16f), new Vector2(0.76f, 0.62f));
+            ReadableText(content, 36f, DialogueInk);
+            content.alignment = TextAlignmentOptions.Center;
+            content.textWrappingMode = TextWrappingModes.Normal;
+        }
+    }
 }

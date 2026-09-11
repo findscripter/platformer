@@ -53,7 +53,7 @@ public sealed class ZoneTrigger : MonoBehaviour
     private void UpdateCameraRoom()
     {
         TarotZoneQuery.EnterZone(zoneIndex);
-        CameraTargetFollow follow = Object.FindFirstObjectByType<CameraTargetFollow>();
-        follow?.SetRoom(roomMinX, roomMaxX, roomMinY, roomMaxY);
+        // 镜头跟随整段 A/B 区域，不再按 8 个平台切房间。
+        // 旧房间触发条只有 0.4 宽，跳一下就会错过，相机会卡在上一段右沿。
     }
 }

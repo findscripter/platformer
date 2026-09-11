@@ -6499,7 +6499,7 @@ Camera:
   far clip plane: 200
   field of view: 40
   orthographic: 1
-  orthographic size: 4
+  orthographic size: 5.5
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
@@ -13654,7 +13654,7 @@ MonoBehaviour:
   minX: 0
   minY: 0
   maxX: 180.97377
-  maxY: 8
+  maxY: 16
   followOffset: {x: 0, y: 1.05, z: 0}
 --- !u!1 &838923478
 GameObject:
@@ -19082,7 +19082,7 @@ MonoBehaviour:
     CustomLookAtTarget: 0
   Lens:
     FieldOfView: 40
-    OrthographicSize: 4
+    OrthographicSize: 5.5
     NearClipPlane: 0.1
     FarClipPlane: 200
     Dutch: 0

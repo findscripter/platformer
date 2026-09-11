@@ -35,29 +35,8 @@ public class DialogueView : MonoBehaviour
 
     public void ApplyFullWidthReadableLayout()
     {
-        if (dialoguePanel != null)
-        {
-            var rect = dialoguePanel.transform as RectTransform;
-            if (rect != null)
-            {
-                rect.anchorMin = new Vector2(0.03f, 0.04f);
-                rect.anchorMax = new Vector2(0.97f, 0.24f);
-                rect.offsetMin = Vector2.zero;
-                rect.offsetMax = Vector2.zero;
-            }
-        }
-
-        StyleBody(contentText, 36f);
-        StyleBody(speakerText, 28f);
-    }
-
-    private static void StyleBody(TMP_Text text, float size)
-    {
-        if (text == null)
-            return;
-        GuideUiLayout.ReadableText(text, size, new Color(0.12f, 0.12f, 0.16f, 1f));
-        text.alignment = TextAlignmentOptions.MidlineLeft;
-        text.textWrappingMode = TextWrappingModes.Normal;
+        GuideUiLayout.LayoutDialogueBar(dialoguePanel != null ? dialoguePanel.transform as RectTransform : null,
+            speakerText, contentText);
     }
 
     public void SetSpeaker(string speaker)
@@ -108,7 +87,7 @@ public class DialogueView : MonoBehaviour
         yield return FadeCanvasGroup(1f, 0f, duration);
     }
 
-    /// <summary>Figma Frame 7：左下玩家占位 180–220px。</summary>
+    /// <summary>第一次相遇：玩家在左下三分之一，站在对白条上方。</summary>
     public void ShowPlayerStandIn(bool visible)
     {
         if (dialoguePanel == null)
@@ -130,9 +109,11 @@ public class DialogueView : MonoBehaviour
             go.transform.SetParent(parent, false);
 
         var rect = go.GetComponent<RectTransform>();
-        rect.anchorMin = rect.anchorMax = new Vector2(0.16f, 0.42f);
-        rect.sizeDelta = new Vector2(200f, 220f);
+        rect.anchorMin = rect.anchorMax = new Vector2(0.18f, 0.46f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = new Vector2(360f, 400f);
         rect.anchoredPosition = Vector2.zero;
+        rect.localScale = Vector3.one;
 
         var image = go.GetComponent<Image>();
         var player = GuideArt.PlayerIdle;
@@ -146,6 +127,8 @@ public class DialogueView : MonoBehaviour
         if (labelTf != null)
             labelTf.gameObject.SetActive(false);
 
+        int barIndex = dialoguePanel.transform.GetSiblingIndex();
+        go.transform.SetSiblingIndex(Mathf.Max(0, barIndex));
         go.SetActive(true);
     }
 

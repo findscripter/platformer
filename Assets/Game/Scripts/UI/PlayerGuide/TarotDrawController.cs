@@ -238,24 +238,14 @@ public class TarotDrawController : MonoBehaviour
                 SetPanelActive(dialoguePanel, true);
                 if (dialoguePanel != null)
                 {
-                    GuideUiLayout.Stretch(dialoguePanel.transform as RectTransform,
-                        new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.22f));
+                    GuideUiLayout.LayoutDialogueBar(dialoguePanel.transform as RectTransform,
+                        dialogueSpeakerText, dialogueContentText);
                     dialoguePanel.transform.SetAsLastSibling();
                 }
-                GuideUiLayout.ReadableText(dialogueSpeakerText, 28f, new Color(0.12f, 0.12f, 0.16f, 1f));
-                GuideUiLayout.ReadableText(dialogueContentText, 36f, new Color(0.12f, 0.12f, 0.16f, 1f));
                 if (dialogueSpeakerText != null)
-                {
                     dialogueSpeakerText.text = "腓腓";
-                    GuideUiLayout.Stretch(dialogueSpeakerText.rectTransform,
-                        new Vector2(0.13f, 0.62f), new Vector2(0.86f, 0.88f));
-                }
                 if (dialogueContentText != null)
-                {
                     dialogueContentText.text = stateADialogues[0];
-                    GuideUiLayout.Stretch(dialogueContentText.rectTransform,
-                        new Vector2(0.13f, 0.12f), new Vector2(0.86f, 0.6f));
-                }
                 yield return FadeCanvasGroup(dialogueCanvasGroup, 0f, 1f, 0.3f);
                 indicatorPulseRoutine = StartCoroutine(PulseContinueIndicator());
                 foreach (string line in stateADialogues)
@@ -615,14 +605,7 @@ public class TarotDrawController : MonoBehaviour
         GuideUiLayout.Cover(background.GetComponent<Image>(), GuideArt.TarotBackground);
         if (dialoguePanel != null)
         {
-            var bar = dialoguePanel.GetComponent<Image>();
-            if (bar != null)
-            {
-                bar.sprite = GuideArt.DialogueBanner;
-                bar.color = Color.white;
-                bar.type = Image.Type.Sliced;
-                bar.raycastTarget = false;
-            }
+            GuideUiLayout.ApplyDialogueBanner(dialoguePanel.GetComponent<Image>());
         }
     }
 
@@ -686,7 +669,7 @@ public class TarotDrawController : MonoBehaviour
             if (card == null)
                 continue;
             float t = count <= 1 ? 0.5f : i / (float)(count - 1);
-            card.anchorMin = card.anchorMax = new Vector2(0.5f, 0.4f);
+            card.anchorMin = card.anchorMax = new Vector2(0.5f, 0.46f);
             card.pivot = new Vector2(0.5f, 0.5f);
             card.sizeDelta = fanSize;
             card.anchoredPosition = new Vector2((i - (count - 1) * 0.5f) * spacing,

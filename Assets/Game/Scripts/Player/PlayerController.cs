@@ -90,9 +90,17 @@ public class PlayerController : MonoBehaviour
         groundFilter.useTriggers = false;
 
         // 敌人碰撞体是 trigger，命中检测必须允许 trigger 参与。
+        int enemyLayer = GameLayers.EnemyLayer;
+        if (enemyLayer >= 0)
+            attackTargetLayers = 1 << enemyLayer;
         attackFilter = new ContactFilter2D();
         attackFilter.SetLayerMask(attackTargetLayers);
         attackFilter.useTriggers = true;
+        attackHitboxSize = new Vector2(
+            Mathf.Max(attackHitboxSize.x, 1.6f),
+            Mathf.Max(attackHitboxSize.y, 1.2f));
+        attackHitboxForwardOffset = Mathf.Max(attackHitboxForwardOffset, 0.9f);
+        attackHitTimeNormalized = Mathf.Clamp(attackHitTimeNormalized, 0.08f, 0.2f);
 
         currentHealth = maxHealth;
         extraAirJumpsRemaining = extraAirJumps;
@@ -425,6 +433,10 @@ public class PlayerController : MonoBehaviour
         {
             TryKill();
         }
+        else
+        {
+            GameLoop.Instance?.Context?.DreamRun?.Log("damage", "在途中受伤");
+        }
 
         return true;
     }
@@ -439,6 +451,7 @@ public class PlayerController : MonoBehaviour
 
         IsDead = true;
         animationController.UpdateAnimation(0f);
+        GameLoop.Instance?.Context?.DreamRun?.Log("death", "中途停下后重新开始");
         Debug.Log("player killed");
         return true;
     }
@@ -452,7 +465,12 @@ public class PlayerController : MonoBehaviour
     {
         UnfreezePhysics();
         transform.position = position;
-        rb.linearVelocity = Vector2.zero;
+        if (rb != null)
+        {
+            rb.position = position;
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+        }
 
         IsDead = false;
         IsInputEnabled = true;
@@ -570,6 +588,10 @@ public class PlayerController : MonoBehaviour
         Vector2 destination = target.bounds.center;
         RaycastHit2D block = Physics2D.Linecast(origin, destination, groundLayer);
         if (block.collider == null)
+            return false;
+
+        // 站在同一块平台上挥砍时，射线常擦到地面顶面，不能因此吞掉攻击。
+        if (block.normal.y >= minimumGroundNormalY)
             return false;
 
         return !block.collider.transform.IsChildOf(target.transform)

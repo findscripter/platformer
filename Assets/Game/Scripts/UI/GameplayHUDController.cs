@@ -14,8 +14,7 @@ using UnityEngine.UI;
 /// （HealthBar/EnergyBar/SkillIcons/CollectibleCounter 都是无 UI 组件的空 Transform），
 /// 由其父级 <see cref="UIManager.ShowGameplayUI"/> 激活，并在激活时补挂本组件。
 ///
-/// 设计稿风格：黑水墨梦境。血条用虹彩梦滴 (S01/26) 作图标，血格/底条用发光描边圆片
-/// (UI/circle_sprite)，收集品用白色发光逗号标点 (UI/Dialogues/4)。
+/// 设计稿风格：黑水墨梦境。左上角只显示血格；梦核图标和「梦核碎片」计数在右上角。
 /// </summary>
 public class GameplayHUDController : MonoBehaviour
 {
@@ -40,6 +39,7 @@ public class GameplayHUDController : MonoBehaviour
     private int lastMaxHealth = -1;
     private int lastHealth = -1;
     private int lastCollectCount = -1;
+    private int lastCollectSpawned = -1;
 
     private PlayerController player;
     private CollectibleTracker tracker;
@@ -71,7 +71,9 @@ public class GameplayHUDController : MonoBehaviour
 
         if (tracker == null)
         {
-            tracker = Object.FindAnyObjectByType<CollectibleTracker>();
+            tracker = CollectibleTracker.Active != null
+                ? CollectibleTracker.Active
+                : Object.FindAnyObjectByType<CollectibleTracker>();
         }
     }
 
@@ -120,15 +122,11 @@ public class GameplayHUDController : MonoBehaviour
         var canvasBackground = GetComponent<Image>();
         if (canvasBackground != null)
             canvasBackground.enabled = false;
-        if (healthIconSprite == null)
-        {
-            healthIconSprite = GuideArt.DreamCore;
-        }
-
+        // 梦核图标只给右侧碎片计数；左上角血条不再用它，避免当成收集物。
         if (collectIconSprite == null)
-        {
+            collectIconSprite = GuideArt.DreamCore;
+        if (collectIconSprite == null)
             collectIconSprite = LoadSpriteByGuid(CollectIconGuid, "Assets/Game/Art/UI/Dialogues/4.png");
-        }
 
         if (panelSprite == null)
         {
@@ -137,6 +135,7 @@ public class GameplayHUDController : MonoBehaviour
 
         healthBarPanel = BuildHealthBar();
         collectText = BuildCollectibleCounter();
+        BuildControlsHint();
     }
 
     private RectTransform BuildHealthBar()
@@ -153,20 +152,6 @@ public class GameplayHUDController : MonoBehaviour
         var panelImage = panelGo.GetComponent<Image>();
         StylePanel(panelImage);
 
-        var iconGo = new GameObject("HealthIcon", typeof(RectTransform), typeof(Image));
-        iconGo.transform.SetParent(panelGo.transform, false);
-        var iconRect = iconGo.GetComponent<RectTransform>();
-        iconRect.anchorMin = new Vector2(0f, 0.5f);
-        iconRect.anchorMax = new Vector2(0f, 0.5f);
-        iconRect.pivot = new Vector2(0f, 0.5f);
-        iconRect.anchoredPosition = new Vector2(10f, 0f);
-        iconRect.sizeDelta = new Vector2(36f, 48f);
-        var iconImage = iconGo.GetComponent<Image>();
-        iconImage.sprite = healthIconSprite;
-        iconImage.color = Color.white;
-        iconImage.preserveAspect = true;
-        iconImage.raycastTarget = false;
-
         healthText = BuildText("HealthText", panelGo.transform,
             new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
             new Vector2(-16f, 0f), new Vector2(70f, 40f), 26, TextAlignmentOptions.MidlineRight);
@@ -177,8 +162,8 @@ public class GameplayHUDController : MonoBehaviour
         slotsRect.anchorMin = new Vector2(0f, 0.5f);
         slotsRect.anchorMax = new Vector2(0f, 0.5f);
         slotsRect.pivot = new Vector2(0f, 0.5f);
-        slotsRect.anchoredPosition = new Vector2(56f, 0f);
-        slotsRect.sizeDelta = new Vector2(180f, 32f);
+        slotsRect.anchoredPosition = new Vector2(16f, 0f);
+        slotsRect.sizeDelta = new Vector2(220f, 32f);
 
         healthFillMask = slotsRect;
         healthSegments = new RectTransform[0];
@@ -197,7 +182,7 @@ public class GameplayHUDController : MonoBehaviour
         panelRect.anchorMax = new Vector2(1f, 1f);
         panelRect.pivot = new Vector2(1f, 1f);
         panelRect.anchoredPosition = new Vector2(-28f, -24f);
-        panelRect.sizeDelta = new Vector2(180f, 52f);
+        panelRect.sizeDelta = new Vector2(260f, 52f);
 
         var panelImage = panelGo.GetComponent<Image>();
         StylePanel(panelImage);
@@ -209,7 +194,7 @@ public class GameplayHUDController : MonoBehaviour
         iconRect.anchorMax = new Vector2(0f, 0.5f);
         iconRect.pivot = new Vector2(0f, 0.5f);
         iconRect.anchoredPosition = new Vector2(10f, 0f);
-        iconRect.sizeDelta = new Vector2(26f, 26f);
+        iconRect.sizeDelta = new Vector2(32f, 40f);
         var iconImage = iconGo.GetComponent<Image>();
         iconImage.sprite = collectIconSprite;
         iconImage.color = Color.white;
@@ -218,7 +203,15 @@ public class GameplayHUDController : MonoBehaviour
 
         return BuildText("CollectText", panelGo.transform,
             new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
-            new Vector2(18f, 0f), new Vector2(-52f, 0f), 26, TextAlignmentOptions.Center);
+            new Vector2(22f, 0f), new Vector2(-56f, 0f), 24, TextAlignmentOptions.Center);
+    }
+
+    private void BuildControlsHint()
+    {
+        BuildText("HUD_ControlsHint", transform,
+            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+            new Vector2(0f, 18f), new Vector2(920f, 36f), 20, TextAlignmentOptions.Center).text =
+            "跳跃 Space / W    攻击 J / 鼠标左键    交互 E / F    梦核碎片靠近即拾取";
     }
 
     private static void StylePanel(Image image)
@@ -373,20 +366,22 @@ public class GameplayHUDController : MonoBehaviour
             return;
         }
 
-        int count = tracker.CurrentCount;
+        int collected = tracker.AreaACollected;
+        int spawned = tracker.AreaASpawned;
 
-        if (count == lastCollectCount)
+        if (collected == lastCollectCount && spawned == lastCollectSpawned)
         {
             return;
         }
 
-        lastCollectCount = count;
+        lastCollectCount = collected;
+        lastCollectSpawned = spawned;
 
         if (collectText != null)
         {
-            // 项目无「目标总数」字段，CollectibleTracker.TotalValue 是已收集价值之和，
-            // 与 CurrentCount 等价，故这里只展示已收集数量，避免假的分母。
-            collectText.text = $"梦滴 {count}";
+            collectText.text = spawned > 0
+                ? $"梦核碎片 {collected}/{spawned}"
+                : $"梦核碎片 {tracker.CurrentCount}";
         }
     }
 }

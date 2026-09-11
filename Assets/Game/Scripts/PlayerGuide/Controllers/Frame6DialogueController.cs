@@ -79,8 +79,12 @@ public class Frame6DialogueController
 
         if (string.IsNullOrWhiteSpace(segment.text))
         {
-            // TODO: 播放 Fade 动画
-            yield return new WaitForSeconds(segment.suggestedDuration);
+            // 6-8：梦核光晕扩开，对白淡出后进入写梦。
+            feifeiView.SafePlayState(segment.feifeiAnimation);
+            if (segment.coreGlowIntensity > 0f)
+                dreamCoreView.SetGlowAlpha(segment.coreGlowIntensity);
+            yield return dreamCoreView.PulseGlowToFull(Mathf.Max(0.45f, segment.suggestedDuration * 0.55f));
+            yield return dialogueView.FadeOut(0.35f);
             yield break;
         }
 

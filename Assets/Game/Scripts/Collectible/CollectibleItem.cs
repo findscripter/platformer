@@ -12,6 +12,8 @@ public sealed class CollectibleItem : MonoBehaviour
 
     public bool IsCollected { get; private set; }
     public int Value => value;
+    public bool BelongsToSceneA { get; private set; } = true;
+    private bool registered;
 
     private void Awake()
     {
@@ -36,11 +38,35 @@ public sealed class CollectibleItem : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
+        TryCollect(other);
+    }
+
+    private void OnTriggerStay2D(Collider2D other)
+    {
+        TryCollect(other);
+    }
+
+    private void TryCollect(Collider2D other)
+    {
         if (IsCollected || other.GetComponentInParent<PlayerController>() == null)
             return;
 
         ResolveTracker();
-        tracker?.Collect(this, value);
+        if (tracker != null)
+            tracker.Collect(this, value);
+        else
+            MarkCollected();
+    }
+
+    public void ConfigureRegion(bool sceneA)
+    {
+        BelongsToSceneA = sceneA;
+        ResolveTracker();
+        if (tracker == null || registered || IsCollected)
+            return;
+
+        tracker.Register(this, sceneA);
+        registered = true;
     }
 
     public void MarkCollected()
@@ -57,10 +83,10 @@ public sealed class CollectibleItem : MonoBehaviour
         if (tracker != null)
             return;
 
-        tracker = GetComponentInParent<CollectibleTracker>();
+        tracker = CollectibleTracker.Active;
         if (tracker == null)
-        {
+            tracker = GetComponentInParent<CollectibleTracker>();
+        if (tracker == null)
             tracker = FindAnyObjectByType<CollectibleTracker>();
-        }
     }
 }

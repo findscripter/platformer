@@ -24,7 +24,7 @@ public sealed class LevelDecorationBackdrop : MonoBehaviour
      isSceneASide = sceneASide;
         boundaryX = boundary;
         // 相机尚未初始化时，先等比覆盖整个区域，包括 B 的末端平台。
-        Fit(new Vector3((min + max) * 0.5f, 4f, 1f), max - min, 8f);
+        Fit(new Vector3((min + max) * 0.5f, 5.5f, 1f), max - min, 11f);
   LateUpdate();
     }
 
