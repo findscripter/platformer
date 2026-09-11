@@ -14,10 +14,10 @@ using System.Collections.Generic;
 public class ProceduralLevelGenerator : MonoBehaviour
 {
     [Header("生成参数")]
-    [SerializeField] private int platformCount = 40;
+    [SerializeField] private int platformCount = 25;
     [SerializeField] private Vector2 horizontalGapRange = new Vector2(3.5f, 5.5f);
     [SerializeField] private Vector2 verticalOffsetRange = new Vector2(-2.5f, 3.0f);
-    [SerializeField] private Vector2 platformSizeRange = new Vector2(2.5f, 6f);
+    [SerializeField] private Vector2 platformSizeRange = new Vector2(2.0f, 5f);
     // 相机房间高度是 0–8；纯累加会让高度漂出房间，夹紧又会全贴天花板。
     // 用「随机步进 + 向中线回拉」在房间内起伏。
     [SerializeField] private float minY = 1.5f;
@@ -36,8 +36,8 @@ public class ProceduralLevelGenerator : MonoBehaviour
     [Header("背景/装饰")]
     // A 区用 BG01.jpg（荷花/远山/光柱主题），B 区用 S02_BG.jpg（芦苇/云海/月亮主题）；
     // 具体由 isSceneA 决定，见 ResolveBackdropPath()。
-    [SerializeField, Range(0f, 1f)] private float smallDecorChance = 0.35f;
-    [SerializeField, Range(0f, 1f)] private float bigDecorChance = 0.15f;
+    [SerializeField, Range(0f, 1f)] private float smallDecorChance = 0.6f;
+    [SerializeField, Range(0f, 1f)] private float bigDecorChance = 0.4f;
 
     [Header("区域 / Zone")]
     // 每隔多少个平台切一段 Zone，和旧 DreamremainsLevelData 的 RoomSpec 语义一致：
@@ -183,7 +183,8 @@ Transform decorGroup = Category("Decorations");
         SpawnZoneTriggers(cameraRooms);
         SpawnCheckpoints(savePoints);
         SpawnTarotPoints(tarotGroup);
-      PlaceGoal();
+        SpawnBackgroundDecor(decorGroup);
+        PlaceGoal();
 
         LevelRegionRegistry.Register(isSceneA,
             new LevelRegionInfo(RegionMinX, RegionMaxX, zoneIndexBase, ZoneCount, platformsPerZone));
@@ -317,24 +318,45 @@ Sprite enemySprite = DreamremainsLevelBootstrap.LoadArt(EnemyArt);
     private void MaybeSpawnDecoration(Transform parent, Vector2 platformCenter, int index)
     {
         DecorEntry[] smallPool = isSceneA ? SceneASmallDecor : SceneBSmallDecor;
-        DecorEntry[] bigPool = isSceneA ? SceneABigDecor : SceneBBigDecor;
 
         if (smallPool.Length > 0 && Random.value < smallDecorChance)
         {
             DecorEntry pick = smallPool[Random.Range(0, smallPool.Length)];
-         float y = Random.Range(0.2f, 1.0f);
-       float x = platformCenter.x + Random.Range(-1.5f, 1.5f);
-   DreamremainsLevelBootstrap.Decoration(parent, $"Decor-{index}-s", pick.File, pick.Height,
-    x, y, pick.Alpha, pick.Flip, decorRandom, pick.CropFraction, false);
+            float y = Random.Range(0.2f, 1.0f);
+            float x = platformCenter.x + Random.Range(-1.5f, 1.5f);
+            DreamremainsLevelBootstrap.Decoration(parent, $"Decor-{index}-s", pick.File, pick.Height,
+                x, y, pick.Alpha, pick.Flip, decorRandom, pick.CropFraction, false);
+        }
+    }
+
+    /// <summary>
+    /// 在整个区域范围内撒大型远景剪影，不绑在单个平台上，避免短关卡里远景全挤在出生点附近。
+    /// </summary>
+    private void SpawnBackgroundDecor(Transform parent)
+    {
+        DecorEntry[] bigPool = isSceneA ? SceneABigDecor : SceneBBigDecor;
+        if (bigPool.Length == 0 || platforms.Count == 0)
+            return;
+
+        float regionWidth = Mathf.Max(0.001f, RegionMaxX - RegionMinX);
+        int decorCount = Mathf.CeilToInt(regionWidth / 8f * bigDecorChance * 3f);
+        decorCount = Mathf.Max(3, decorCount);
+
+        float minX = RegionMinX + 5f;
+        float maxX = RegionMaxX - 5f;
+        if (maxX <= minX)
+        {
+            minX = RegionMinX;
+            maxX = RegionMaxX;
         }
 
-     if (bigPool.Length > 0 && Random.value < bigDecorChance)
- {
-  DecorEntry pick = bigPool[Random.Range(0, bigPool.Length)];
-            float y = Random.Range(3.5f, 7.0f);
-   float x = platformCenter.x + Random.Range(-2f, 2f);
-            DreamremainsLevelBootstrap.Decoration(parent, $"Decor-{index}-b", pick.File, pick.Height,
-        x, y, pick.Alpha, pick.Flip, decorRandom, pick.CropFraction, false);
+        for (int i = 0; i < decorCount; i++)
+        {
+            DecorEntry pick = bigPool[Random.Range(0, bigPool.Length)];
+            float x = Random.Range(minX, maxX);
+            float y = Random.Range(2f, 8f);
+            DreamremainsLevelBootstrap.Decoration(parent, $"BgDecor-{i}", pick.File, pick.Height,
+                x, y, pick.Alpha * 0.85f, Random.value > 0.5f, decorRandom, pick.CropFraction, false);
         }
     }
 

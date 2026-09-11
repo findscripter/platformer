@@ -23,10 +23,20 @@ public sealed class RegionGate : InteractableBase
             return;
 
         int missing = TarotReturnInteractable.FirstMissingNode(context.TarotResult, 2);
-        bool moved = missing >= 0
-            ? TarotReturnInteractable.ReturnToSafePoint(context, transform, missing)
-            : MovePreservingRun(context, destination, 4,
-                DreamremainsLevelBootstrap.SceneBOrigin, DreamremainsLevelBootstrap.SceneBOrigin + 34f, false);
+        bool moved;
+        if (missing >= 0)
+        {
+            moved = TarotReturnInteractable.ReturnToSafePoint(context, missing);
+        }
+        else
+        {
+            LevelRegionInfo? regionB = LevelRegionRegistry.Get(false);
+            float minX = regionB.HasValue ? regionB.Value.MinX : destination != null ? destination.position.x - 15f : 0f;
+            float maxX = regionB.HasValue ? regionB.Value.MaxX : destination != null ? destination.position.x + 15f : 0f;
+            int zone = regionB.HasValue ? regionB.Value.ZoneBase : 4;
+            moved = MovePreservingRun(context, destination, zone, minX, maxX, false);
+        }
+
         if (moved)
             context.InteractionManager?.Unregister(this);
     }
