@@ -49,6 +49,22 @@ public class BackgroundView : MonoBehaviour
         }
     }
 
+    public void SetSolidColor(Color color)
+    {
+        if (backgroundImage == null)
+            return;
+
+        backgroundImage.sprite = null;
+        backgroundImage.type = Image.Type.Simple;
+        backgroundImage.preserveAspect = false;
+        backgroundImage.color = color;
+        backgroundImage.raycastTarget = false;
+        GuideUiLayout.Stretch(backgroundImage.rectTransform, Vector2.zero, Vector2.one);
+        var fitter = backgroundImage.GetComponent<AspectRatioFitter>();
+        if (fitter != null)
+            fitter.enabled = false;
+    }
+
     public IEnumerator FadeCanvasGroup(float from, float to, float duration)
     {
         if (backgroundCanvasGroup == null)

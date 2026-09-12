@@ -235,7 +235,8 @@ public class PlayerGuideController : MonoBehaviour
             case GuideFrame.Frame6_FirstMeetingDialogue:
                 dreamInputView.SetPanelActive(false);
                 tarotView.SetPanelActive(false);
-                feifeiView.SetMeetingLayout();
+                backgroundView.SetBackgroundSprite(
+                    GuideArt.DreamBackground != null ? GuideArt.DreamBackground : view.DreamBackgroundSpriteLate);
                 break;
 
             case GuideFrame.Frame7_DreamInput:

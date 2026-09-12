@@ -173,12 +173,14 @@ public class Frame1To5Controller
         // 拾取动作开始即挂到爪前，后续走位、扫尾和会面布局都会共同移动。
         dreamCoreView.AttachTo(feifeiView.CoreHoldAnchor, Vector2.zero);
 
-        // TODO: 播放拾取音效 "core_pickup"
-
-        yield return new WaitForSeconds(view.Frame5PickupDuration);
         GuideSfx.PlayPickup();
         feifeiView.SafePlayState("HoldCore");
+        coroutineHost.StartCoroutine(HoldFlourish());
+    }
 
+    private IEnumerator HoldFlourish()
+    {
+        yield return new WaitForSeconds(view.Frame5PickupDuration);
         yield return feifeiView.PlayTailSweep(view.Frame5TailDuration);
         yield return dreamCoreView.CalmFromAgitated(0.4f);
     }

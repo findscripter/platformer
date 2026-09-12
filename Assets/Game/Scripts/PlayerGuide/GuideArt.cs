@@ -11,6 +11,7 @@ public static class GuideArt
     public const string MonsterWalkGuid = "17a32b05af2d6204ebd23731ee098375";
     public const string DreamCoreGuid = "d506798f8970fb645bec879362217bd6";
     public const string DialogueBannerGuid = "2033fe5a018fd9b45a37ec8c64c15755";
+    public const string InputPanelFrameGuid = "a5aceca37d48c1b48bf56ed497043a7b";
     public const string HintDotGuid = "41e0bc7119da43045b92e5f75de4d944";
     public const string CircleGuid = "e79b4d6c863b4124e9f6b264f6d371cb";
     public const string TarotBackgroundGuid = "d2202ed4d2c36d8478ca29b1cbb5514c";
@@ -167,6 +168,7 @@ public static class GuideArt
         }
     }
     public static Sprite DialogueBanner => Load(DialogueBannerGuid);
+    public static Sprite InputPanelFrame => Load(InputPanelFrameGuid);
     public static Sprite HintDot => Load(HintDotGuid);
     public static Sprite Circle => Load(CircleGuid);
     public static Sprite TarotBackground => Load(TarotBackgroundGuid);

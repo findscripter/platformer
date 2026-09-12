@@ -53,6 +53,8 @@ public class Frame6DialogueController
 
         for (int i = 0; i < config.SegmentCount; i++)
         {
+            if (i == 1)
+                feifeiView.SetMeetingLayout();
             yield return PlayDialogueSegment(config, i);
         }
 
@@ -88,7 +90,7 @@ public class Frame6DialogueController
         }
 
         if (beat == "CatchCore")
-            yield return feifeiView.PlayCatchBob(0.4f);
+            feifeiView.StartCoroutine(feifeiView.PlayCatchBob(0.4f));
 
         if (segment.playCoreRipple)
             dreamCoreView.StartCoroutine(dreamCoreView.PlayPurpleRipple());
