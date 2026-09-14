@@ -11,7 +11,8 @@ public class ResultState : IGameState
     {
         UnityEngine.Time.timeScale = 1f;
 
-        context.UIManager.ShowResult();
+        context.UIManager.HideAll();
+        DreamReplayPanel.Show(context);
         context.InputManager.EnableUIInput();
     }
 
@@ -29,5 +30,6 @@ public class ResultState : IGameState
 
     public void Exit()
     {
+        DreamReplayPanel.Hide();
     }
 }

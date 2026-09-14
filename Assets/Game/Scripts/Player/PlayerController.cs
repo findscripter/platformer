@@ -50,6 +50,7 @@ public class PlayerController : MonoBehaviour
     private Collider2D bodyCollider;
     private PlayerAnimationStateController animationController;
     private readonly RaycastHit2D[] groundHits = new RaycastHit2D[4];
+    private readonly Collider2D[] crushHits = new Collider2D[16];
     private ContactFilter2D groundFilter;
 
     [SerializeField] private float moveX;
@@ -190,6 +191,14 @@ public class PlayerController : MonoBehaviour
             currentHealth = Mathf.Min(currentHealth, maxHealth);
     }
 
+    public bool TryHealOne()
+    {
+        if (IsDead || currentHealth >= maxHealth)
+            return false;
+        currentHealth = Mathf.Min(maxHealth, currentHealth + 1);
+        return true;
+    }
+
     public void SetAerialAttackMode(AerialAttackMode mode)
     {
         aerialAttackMode = mode;
@@ -255,12 +264,14 @@ public class PlayerController : MonoBehaviour
             moveX = 0f;
             rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
             RideMovingPlatform();
+            CheckCrush();
             UpdateJumpBuffer(fixedDeltaTime);
             return;
         }
 
         Move(effectiveMoveX);
         RideMovingPlatform();
+        CheckCrush();
 
         if (!TryJump())
         {
@@ -448,13 +459,15 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>
-    /// 立即致死，忽略血量与无敌帧。用于坠落深渊等环境即死。
+    /// 返回检查点的死亡：环境死亡扣 1 血；普通伤害已扣到零时不重复扣血。
     /// </summary>
     public bool TryKill()
     {
         if (IsDead)
             return false;
 
+        if (currentHealth > 0)
+            currentHealth = Mathf.Max(0, currentHealth - 1);
         IsDead = true;
         animationController.UpdateAnimation(0f);
         GameLoop.Instance?.Context?.DreamRun?.Log("death", "中途停下后重新开始");
@@ -467,7 +480,7 @@ public class PlayerController : MonoBehaviour
         TryKill();
     }
 
-    public void Respawn(Vector3 position)
+    public void Respawn(Vector3 position, bool refillHealth = true)
     {
         UnfreezePhysics();
         transform.position = position;
@@ -486,7 +499,8 @@ public class PlayerController : MonoBehaviour
         jumpConsumed = false;
         leftGroundAfterJump = false;
         fallingTime = 0f;
-        currentHealth = maxHealth;
+        if (refillHealth || currentHealth <= 0)
+            currentHealth = maxHealth;
         extraAirJumpsRemaining = extraAirJumps;
         airWalkLocks = 0;
         ApplyAirWalkGravity();
@@ -578,15 +592,87 @@ public class PlayerController : MonoBehaviour
         int hitCount = bodyCollider.Cast(Vector2.down, groundFilter, groundHits, groundCheckRadius + 0.05f);
         for (int i = 0; i < hitCount; i++)
         {
-            MovingPlatform platform = groundHits[i].collider.GetComponentInParent<MovingPlatform>();
-            if (platform == null || groundHits[i].normal.y < minimumGroundNormalY)
+            if (groundHits[i].normal.y < minimumGroundNormalY)
+                continue;
+            if (!TryGetCarrierDelta(groundHits[i].collider, out Vector2 delta) || delta.sqrMagnitude < 0.0000001f)
                 continue;
 
-            rb.position += platform.FrameDelta;
-            // Carry once through position, not again through last tick's collision velocity.
+            rb.position += delta;
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
             return;
         }
+    }
+
+    private static bool TryGetCarrierDelta(Collider2D col, out Vector2 delta)
+    {
+        MovingPlatform moving = col.GetComponentInParent<MovingPlatform>();
+        if (moving != null)
+        {
+            delta = moving.FrameDelta;
+            return true;
+        }
+
+        RaisePlatform raise = col.GetComponentInParent<RaisePlatform>();
+        if (raise != null)
+        {
+            delta = raise.FrameDelta;
+            return true;
+        }
+
+        delta = Vector2.zero;
+        return false;
+    }
+
+    private void CheckCrush()
+    {
+        if (IsDead || bodyCollider == null)
+            return;
+
+        int count = Physics2D.OverlapCollider(bodyCollider, groundFilter, crushHits);
+        bool below = false;
+        bool above = false;
+        bool left = false;
+        bool right = false;
+        bool carrierInvolved = false;
+        Vector2 playerCenter = bodyCollider.bounds.center;
+
+        for (int i = 0; i < count; i++)
+        {
+            Collider2D other = crushHits[i];
+            if (other == null || other == bodyCollider || other.isTrigger)
+                continue;
+
+            ColliderDistance2D distance = Physics2D.Distance(bodyCollider, other);
+            if (!distance.isOverlapped)
+                continue;
+
+            if (TryGetCarrierDelta(other, out _))
+                carrierInvolved = true;
+
+            Vector2 otherCenter = other.bounds.center;
+            float dx = otherCenter.x - playerCenter.x;
+            float dy = otherCenter.y - playerCenter.y;
+            if (Mathf.Abs(dy) >= Mathf.Abs(dx))
+            {
+                if (dy < 0f)
+                    below = true;
+                else
+                    above = true;
+            }
+            else
+            {
+                if (dx < 0f)
+                    left = true;
+                else
+                    right = true;
+            }
+        }
+
+        // 只有被对向固体夹住、且其中有升降/移动台时才挤死。
+        // 起跳顶到高台底部只是单侧重叠，不能当成夹死。
+        bool sandwiched = (below && above) || (left && right);
+        if (sandwiched && carrierInvolved)
+            TryKill();
     }
 
     private bool IsBlockedByWall(Vector2 origin, Collider2D target)

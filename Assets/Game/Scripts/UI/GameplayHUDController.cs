@@ -40,6 +40,7 @@ public class GameplayHUDController : MonoBehaviour
     private int lastHealth = -1;
     private int lastCollectCount = -1;
     private int lastCollectSpawned = -1;
+    private int lastCollectRegion = -1;
 
     private PlayerController player;
     private CollectibleTracker tracker;
@@ -366,16 +367,20 @@ public class GameplayHUDController : MonoBehaviour
             return;
         }
 
-        int collected = tracker.AreaACollected;
-        int spawned = tracker.AreaASpawned;
+        bool sceneA = player == null
+            || player.transform.position.x < DreamremainsLevelBootstrap.SceneBOrigin;
+        int region = sceneA ? 0 : 1;
+        int collected = sceneA ? tracker.AreaACollected : tracker.AreaBCollected;
+        int spawned = sceneA ? tracker.AreaASpawned : tracker.AreaBSpawned;
 
-        if (collected == lastCollectCount && spawned == lastCollectSpawned)
+        if (collected == lastCollectCount && spawned == lastCollectSpawned && region == lastCollectRegion)
         {
             return;
         }
 
         lastCollectCount = collected;
         lastCollectSpawned = spawned;
+        lastCollectRegion = region;
 
         if (collectText != null)
         {

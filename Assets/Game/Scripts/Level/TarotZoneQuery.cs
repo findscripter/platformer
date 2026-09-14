@@ -28,9 +28,8 @@ public static class TarotZoneQuery
         if (zoneIndex < 0)
             return false;
 
-        if (run.IsZoneResolved(zoneIndex))
-            return run.ZoneHasEffect(zoneIndex, id);
-
+        // Active run effects persist on revisiting a carrier; old-room snapshots
+        // must not make a newly activated card disappear at a room boundary.
         return run.HasActiveEffect(id);
     }
 }

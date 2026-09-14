@@ -90,6 +90,7 @@ public sealed class CollectibleTracker : MonoBehaviour
         }
 
         item.MarkCollected();
+        GameLoop.Instance?.Context?.TarotResult?.RecordFragment(item.name);
         CurrentCount++;
         TotalValue += Mathf.Max(0, value);
         if (item.BelongsToSceneA)
@@ -98,5 +99,10 @@ public sealed class CollectibleTracker : MonoBehaviour
             AreaBCollected++;
         CountChanged?.Invoke(CurrentCount, TotalValue);
         GameLoop.Instance?.Context?.DreamRun?.Log("collect", "拾取梦核碎片");
+    }
+
+    public void NotifyRegionChanged()
+    {
+        CountChanged?.Invoke(CurrentCount, TotalValue);
     }
 }

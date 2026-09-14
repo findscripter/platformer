@@ -1,12 +1,13 @@
 using UnityEngine;
 
-/// <summary>
-/// 终点缺失塔罗时提供必要回流；实际节点必须由玩家重新到达并交互。
-/// 程序化关卡下塔罗点位置每局随机，回流目标改用 TarotNodeInteractable
-/// 的静态注册表按 slot 查找，不再依赖旧关卡固定的场景路径字符串。
-/// </summary>
+/// <summary>终点缺失塔罗时提供必要回流；实际节点必须由玩家重新到达并交互。</summary>
 public sealed class TarotReturnInteractable : MonoBehaviour, IInteractable
 {
+    private static readonly string[] SafePointPaths =
+    {
+        "Scene_A/SP-A01", "Scene_A/CP-A01", "Scene_B/CP-B01", "Scene_B/CP-B02"
+    };
+
     private TarotResultData CurrentRun => GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null;
 
     public Transform Transform => transform;
@@ -35,7 +36,7 @@ public sealed class TarotReturnInteractable : MonoBehaviour, IInteractable
     public void Interact(GameContext context)
     {
         int missing = FirstMissingNode(context?.TarotResult, TarotResultData.SlotCount);
-        if (missing >= 0 && ReturnToSafePoint(context, missing))
+        if (missing >= 0 && ReturnToSafePoint(context, transform, missing))
             context.InteractionManager?.Unregister(this);
     }
 
@@ -44,36 +45,47 @@ public sealed class TarotReturnInteractable : MonoBehaviour, IInteractable
         // 无牌/未完成抽牌与 PlayingState 的无牌通关分支一致，不增加主线门槛。
         if (run == null || !run.IsComplete())
             return -1;
-        for (int slot = 0; slot < Mathf.Min(count, TarotResultData.SlotCount); slot++)
-            if (!run.IsNodeActivated(slot))
-                return slot;
-        return -1;
+        return run.FirstMissingRequiredNode(count);
     }
 
     internal static string ReturnPrompt(int slot)
     {
         if (slot < 0)
             return string.Empty;
-        return "第" + (slot + 1) + "处塔罗尚未解读，返回" + (slot == 0 ? "起点" : "此前的梦核");
+        return "第" + (slot + 1) + "张牌印尚未领取，返回" + (slot == 0 ? "起点" : "此前的记录点");
     }
 
-    internal static bool ReturnToSafePoint(GameContext context, int slot)
+    internal static bool ReturnToSafePoint(GameContext context, Transform origin, int slot)
     {
-        Transform safe = TarotNodeInteractable.ByIndex(slot);
+        if (origin == null || slot < 0 || slot >= SafePointPaths.Length)
+            return false;
+        Transform level = origin;
+        while (level.parent != null && level.name != DreamremainsLevelBootstrap.RootName)
+            level = level.parent;
+        Transform safe = level.name == DreamremainsLevelBootstrap.RootName ? level.Find(SafePointPaths[slot]) : null;
         if (safe == null)
         {
-            Debug.LogWarning("[TarotReturn] 塔罗点 slot=" + slot + " 未在当前关卡中注册。");
+            Debug.LogWarning("[TarotReturn] Missing safe point: " + SafePointPaths[slot]);
             return false;
         }
 
-        // slot 0/1 在 A 区，2/3 在 B 区；用生成器自己上报的区域边界，
-        // 不再假设旧关卡固定的 SceneBOrigin=34、宽度 30/34。
         bool sceneA = slot < 2;
-        LevelRegionInfo? region = LevelRegionRegistry.Get(sceneA);
-        float minX = region.HasValue ? region.Value.MinX : safe.position.x - 15f;
-        float maxX = region.HasValue ? region.Value.MaxX : safe.position.x + 15f;
-        int zone = region.HasValue ? region.Value.ZoneAt(safe.position.x) : -1;
-
+        float originX = sceneA ? 0f : DreamremainsLevelBootstrap.SceneBOrigin;
+        float localX = safe.position.x - originX;
+        float minX = originX;
+        float maxX = originX + (sceneA ? DreamremainsExpandedLayout.ALength : DreamremainsExpandedLayout.BLength);
+        int zone = -1;
+        DreamremainsLevelData.SceneSpec spec = sceneA ? DreamremainsLevelData.SceneA : DreamremainsLevelData.SceneB;
+        for (int i = 0; i < spec.Rooms.Length; i++)
+        {
+            DreamremainsLevelData.RoomSpec room = spec.Rooms[i];
+            if (localX < room.X1 || localX >= room.X2)
+                continue;
+            zone = room.ZoneIndex;
+            minX = originX + room.X1;
+            maxX = originX + room.X2;
+            break;
+        }
         return RegionGate.MovePreservingRun(context, safe, zone, minX, maxX, true);
     }
 }

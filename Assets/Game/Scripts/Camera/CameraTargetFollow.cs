@@ -18,6 +18,8 @@ public class CameraTargetFollow : MonoBehaviour
     private void Awake()
     {
         cam = GetComponent<Camera>();
+        if (transform.parent != null)
+            transform.SetParent(null, true);
         if (player != null)
         {
             lastPlayerPosition = player.position;
@@ -29,6 +31,7 @@ public class CameraTargetFollow : MonoBehaviour
         if (player == null)
             return;
 
+        FollowCurrentRegion();
         ResolveViewCamera();
 
         float halfH = cam != null && cam.orthographic ? cam.orthographicSize : 5.5f;
@@ -48,6 +51,7 @@ public class CameraTargetFollow : MonoBehaviour
         Vector3 pos = player.position + followOffset + new Vector3(0f, verticalOffset, 0f);
         pos.z = transform.position.z;
         ClampToFollowBounds(ref pos, halfW, halfH);
+        KeepBPlayerVisible(ref pos, halfW, halfH);
         transform.position = pos;
     }
 
@@ -59,6 +63,7 @@ public class CameraTargetFollow : MonoBehaviour
         if (player == null)
             return;
 
+        FollowCurrentRegion();
         ResolveViewCamera();
 
         float halfH = cam != null && cam.orthographic ? cam.orthographicSize : 5.5f;
@@ -67,6 +72,7 @@ public class CameraTargetFollow : MonoBehaviour
         Vector3 pos = player.position + followOffset;
         pos.z = transform.position.z;
         ClampToFollowBounds(ref pos, halfW, halfH);
+        KeepBPlayerVisible(ref pos, halfW, halfH);
         transform.position = pos;
         lastPlayerPosition = player.position;
 
@@ -85,7 +91,26 @@ public class CameraTargetFollow : MonoBehaviour
         minX = roomMinX;
         maxX = roomMaxX;
         minY = roomMinY;
-        maxY = Mathf.Max(roomMaxY, roomMinY + 16f);
+        maxY = Mathf.Max(roomMaxY, roomMinY + 24f);
+    }
+
+    /// <summary>
+    /// A/B 各跟一整段区域，不用紧凑稿里那几格小房间当镜头边界。
+    /// </summary>
+    public void FollowCurrentRegion()
+    {
+        if (player == null)
+            return;
+
+        float origin = 0f;
+        float length = DreamremainsExpandedLayout.ALength;
+        if (player.position.x >= DreamremainsLevelBootstrap.SceneBOrigin - 1f)
+        {
+            origin = DreamremainsLevelBootstrap.SceneBOrigin;
+            length = DreamremainsExpandedLayout.BLength;
+        }
+
+        SetRoom(origin, origin + length, -2f, 28f);
     }
 
     private void ClampToFollowBounds(ref Vector3 pos, float halfW, float halfH)
@@ -112,5 +137,32 @@ public class CameraTargetFollow : MonoBehaviour
         cam = Camera.main;
         if (cam == null)
             cam = GetComponent<Camera>();
+    }
+
+    private void KeepBPlayerVisible(ref Vector3 position, float halfW, float halfH)
+    {
+        if (player == null || player.position.x < DreamremainsLevelBootstrap.SceneBOrigin || player.position.y < -0.5f)
+            return;
+
+        var controller = player.GetComponent<PlayerController>();
+        if (controller != null && controller.IsDead)
+            return;
+
+        var body = player.GetComponent<Collider2D>();
+        Bounds bounds = body != null ? body.bounds : new Bounds(player.position, Vector3.one);
+        foreach (var renderer in player.GetComponentsInChildren<SpriteRenderer>())
+        {
+            if (renderer.enabled)
+                bounds.Encapsulate(renderer.bounds);
+        }
+
+        float left = bounds.max.x - halfW + 0.35f;
+        float right = bounds.min.x + halfW - 0.35f;
+        float bottom = bounds.max.y - halfH + 0.4f;
+        float top = bounds.min.y + halfH - 0.4f;
+        if (left <= right)
+            position.x = Mathf.Clamp(position.x, left, right);
+        if (bottom <= top)
+            position.y = Mathf.Clamp(position.y, bottom, top);
     }
 }

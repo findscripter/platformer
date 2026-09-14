@@ -5,7 +5,21 @@ using UnityEngine;
 /// </summary>
 public sealed class CheckpointInteractable : InteractableBase
 {
-    public override string InteractPrompt => "记录梦核";
+    private BoxCollider2D support;
+    public override string InteractPrompt => "记录复活点";
+    public void ConfigureSupport(BoxCollider2D platform) => support = platform;
+
+    public Vector3 SafePosition(PlayerController player)
+    {
+        if(support == null || player == null) return transform.position;
+        Collider2D body=player.GetComponent<Collider2D>();
+        float halfWidth=body!=null?body.bounds.extents.x:.25f;
+        float footOffset=body!=null?player.transform.position.y-body.bounds.min.y:.5f;
+        Bounds bed=support.bounds;
+        float margin=Mathf.Min(halfWidth+.12f,bed.extents.x*.8f);
+        return new Vector3(Mathf.Clamp(transform.position.x,bed.min.x+margin,bed.max.x-margin),
+            bed.max.y+footOffset+.08f,transform.position.z);
+    }
 
     public override void Interact(GameContext context)
     {
@@ -28,5 +42,6 @@ public sealed class CheckpointInteractable : InteractableBase
 
         context.PlayerSpawnPoint = transform;
         context.LevelManager?.SetSpawnPoint(transform);
+        Debug.Log("[Checkpoint] Recorded "+name);
     }
 }

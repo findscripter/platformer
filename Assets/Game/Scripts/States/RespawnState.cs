@@ -18,7 +18,17 @@ public class RespawnState : IGameState
 
         if (spawnPoint != null)
         {
-            context.Player.Respawn(spawnPoint.position);
+            bool sceneA = spawnPoint.position.x < DreamremainsLevelBootstrap.SceneBOrigin;
+            float origin = sceneA ? 0f : DreamremainsLevelBootstrap.SceneBOrigin;
+            int zone = DreamremainsLevelData.ZoneAt(spawnPoint.position.x - origin, sceneA);
+
+            UnityEngine.Object.FindAnyObjectByType<CameraTargetFollow>()?.FollowCurrentRegion();
+            TarotZoneQuery.ResetCurrent();
+            TarotZoneQuery.EnterZone(zone);
+            var checkpoint = spawnPoint.GetComponent<CheckpointInteractable>();
+            context.Player.Respawn(
+                checkpoint != null ? checkpoint.SafePosition(context.Player) : spawnPoint.position,
+                refillHealth: false);
         }
 
         context.LevelManager.ResetLevel();

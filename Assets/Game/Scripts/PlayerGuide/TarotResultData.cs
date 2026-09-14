@@ -5,13 +5,27 @@ using UnityEngine;
 /// 本局塔罗运行状态。字段对齐「关卡实现规则」工作表：
 /// drawnCardIds / isReversed / cardEffectsUnlocked / tarotNodesActivated /
 /// hiddenPathsUnlocked / activationSequence / foldExitCharge。
-/// 开局 22 抽 4，正逆位独立随机；T1–T4 才激活对应槽位。
+/// 四牌开局待激活，四阶段按顺序领取；E09 只提示剩余牌印。
 /// </summary>
 [System.Serializable]
 public class TarotResultData
 {
     public const int SlotCount = 4;
     public const int ZoneCount = 9;
+    [SerializeField] private List<string> completedRoutes = new List<string>();
+    [SerializeField] private bool transitionDialogueSeen;
+    public IReadOnlyList<string> CompletedRoutes => completedRoutes;
+    [SerializeField] private List<string> collectedFragmentIds=new List<string>();
+    public int FragmentCount=>collectedFragmentIds.Count;
+    public void RecordFragment(string id)
+    {
+        if(!string.IsNullOrEmpty(id)&&!collectedFragmentIds.Contains(id))collectedFragmentIds.Add(id);
+    }
+    public bool TransitionDialogueSeen { get => transitionDialogueSeen; set => transitionDialogueSeen=value; }
+    public void RecordRoute(string id)
+    {
+        if(!string.IsNullOrEmpty(id) && !completedRoutes.Contains(id))completedRoutes.Add(id);
+    }
 
     [SerializeField] private TarotCardData[] drawnCards = new TarotCardData[SlotCount];
     [SerializeField] private bool[] isReversed = new bool[SlotCount];
@@ -35,6 +49,8 @@ public class TarotResultData
 
     public void BeginRun(TarotCardData[] cards, bool[] reversed)
     {
+        completedRoutes.Clear();transitionDialogueSeen=false;
+        collectedFragmentIds.Clear();
         for (int i = 0; i < SlotCount; i++)
         {
             drawnCards[i] = cards != null && i < cards.Length ? cards[i] : null;
@@ -52,6 +68,8 @@ public class TarotResultData
             zoneResolved[z] = false;
             zoneEffectMask[z] = 0;
         }
+
+        // 抽取不发放效果，实际领取阶段牌印后才生效。
     }
 
     public bool IsComplete()
@@ -106,6 +124,17 @@ public class TarotResultData
         }
     }
 
+    public bool RequiredNodesActivated => FirstMissingRequiredNode(SlotCount) < 0 && IsComplete();
+
+    public int FirstMissingRequiredNode(int beforeSlot)
+    {
+        // 四阶段均必需，转场检查前两阶段，终点检查全部。
+        for (int slot = 0; slot < Mathf.Min(beforeSlot, SlotCount); slot++)
+            if (!tarotNodesActivated[slot])
+                return slot;
+        return -1;
+    }
+
     public bool HasActiveEffect(TarotEffectId id)
     {
         if (id == TarotEffectId.E00)
@@ -156,31 +185,31 @@ public class TarotResultData
 
     public bool ActivateNode(int slot)
     {
-        if (slot < 0 || slot >= SlotCount || drawnCards[slot] == null)
+        if (!IsComplete() || slot < 0 || slot >= SlotCount || slot != FirstMissingRequiredNode(SlotCount))
             return false;
         if (tarotNodesActivated[slot])
             return false;
 
         tarotNodesActivated[slot] = true;
-        cardEffectsUnlocked[slot] = true;
         hiddenPathsUnlocked[slot] = true;
+        UnlockEffect(slot);
+        return true;
+    }
+
+    private void UnlockEffect(int slot)
+    {
+        // 重复领取不改变激活顺序。
+        if (cardEffectsUnlocked[slot])
+            return;
+        cardEffectsUnlocked[slot] = true;
         activationSequence[slot] = nextActivationOrder++;
 
         TarotEffectId effect = GetSlotEffect(slot);
-        if (effect == TarotEffectId.E09)
-        {
-            for (int i = 0; i < SlotCount; i++)
-            {
-                cardEffectsUnlocked[i] = true;
-                if (activationSequence[i] < 0)
-                    activationSequence[i] = activationSequence[slot];
-            }
-        }
+        // E09 由节点提示层读取，不提前激活其余牌。
 
         if (effect == TarotEffectId.E06)
             foldExitCharge++;
 
-        return true;
     }
 
     public bool TryConsumeFoldCharge()

@@ -1,5 +1,24 @@
 using UnityEngine;
 
+/// <summary>补给只回 1 血，不计入梦核碎片。</summary>
+public sealed class DreamSupplyChest : MonoBehaviour
+{
+    private bool used;
+
+    private void OnTriggerEnter2D(Collider2D other) => TryUse(other);
+
+    private void OnTriggerStay2D(Collider2D other) => TryUse(other);
+
+    private void TryUse(Collider2D other)
+    {
+        var player = other.GetComponentInParent<PlayerController>();
+        if (used || player == null || !player.TryHealOne())
+            return;
+        used = true;
+        gameObject.SetActive(false);
+    }
+}
+
 [RequireComponent(typeof(Collider2D))]
 public sealed class CollectibleItem : MonoBehaviour
 {

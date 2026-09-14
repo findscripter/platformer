@@ -10,6 +10,7 @@ public sealed class MechanismTrigger : MonoBehaviour
     [SerializeField] private bool once = true;
 
     private bool fired;
+    public bool HasFired => fired;
 
     public string TriggerId => string.IsNullOrWhiteSpace(triggerId) ? name : triggerId;
 

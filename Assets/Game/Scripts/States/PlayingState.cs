@@ -12,6 +12,7 @@ public class PlayingState : IGameState
     public void Enter()
     {
         UnityEngine.Time.timeScale = 1f;
+        context.Player?.UnfreezePhysics();
 
         context.UIManager.ShowGameplayUI();
         context.InputManager.EnableGameplayInput();
@@ -67,6 +68,10 @@ public class PlayingState : IGameState
     {
         bool clear = context.LevelManager.CheckLevelClear(context.Player);
         if (!clear)
+            return;
+
+        TarotResultData run = context.TarotResult;
+        if (run != null && run.IsComplete() && !run.RequiredNodesActivated)
             return;
 
         if (context.Player != null)

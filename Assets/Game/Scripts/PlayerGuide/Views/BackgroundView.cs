@@ -12,6 +12,8 @@ public class BackgroundView : MonoBehaviour
     [SerializeField] private AudioSource dreamEchoAudioSource;
     [SerializeField] private Image backgroundImage;
 
+    private CanvasGroup sceneMistGroup;
+
     private void Awake()
     {
         GuideUiLayout.ConfigureCanvas(this);
@@ -35,9 +37,32 @@ public class BackgroundView : MonoBehaviour
     public void SetAlpha(float alpha)
     {
         if (backgroundCanvasGroup != null)
-        {
             backgroundCanvasGroup.alpha = alpha;
-        }
+        if (sceneMistGroup != null)
+            sceneMistGroup.alpha = alpha;
+    }
+
+    /// <summary>
+    /// 在画布背景之上、泡泡之下铺场景雾。独立于背景 Cover 缩放，避免切图块跟着被拉成 UI 卡片。
+    /// </summary>
+    public void EnsureSceneMist()
+    {
+        Transform canvasRoot = transform.parent != null ? transform.parent : transform;
+        Transform root = GuideFx.EnsureSceneMist(canvasRoot, transform.GetSiblingIndex() + 1);
+        sceneMistGroup = root != null ? root.GetComponent<CanvasGroup>() : null;
+        if (sceneMistGroup != null)
+            sceneMistGroup.alpha = backgroundCanvasGroup != null ? backgroundCanvasGroup.alpha : 1f;
+        if (root == null)
+            return;
+
+        for (int i = 0; i < root.childCount; i++)
+            StartCoroutine(GuideFx.Drift(root.GetChild(i), 0.12f + i * 0.03f));
+    }
+
+    public IEnumerator DissipateSceneMist(float duration)
+    {
+        Transform canvasRoot = transform.parent != null ? transform.parent : transform;
+        yield return GuideFx.DissipateScene(canvasRoot, duration);
     }
 
     public void SetBackgroundSprite(Sprite sprite)
@@ -74,12 +99,17 @@ public class BackgroundView : MonoBehaviour
         while (elapsed < duration)
         {
             float t = elapsed / duration;
-            backgroundCanvasGroup.alpha = Mathf.Lerp(from, to, t);
+            float alpha = Mathf.Lerp(from, to, t);
+            backgroundCanvasGroup.alpha = alpha;
+            if (sceneMistGroup != null)
+                sceneMistGroup.alpha = alpha;
             elapsed += Time.deltaTime;
             yield return null;
         }
 
         backgroundCanvasGroup.alpha = to;
+        if (sceneMistGroup != null)
+            sceneMistGroup.alpha = to;
     }
 
     public void PlayDreamEcho()

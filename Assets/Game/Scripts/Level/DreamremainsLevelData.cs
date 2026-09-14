@@ -9,6 +9,7 @@ public static class DreamremainsLevelData
         public string Type;
         public bool Raise;
         public float MoveX;
+        public float MoveX2; // Optional horizontal destination, zero retains legacy vertical movement.
         public float MoveY1;
         public float MoveY2;
     }
@@ -97,7 +98,7 @@ public static class DreamremainsLevelData
             P("PL-A12", 26.7f, 5.3f, 2.0f, "normal"),
             P("PL-A13", 28.8f, 4.5f, 1.6f, "normal"),
             P("FP-A01a", 12.3f, 5.5f, 0.9f, "fading"),
-  P("FP-A01b", 13.5f, 5.2f, 0.9f, "fading"),
+            P("FP-A01b", 13.5f, 5.1f, 0.9f, "fading"),
             P("FP-A01c", 14.7f, 5.5f, 0.9f, "fading"),
             P("TH-A01", 12.7f, 0.8f, 1.8f, "hidden"),
             P("TH-A02", 15.0f, 0.8f, 1.6f, "hidden"),
@@ -112,7 +113,7 @@ public static class DreamremainsLevelData
         },
         Spikes = new[]
         {
-            new SpikeSpec { Id = "SG-A01", X = 7.0f, Y = 6.0f, W = 1.7f },
+            new SpikeSpec { Id = "SG-A01", X = 7.2f, Y = 1.85f, W = 1.2f },
             new SpikeSpec { Id = "SG-A02", X = 15.2f, Y = 5.65f, W = 2.0f },
             new SpikeSpec { Id = "SG-A03", X = 23.2f, Y = 5.65f, W = 1.3f }
         },
@@ -160,9 +161,9 @@ public static class DreamremainsLevelData
             new RoomSpec { RtId = "RT-04", ZoneIndex = 3, X1 = 25.9f, X2 = 30f }
         },
         HiddenSlot = 0,
-        HiddenIds = new[] { "TH-A01", "TH-A02" },
+        HiddenIds = new[] { "TH-A01", "TH-A02", "IT-A01" },
         HiddenSlot2 = 1,
-        HiddenIds2 = new[] { "TH-A03", "TH-A04" }
+        HiddenIds2 = new[] { "TH-A03", "TH-A04", "IT-A02" }
     };
 
     public static readonly SceneSpec SceneB = new SceneSpec
@@ -189,7 +190,7 @@ public static class DreamremainsLevelData
             R("PL-B14", 31.5f, 1.5f, 1.6f),
             P("FP-B01a", 13.8f, 4.8f, 0.9f, "fading"),
             P("FP-B01b", 15.1f, 4.3f, 0.9f, "fading"),
-            P("FP-B01c", 16.4f, 4.7f, 0.9f, "fading"),
+            P("FP-B01c", 16.4f, 4.8f, 0.9f, "fading"),
             P("FP-B02a", 24.4f, 3.9f, 0.9f, "fading"),
             P("FP-B02b", 25.7f, 3.4f, 0.9f, "fading"),
             P("FP-B02c", 27.0f, 3.9f, 0.9f, "fading"),
@@ -225,12 +226,13 @@ public static class DreamremainsLevelData
             E("EN-B03", 15.3f, 2.95f, 14.8f, 16.8f),
             E("EN-B04", 21.2f, 3.85f, 19.8f, 21.5f),
             E("EN-B05", 24.9f, 1.85f, 24.2f, 25.8f),
-            E("EN-B06", 27.2f, 4.65f, 26.7f, 28.0f),
+            // 离开 CP-B03 复活点，落在既有 PL-B13b；不改任何平台点位。
+            E("EN-B06", 28.5f, 3.8f, 28.2f, 28.8f),
             N("IT-B01", "item", 15.9f, 0.45f),
             N("IT-B02", "item", 26.2f, 6.05f),
             N("TRG-B01", "trg", 12.9f, 3.05f),
             N("TRG-B02", "trg", 23.4f, 2.7f),
-            N("D3", "door", 18.9f, 4.75f),
+            N("D3", "door", 20.3f, 5.5f),
             N("FE-B02", "fold", 5.3f, 3.6f),
             N("FA-B02", "fold", 11.5f, 1.65f),
             N("FE-B03", "fold", 12.2f, 5.9f),
@@ -260,12 +262,26 @@ public static class DreamremainsLevelData
             new RoomSpec { RtId = "RT-09", ZoneIndex = 8, X1 = 25.2f, X2 = 34f }
         },
         HiddenSlot = 2,
-        HiddenIds = new[] { "TH-B01", "TH-B02" },
+        HiddenIds = new[] { "TH-B01", "TH-B02", "IT-B01" },
         HiddenSlot2 = 3,
-        HiddenIds2 = new[] { "TH-B03", "TH-B04" }
+        HiddenIds2 = new[] { "TH-B03", "TH-B04", "IT-B02" }
     };
 
+    static DreamremainsLevelData()
+    {
+        SceneA = DreamremainsExpandedLayout.Expand(SceneA, true);
+        SceneB = DreamremainsExpandedLayout.Expand(SceneB, false);
+    }
+
     public static int ZoneAt(float htmlX, bool sceneA)
+    {
+        var rooms = sceneA ? SceneA.Rooms : SceneB.Rooms;
+        for (int i=0;i<rooms.Length;i++)
+            if(htmlX>=rooms[i].X1 && htmlX<rooms[i].X2) return rooms[i].ZoneIndex;
+        return sceneA ? -1 : 4;
+    }
+
+    private static int CompactZoneAt(float htmlX, bool sceneA)
     {
         if (sceneA)
         {

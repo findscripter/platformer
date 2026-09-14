@@ -455,25 +455,25 @@ public class MainBubbleView : MonoBehaviour
         if (mainBubbleVisual == null)
             yield break;
 
-        CanvasGroup bubbleGroup = mainBubbleVisual.GetComponent<CanvasGroup>();
-        if (bubbleGroup == null)
-        {
-            bubbleGroup = mainBubbleVisual.gameObject.AddComponent<CanvasGroup>();
-        }
+        duration = Mathf.Max(0.05f, duration);
+        ShowClickHint(false);
 
-        float elapsed = 0f;
+        CanvasGroup bubbleGroup = EnsureCanvasGroup();
         Vector3 startScale = mainBubbleVisual.transform.localScale;
+        float elapsed = 0f;
 
         while (elapsed < duration)
         {
-            float t = elapsed / duration;
-            bubbleGroup.alpha = 1f - t;
-            mainBubbleVisual.transform.localScale = startScale * (1f - t * 0.5f);
-
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+            if (bubbleGroup != null)
+                bubbleGroup.alpha = 1f - t;
+            mainBubbleVisual.transform.localScale = startScale * (1f - t * 0.4f);
             elapsed += Time.deltaTime;
             yield return null;
         }
 
+        if (bubbleGroup != null)
+            bubbleGroup.alpha = 0f;
         mainBubbleVisual.gameObject.SetActive(false);
     }
 

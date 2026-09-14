@@ -38,7 +38,11 @@ public class LevelManager : MonoBehaviour
         if (player == null)
             return false;
 
-        if (player.transform.position.y < deathY)
+        float killY = deathY;
+        if (player.transform.position.x >= DreamremainsLevelBootstrap.SceneBOrigin)
+            killY = Mathf.Max(deathY, -1.5f);
+
+        if (player.transform.position.y < killY)
             return true;
 
         if (player.IsDead)

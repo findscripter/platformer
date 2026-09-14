@@ -48,9 +48,16 @@ public class GameLoop : MonoBehaviour
         Instance = this;
         EnsureInteractionFramework();
         EnsureSceneTransitionManager();
+        EnsureBgm();
         CreateContext();
         CreateStateMachine();
         RegisterStates();
+    }
+
+    private void EnsureBgm()
+    {
+        Transform managersRoot = transform.parent != null ? transform.parent : transform;
+        BgmPlayer.EnsureOn(managersRoot);
     }
 
     private void EnsureSceneTransitionManager()
@@ -204,6 +211,24 @@ public class GameLoop : MonoBehaviour
         }
 
         StartCoroutine(LoadGameplayRoutine());
+    }
+
+    public void ReplayDream(bool keepDream)
+    {
+        if (isSceneTransitioning || isReturningToMainMenu)
+            return;
+
+        context.TarotResult = null;
+        if (!keepDream)
+            context.PlayerDreamInput = null;
+        context.ReplaySameDream = keepDream && !string.IsNullOrWhiteSpace(context.PlayerDreamInput);
+        context.ReplayNewDream = !context.ReplaySameDream;
+        context.DreamRun = new DreamRunRecorder();
+        context.ResetRuntimeFlags();
+        context.PlayerSpawnPoint = null;
+        context.IsLevelLoaded = false;
+        Time.timeScale = 1f;
+        StartCoroutine(LoadPlayerGuideRoutine());
     }
 
     public void ResumeGame()
