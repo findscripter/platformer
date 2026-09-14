@@ -7,22 +7,26 @@ public sealed class HiddenPathController : MonoBehaviour
 {
     [SerializeField, Range(0, 3)] private int slotIndex;
     [SerializeField] private GameObject[] targets;
-    private bool loggedEnter;
+    private TarotEffectId requiredEffect;
+    private string mechanismId;
+    private bool mechanismOpened;
 
     private void OnEnable()
     {
         EventCenter.Subscribe(GameEvents.TarotNodeActivated, OnNodeActivated);
+        EventCenter.Subscribe(GameEvents.MechanismActivated, OnMechanism);
         Apply(GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null);
     }
 
     private void OnDisable()
     {
         EventCenter.Unsubscribe(GameEvents.TarotNodeActivated, OnNodeActivated);
+        EventCenter.Unsubscribe(GameEvents.MechanismActivated, OnMechanism);
     }
 
     private void OnNodeActivated(int slot)
     {
-        if (slot != slotIndex)
+        if (requiredEffect==TarotEffectId.E00 && slot != slotIndex)
             return;
 
         Apply(GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null);
@@ -30,7 +34,8 @@ public sealed class HiddenPathController : MonoBehaviour
 
     private void Apply(TarotResultData run)
     {
-        bool unlocked = run != null && run.IsHiddenPathUnlocked(slotIndex);
+        bool unlocked = !string.IsNullOrEmpty(mechanismId)?mechanismOpened:run != null && (requiredEffect==TarotEffectId.E00
+            ?run.IsHiddenPathUnlocked(slotIndex):run.HasActiveEffect(requiredEffect));
         if (targets == null || targets.Length == 0)
             return;
 
@@ -45,37 +50,20 @@ public sealed class HiddenPathController : MonoBehaviour
     {
         slotIndex = Mathf.Clamp(slot, 0, 3);
         targets = pathTargets;
-        loggedEnter = false;
         Apply(GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null);
     }
-
-    private void Update()
+    public void ConfigureEffect(TarotEffectId effect,GameObject[] pathTargets)
     {
-        if (loggedEnter || targets == null)
-            return;
-
-        TarotResultData run = GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null;
-        if (run == null || !run.IsHiddenPathUnlocked(slotIndex))
-            return;
-
-        PlayerController player = GameLoop.Instance.Context?.Player;
-        if (player == null)
-            return;
-
-        Vector3 pos = player.transform.position;
-        for (int i = 0; i < targets.Length; i++)
-        {
-            if (targets[i] == null || !targets[i].activeInHierarchy)
-                continue;
-            if ((targets[i].transform.position - pos).sqrMagnitude > 2.6f * 2.6f)
-                continue;
-
-            loggedEnter = true;
-            GameLoop.Instance.Context.DreamRun?.LogOnce(
-                "hidden-" + slotIndex,
-                "hidden_route_enter",
-                "走进一条原先看不见的路");
-            return;
-        }
+        requiredEffect=effect;targets=pathTargets;
+        Apply(GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null);
+    }
+    public void ConfigureMechanism(string id,GameObject[] pathTargets)
+    {
+        mechanismId=id;targets=pathTargets;Apply(null);
+    }
+    private void OnMechanism(string id)
+    {
+        if(string.IsNullOrEmpty(mechanismId)||id!=mechanismId)return;
+        mechanismOpened=true;Apply(null);
     }
 }

@@ -13,7 +13,8 @@ public class GameplaySceneBridge : MonoBehaviour
 
     public void Apply(GameLoop gameLoop)
     {
-        BuildProceduralLevel();
+        CollectibleTracker.Ensure(transform).ResetRun();
+        DreamremainsLevelBootstrap.Build(this);
 
         if (gameLoop == null)
             return;

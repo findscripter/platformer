@@ -177,6 +177,17 @@ public class DreamCoreView : MonoBehaviour
         dreamCoreGlow.color = end;
     }
 
+    public void SetAlpha(float alpha)
+    {
+        if (dreamCoreObject == null)
+            return;
+
+        CanvasGroup coreGroup = dreamCoreObject.GetComponent<CanvasGroup>();
+        if (coreGroup == null)
+            coreGroup = dreamCoreObject.AddComponent<CanvasGroup>();
+        coreGroup.alpha = Mathf.Clamp01(alpha);
+    }
+
     public IEnumerator FadeIn(float duration)
     {
         if (dreamCoreObject == null)

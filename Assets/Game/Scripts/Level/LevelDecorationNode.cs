@@ -37,12 +37,10 @@ public sealed class LevelDecorationNode : MonoBehaviour
                 visible = door == null || !door.IsOpen;
                 break;
             case "tarot":
-                if (run != null && run.IsNodeActivated(slot))
-                    tint = new Color(0.65f, 0.86f, 1f, 0.6f);
+                // 翻到真实牌面后保留原色，不用半透明染色代替激活反馈。
                 break;
             case "cp":
-                if (context != null && context.PlayerSpawnPoint == transform)
-                    tint = new Color(0.72f, 0.94f, 1f, 1f);
+                // Checkpoints use text feedback. Lotus/scenery never changes colour or becomes loot.
                 break;
             case "fold":
                 tint.a = foldExit ? 0.3f : (run != null && run.FoldExitCharge > 0 ? 0.85f : 0.18f);

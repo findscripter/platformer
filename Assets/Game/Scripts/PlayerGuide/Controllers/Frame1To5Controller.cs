@@ -38,6 +38,7 @@ public class Frame1To5Controller
         Debug.Log("[PlayerGuide] Frame 1: 梦境空间生成开始");
 
         backgroundView.SetBackgroundSprite(GuideArt.DreamBackground != null ? GuideArt.DreamBackground : view.DreamBackgroundSpriteEarly);
+        backgroundView.EnsureSceneMist();
 
         if (view.DreamSpaceParticles != null)
         {
@@ -128,14 +129,7 @@ public class Frame1To5Controller
 
     public IEnumerator Frame4_BubbleDissolve()
     {
-        if (view.MainBubbleVisual != null)
-        {
-            yield return mainBubbleView.PlayDissolve(view.Frame4DissolveDuration);
-        }
-
         GuideSfx.PlayWhoosh();
-
-        backgroundView.SetBackgroundSprite(GuideArt.DreamBackground != null ? GuideArt.DreamBackground : view.DreamBackgroundSpriteLate);
 
         if (view.DreamCoreObject != null)
         {
@@ -143,10 +137,29 @@ public class Frame1To5Controller
             dreamCoreView.ApplyFigmaSize();
             if (view.MainBubbleVisual != null)
                 dreamCoreView.PlaceAt(view.MainBubbleVisual.transform);
-            yield return dreamCoreView.FadeIn(0.35f);
+            dreamCoreView.SetAlpha(0f);
         }
 
+        float dissolve = view.Frame4DissolveDuration;
+        coroutineHost.StartCoroutine(backgroundView.DissipateSceneMist(dissolve));
+        if (view.DreamCoreObject != null)
+            coroutineHost.StartCoroutine(RevealCoreAfterMist(dissolve * 0.55f, Mathf.Max(0.35f, dissolve * 0.5f)));
+
+        if (view.MainBubbleVisual != null)
+            yield return mainBubbleView.PlayDissolve(dissolve);
+        else
+            yield return new WaitForSeconds(dissolve);
+
+        backgroundView.SetBackgroundSprite(GuideArt.DreamBackground != null ? GuideArt.DreamBackground : view.DreamBackgroundSpriteLate);
+
         yield return new WaitForSeconds(view.Frame4CoreStabilizeDuration);
+    }
+
+    private IEnumerator RevealCoreAfterMist(float delay, float fade)
+    {
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+        yield return dreamCoreView.FadeIn(fade);
     }
 
     public IEnumerator Frame5_FeifeiEnter()
@@ -173,12 +186,14 @@ public class Frame1To5Controller
         // 拾取动作开始即挂到爪前，后续走位、扫尾和会面布局都会共同移动。
         dreamCoreView.AttachTo(feifeiView.CoreHoldAnchor, Vector2.zero);
 
-        // TODO: 播放拾取音效 "core_pickup"
-
-        yield return new WaitForSeconds(view.Frame5PickupDuration);
         GuideSfx.PlayPickup();
         feifeiView.SafePlayState("HoldCore");
+        coroutineHost.StartCoroutine(HoldFlourish());
+    }
 
+    private IEnumerator HoldFlourish()
+    {
+        yield return new WaitForSeconds(view.Frame5PickupDuration);
         yield return feifeiView.PlayTailSweep(view.Frame5TailDuration);
         yield return dreamCoreView.CalmFromAgitated(0.4f);
     }

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.IO;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -14,6 +15,7 @@ public class EchoSpaceController : MonoBehaviour
 {
     private static Sprite softHaloSprite;
     private static Sprite roundedRectSprite;
+    private static Sprite inputFrameBorder;
 
     public bool IsFinished { get; private set; }
 
@@ -96,6 +98,84 @@ public class EchoSpaceController : MonoBehaviour
             rootGroup.alpha = 0f;
         gameObject.SetActive(false);
     }
+
+    /// <summary>跳过通关流程，直接显示「打开看看吧」那句，方便对框。</summary>
+    public void PreviewLastDialogue()
+    {
+        StopFlow();
+        EnsureEventSystem();
+        if (rootGroup != null)
+        {
+            for (int i = transform.childCount - 1; i >= 0; i--)
+                DestroyImmediate(transform.GetChild(i).gameObject);
+            rootGroup = null;
+        }
+
+        BuildUiIfNeeded();
+        var canvas = GetComponentInChildren<Canvas>(true);
+        if (canvas != null)
+            canvas.sortingOrder = 2000;
+
+        gameObject.SetActive(true);
+        ResetVisuals();
+        if (rootGroup != null)
+        {
+            rootGroup.alpha = 1f;
+            rootGroup.interactable = true;
+            rootGroup.blocksRaycasts = true;
+        }
+        if (stageGroup != null)
+            stageGroup.alpha = 1f;
+        if (coreGroup != null)
+            coreGroup.alpha = 1f;
+        SetDialogueVisible(true);
+        if (dialogueText != null)
+        {
+            dialogueText.text = DialogueLines[3];
+            dialogueText.maxVisibleCharacters = int.MaxValue;
+        }
+        SetCoreVisual(0.4f, 1.08f);
+        SetClickHintVisible(true);
+        acceptingCoreClick = false;
+        if (coreButton != null)
+            coreButton.interactable = false;
+    }
+
+#if UNITY_EDITOR
+    public const string PreviewFlag = "Dreamremains.PreviewEchoDialogue";
+    public const string PreviewShotPath = "Temp/echo_dialogue_preview.png";
+    public const string PreviewDonePath = "Temp/echo_dialogue_preview.done";
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void AutoPreviewIfRequested()
+    {
+        if (!UnityEditor.EditorPrefs.GetBool(PreviewFlag))
+            return;
+        UnityEditor.EditorPrefs.DeleteKey(PreviewFlag);
+        var echo = Ensure();
+        echo.StartCoroutine(echo.DelayedPreviewAndCapture());
+    }
+
+    private IEnumerator DelayedPreviewAndCapture()
+    {
+        yield return new WaitForSecondsRealtime(0.8f);
+        PreviewLastDialogue();
+        yield return new WaitForEndOfFrame();
+        yield return new WaitForSecondsRealtime(0.25f);
+        yield return new WaitForEndOfFrame();
+        string dir = Path.GetDirectoryName(PreviewShotPath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+        if (File.Exists(PreviewShotPath))
+            File.Delete(PreviewShotPath);
+        if (File.Exists(PreviewDonePath))
+            File.Delete(PreviewDonePath);
+        ScreenCapture.CaptureScreenshot(PreviewShotPath);
+        yield return new WaitForSecondsRealtime(0.6f);
+        File.WriteAllText(PreviewDonePath, PreviewShotPath);
+        Debug.Log("[EchoSpace] 预览截图 " + Path.GetFullPath(PreviewShotPath));
+    }
+#endif
 
     private void OnDisable()
     {
@@ -529,30 +609,31 @@ public class EchoSpaceController : MonoBehaviour
         rootGroup.alpha = 0f;
 
         var bg = CreateStretch(root, "Background").gameObject.AddComponent<Image>();
-        GuideUiLayout.Cover(bg, GuideArt.EchoBackground);
-        if (GuideArt.EchoBackground == null)
-            bg.color = new Color(0.169f, 0.165f, 0.271f, 1f);
+        Sprite dreamBg = GuideArt.DreamBackground != null ? GuideArt.DreamBackground : GuideArt.EchoBackground;
+        GuideUiLayout.Cover(bg, dreamBg);
+        if (dreamBg == null)
+            bg.color = Color.black;
         bg.raycastTarget = true;
-
-        var veil = CreateStretch(root, "Veil").gameObject.AddComponent<Image>();
-        veil.color = new Color(0.12f, 0.11f, 0.2f, 0.42f);
-        veil.raycastTarget = false;
-
-        CreateDecorCircle(root, "DecorL", new Vector2(0.72f, 0.78f), 720f, new Color(0.22f, 0.21f, 0.38f, 0.55f));
-        CreateDecorCircle(root, "DecorR", new Vector2(0.88f, 0.42f), 640f, new Color(0.2f, 0.19f, 0.34f, 0.5f));
 
         var stage = CreateStretch(root, "Stage");
         stageGroup = stage.gameObject.AddComponent<CanvasGroup>();
 
-        var box = CreatePanel(stage, "DialogueBox", new Vector2(0.18f, 0.58f), new Vector2(0.82f, 0.82f), Color.white);
+        var box = CreatePanel(stage, "DialogueBox", new Vector2(0.16f, 0.54f), new Vector2(0.84f, 0.86f), Color.white);
         dialogueGroup = box.gameObject.AddComponent<CanvasGroup>();
         var boxImage = box.GetComponent<Image>();
-        boxImage.sprite = RoundedRectSprite();
-        boxImage.type = Image.Type.Sliced;
-        boxImage.pixelsPerUnitMultiplier = 12f;
+        Sprite inputFrame = GuideArt.InputPanelFrame;
+        if (inputFrame != null)
+        {
+            boxImage.sprite = inputFrame;
+            boxImage.type = Image.Type.Simple;
+            boxImage.preserveAspect = false;
+            boxImage.color = Color.white;
+        }
+        boxImage.raycastTarget = false;
         dialogueText = CreateText(box, "DialogueText", string.Empty, 34, TextAlignmentOptions.Center);
-        Stretch(dialogueText.rectTransform, new Vector2(0.08f, 0.16f), new Vector2(0.92f, 0.84f));
-        dialogueText.color = new Color(0.12f, 0.12f, 0.16f, 1f);
+        Stretch(dialogueText.rectTransform, new Vector2(0.06f, 0.14f), new Vector2(0.94f, 0.86f));
+        GuideUiLayout.ReadableText(dialogueText, 34f, GuideUiLayout.DialogueInk);
+        dialogueText.alignment = TextAlignmentOptions.Center;
         dialogueText.outlineWidth = 0f;
         dialogueText.textWrappingMode = TextWrappingModes.Normal;
         SetDialogueVisible(false);
@@ -696,6 +777,41 @@ public class EchoSpaceController : MonoBehaviour
         texture.Apply(false, true);
         softHaloSprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size, 0, SpriteMeshType.FullRect);
         return softHaloSprite;
+    }
+
+    private static void ApplyInputFrameBorder(Image image)
+    {
+        if (image == null)
+            return;
+
+        image.raycastTarget = false;
+        Sprite src = GuideArt.InputPanelFrame;
+        if (src == null)
+        {
+            image.sprite = null;
+            image.color = new Color(1f, 1f, 1f, 0f);
+            return;
+        }
+
+        if (inputFrameBorder == null)
+        {
+            float pad = Mathf.Clamp(src.rect.width * 0.018f, 10f, 28f);
+            inputFrameBorder = Sprite.Create(
+                src.texture,
+                src.rect,
+                new Vector2(0.5f, 0.5f),
+                src.pixelsPerUnit,
+                0,
+                SpriteMeshType.FullRect,
+                new Vector4(pad, pad, pad, pad));
+            inputFrameBorder.name = "InputPanelFrameBorder";
+        }
+
+        image.sprite = inputFrameBorder;
+        image.type = Image.Type.Sliced;
+        image.fillCenter = false;
+        image.preserveAspect = false;
+        image.color = Color.white;
     }
 
     private static Sprite RoundedRectSprite()

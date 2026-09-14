@@ -22,6 +22,8 @@ public sealed class MovingPlatform : MonoBehaviour
         body.bodyType = RigidbodyType2D.Kinematic;
         body.gravityScale = 0f;
         body.freezeRotation = true;
+        body.useFullKinematicContacts = true;
+        body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         lastPosition = body.position;
         if (pointA == Vector2.zero && pointB == Vector2.zero)
         {

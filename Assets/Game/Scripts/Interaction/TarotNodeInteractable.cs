@@ -1,30 +1,54 @@
 using UnityEngine;
 
 /// <summary>
-/// T1–T4。绑定抽牌槽位 0–3，交互后解锁该槽效果与对应隐藏路。不和 TRG 混用。
-/// 自注册到静态表：随机生成后塔罗点位置每局不同，TarotReturnInteractable
-/// 靠这张表按 slot 找回流目标，不再依赖旧关卡固定的场景路径字符串。
+/// T1–T4。绑定抽牌槽位 0–3，按阶段领取后解锁该槽效果与对应隐藏路。不和 TRG 混用。
 /// </summary>
 public sealed class TarotNodeInteractable : InteractableBase
 {
- [SerializeField, Range(-1, 3)] private int slotIndex = -1;
-
+    [SerializeField, Range(-1, 3)] private int slotIndex = -1;
     private static readonly Transform[] BySlot = new Transform[4];
 
-    public override string InteractPrompt => "解读塔罗";
+    public override string InteractPrompt => "领取牌印";
+
+    protected override void OnTriggerEnter2D(Collider2D other)
+    {
+        base.OnTriggerEnter2D(other);
+        TryPickup(other);
+    }
+
+    private void OnTriggerStay2D(Collider2D other) => TryPickup(other);
+
+    private void TryPickup(Collider2D other)
+    {
+        var context = GameLoop.Instance != null ? GameLoop.Instance.Context : null;
+        if (context?.Player == null || context.Player.IsDead ||
+            context.StateMachine.CurrentStateType != GameStateType.Playing ||
+            other.GetComponentInParent<PlayerController>() != context.Player || !CanInteract)
+            return;
+        Interact(context);
+    }
 
     public override bool CanInteract
     {
         get
         {
-            TarotResultData run = GameLoop.Instance != null ? GameLoop.Instance.Context?.TarotResult : null;
-            return run != null && run.IsComplete() && !run.IsNodeActivated(slotIndex);
+            var context=GameLoop.Instance != null ? GameLoop.Instance.Context : null;
+            TarotResultData run = context?.TarotResult;
+            if(slotIndex>=2)
+            {
+                var player=context?.Player;
+                if(player==null || player.IsDead || !player.IsGrounded)return false;
+                var body=player.GetComponent<Collider2D>();
+                if(body==null || Mathf.Abs(body.bounds.center.x-transform.position.x)>.6f ||
+                    Mathf.Abs(body.bounds.min.y-(transform.position.y-.35f))>.45f)return false;
+            }
+            return run != null && run.IsComplete() && run.FirstMissingRequiredNode(TarotResultData.SlotCount) == slotIndex;
         }
     }
 
     public override void Interact(GameContext context)
     {
-        if (context?.TarotResult == null)
+        if (context?.TarotResult == null || !CanInteract)
             return;
 
         if (!context.TarotResult.ActivateNode(slotIndex))
@@ -43,21 +67,18 @@ public sealed class TarotNodeInteractable : InteractableBase
     }
 
     protected override void Awake()
- {
-    base.Awake();
-        // slotIndex 默认是 -1 哨兵值：ConfigureSlot() 显式调用前不注册，
-                // 避免 AddComponent 触发的这次 Awake 用未设置的字段污染 BySlot[0]。
+    {
+        base.Awake();
         if (slotIndex >= 0 && slotIndex < BySlot.Length)
-      BySlot[slotIndex] = transform;
+            BySlot[slotIndex] = transform;
     }
 
-  private void OnDestroy()
+    private void OnDestroy()
     {
-     if (slotIndex >= 0 && slotIndex < BySlot.Length && BySlot[slotIndex] == transform)
+        if (slotIndex >= 0 && slotIndex < BySlot.Length && BySlot[slotIndex] == transform)
             BySlot[slotIndex] = null;
     }
 
-    /// <summary>slot 对应的塔罗点当前 Transform；关卡未生成或已销毁时为 null。</summary>
     public static Transform ByIndex(int slot)
     {
         return slot >= 0 && slot < BySlot.Length ? BySlot[slot] : null;

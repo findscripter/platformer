@@ -13653,7 +13653,7 @@ MonoBehaviour:
   player: {fileID: 489384858}
   minX: 0
   minY: 0
-  maxX: 180.97377
+  maxX: 340
   maxY: 16
   followOffset: {x: 0, y: 1.05, z: 0}
 --- !u!1 &838923478

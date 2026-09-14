@@ -54,11 +54,25 @@ public class PlayerGuideController : MonoBehaviour
 
         InitializePanels();
 
-        TransitionToFrame(GuideFrame.Frame1_DreamSpaceGeneration);
+        if (gameContext != null && (gameContext.ReplaySameDream || gameContext.ReplayNewDream))
+        {
+            bool sameDream = gameContext.ReplaySameDream;
+            gameContext.ReplaySameDream = gameContext.ReplayNewDream = false;
+            if (backgroundView != null)
+                backgroundView.SetAlpha(1f);
+            TransitionToFrame(sameDream ? GuideFrame.Frame9_TarotDrawing : GuideFrame.Frame7_DreamInput);
+        }
+        else
+        {
+            TransitionToFrame(GuideFrame.Frame1_DreamSpaceGeneration);
+        }
     }
 
     private void Update()
     {
+        if (guideState == null)
+            return;
+
         if (guideState.CurrentFrame == GuideFrame.Frame6_FirstMeetingDialogue && dialogueState.IsWaitingForDialogueAdvance)
         {
             bool advance = false;
@@ -235,7 +249,8 @@ public class PlayerGuideController : MonoBehaviour
             case GuideFrame.Frame6_FirstMeetingDialogue:
                 dreamInputView.SetPanelActive(false);
                 tarotView.SetPanelActive(false);
-                feifeiView.SetMeetingLayout();
+                backgroundView.SetBackgroundSprite(
+                    GuideArt.DreamBackground != null ? GuideArt.DreamBackground : view.DreamBackgroundSpriteLate);
                 break;
 
             case GuideFrame.Frame7_DreamInput:

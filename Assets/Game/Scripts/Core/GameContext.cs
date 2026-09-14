@@ -28,6 +28,8 @@ public class GameContext
     public string PlayerDreamInput;
     public TarotResultData TarotResult;
     public DreamRunRecorder DreamRun = new DreamRunRecorder();
+    public bool ReplaySameDream;
+    public bool ReplayNewDream;
 
     public void ResetRuntimeFlags()
     {
@@ -41,6 +43,8 @@ public class GameContext
     {
         PlayerDreamInput = null;
         TarotResult = null;
+        ReplaySameDream = false;
+        ReplayNewDream = false;
         DreamRun = new DreamRunRecorder();
     }
 }

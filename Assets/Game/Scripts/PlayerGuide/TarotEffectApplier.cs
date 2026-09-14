@@ -20,7 +20,7 @@ public static class TarotEffectApplier
         player.SetExtraAirJumps(run.HasActiveEffect(TarotEffectId.E03) ? 2 : 1);
 
         if (run.HasActiveEffect(TarotEffectId.E07))
-            player.SetMaxHealth(30, fill: true);
+            player.SetMaxHealth(30, fill: player.MaxHealth < 30);
 
         TarotEffectId aerial = run.GetResolvedEffect(TarotEffectChannel.AerialCombat);
         if (aerial == TarotEffectId.E05)
