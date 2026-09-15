@@ -9,7 +9,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Figma Frame 10 细化：关卡完成后 Fade 至黑，再进入独立梦境回响空间。
-/// 状态 A 关卡完成 → B–E 四句对白 → F 光晕扩散 → G 纸面呼吸等待 AI → H 连续正文阅读。
+/// 状态 A 关卡完成 → B–E 四句对白 → F 光晕扩散 → G 点击梦核等待完成 → H 信笺展开，连续正文阅读。
 /// </summary>
 public class EchoSpaceController : MonoBehaviour
 {
@@ -36,12 +36,17 @@ public class EchoSpaceController : MonoBehaviour
     private TMP_Text dialogueText;
     private TMP_Text noteText;
     private TMP_Text clickHint;
-    private TMP_Text waitingCaption;
+    private RectTransform paperRect;
+    private GameObject paperBackdrop;
+    private Button retryButton;
+    private string displayedSource;
+    private string displayedBody;
+    private string renderedBody;
+    private bool letterDisplayFailed;
     private TMP_Text readHint;
     private Image coreImage;
     private Image haloImage;
     private Image expandHalo;
-    private Image waitingCore;
     private Button coreButton;
     private Button noteContinueButton;
     private ScrollRect noteScroll;
@@ -49,13 +54,12 @@ public class EchoSpaceController : MonoBehaviour
     private bool acceptingCoreClick;
     private bool waitingForCoreClick;
     private bool waitingForNoteAdvance;
-    private bool breathingWait;
     private int coreWaitStartedFrame;
-    private int noteWaitStartedFrame;
+    private const double MinimumReadingSeconds = 2.0;
+    private double readableSince = -1;
     private int lastAdvanceFrame = -1;
     private bool coreClicked;
     private bool noteClicked;
-    private float breathTime;
     private Coroutine flowRoutine;
 
     public static EchoSpaceController Ensure()
@@ -65,7 +69,7 @@ public class EchoSpaceController : MonoBehaviour
             return existing;
 
         var go = new GameObject("EchoSpaceRoot");
-        Object.DontDestroyOnLoad(go);
+        if (Application.isPlaying) Object.DontDestroyOnLoad(go);
         return go.AddComponent<EchoSpaceController>();
     }
 
@@ -78,11 +82,11 @@ public class EchoSpaceController : MonoBehaviour
         coreClicked = false;
         noteClicked = false;
         acceptingCoreClick = false;
-        breathingWait = false;
         lastAdvanceFrame = -1;
 
         EnsureEventSystem();
         BuildUiIfNeeded();
+        DreamLetterClient.EnsureLocalLetter(context);
         if (GameLoop.Instance != null && context != null)
             GameLoop.Instance.StartCoroutine(DreamLetterClient.ComposeLetter(context));
 
@@ -93,6 +97,7 @@ public class EchoSpaceController : MonoBehaviour
 
     public void Hide()
     {
+        DreamLetterClient.CancelPendingLetter(context);
         StopFlow();
         if (rootGroup != null)
             rootGroup.alpha = 0f;
@@ -179,11 +184,13 @@ public class EchoSpaceController : MonoBehaviour
 
     private void OnDisable()
     {
+        DreamLetterClient.CancelPendingLetter(context);
         StopFlow();
     }
 
     private void StopFlow()
     {
+        GuideSfx.SetCoreBreathing(false);
         if (flowRoutine != null)
         {
             StopCoroutine(flowRoutine);
@@ -193,7 +200,7 @@ public class EchoSpaceController : MonoBehaviour
         acceptingCoreClick = false;
         waitingForCoreClick = false;
         waitingForNoteAdvance = false;
-        breathingWait = false;
+        readableSince = -1;
         if (coreButton != null)
             coreButton.interactable = false;
         if (noteContinueButton != null)
@@ -238,17 +245,9 @@ public class EchoSpaceController : MonoBehaviour
             noteText.maxVisibleCharacters = int.MaxValue;
             noteText.gameObject.SetActive(false);
         }
-        if (waitingCore != null)
-        {
-            waitingCore.gameObject.SetActive(true);
-            waitingCore.transform.localScale = Vector3.one;
-            waitingCore.color = new Color(1f, 1f, 1f, 0.82f);
-        }
-        if (waitingCaption != null)
-        {
-            waitingCaption.gameObject.SetActive(true);
-            waitingCaption.text = DreamNoteWriter.WaitingLine();
-        }
+        if (paperBackdrop != null) paperBackdrop.SetActive(false);
+        if (retryButton != null) retryButton.gameObject.SetActive(false);
+        if (clickHint != null) clickHint.text = "点击梦核";
         if (readHint != null)
             readHint.gameObject.SetActive(false);
         if (continuePanel != null)
@@ -270,6 +269,7 @@ public class EchoSpaceController : MonoBehaviour
 
     private IEnumerator RunFlow()
     {
+        GuideSfx.SetCoreBreathing(true);
         var transition = context != null ? context.SceneTransitionManager : null;
         if (rootGroup != null)
             yield return FadeGroup(rootGroup, 0f, 1f, 0.45f);
@@ -277,6 +277,7 @@ public class EchoSpaceController : MonoBehaviour
             yield return transition.FadeFromBlack(0.5f);
 
         // A｜关卡完成：独立回响空间，尚无对白。
+        GuideSfx.PlayContact();
         yield return HoldOrSkip(1.35f);
 
         // B–D｜四句里的前三句。D 进入梦核回应态。
@@ -284,7 +285,10 @@ public class EchoSpaceController : MonoBehaviour
         for (int i = 0; i < 3; i++)
         {
             if (i == 2)
+            {
+                GuideSfx.PlayCoreResponse();
                 SetCoreVisual(0.4f, 1.08f);
+            }
             yield return PlayLine(DialogueLines[i], 2.15f);
         }
 
@@ -302,23 +306,23 @@ public class EchoSpaceController : MonoBehaviour
         coreButton.interactable = false;
         SetClickHintVisible(false);
 
-        // F｜确认声 + 蓝紫光晕外扩 + 场景淡出。不飞、不转、不生成 CG。
-        GuideSfx.PlayPickup();
+        GuideSfx.PlayClick();
+        SetDialogueVisible(false);
+        if (context?.DreamRun != null && !context.DreamRun.LetterStarted && string.IsNullOrEmpty(context.DreamRun.LetterBody))
+        {
+            // A fallback is shown only after the request has stopped, not while a letter is still arriving.
+            DreamLetterClient.ShowLocalLetterWhilePending(context);
+        }
         yield return ExpandHalo();
-
-        // G｜纸面呼吸，等待 AI 正文；不显示电子 Loading。
-        yield return ShowWaitingPaper();
-
-        // H｜连续正文写入梦笺，滚动阅读。
         yield return ShowLetter();
 
         waitingForNoteAdvance = true;
-        noteWaitStartedFrame = Time.frameCount;
         noteClicked = false;
+        ClearContinueSelection();
         if (continuePanel != null)
             continuePanel.gameObject.SetActive(true);
         if (noteContinueButton != null)
-            noteContinueButton.interactable = true;
+            noteContinueButton.interactable = CanCollectLetter();
         while (!noteClicked)
             yield return null;
         waitingForNoteAdvance = false;
@@ -423,71 +427,127 @@ public class EchoSpaceController : MonoBehaviour
         expandHalo.gameObject.SetActive(false);
     }
 
-    private IEnumerator ShowWaitingPaper()
+    private IEnumerator ShowLetter()
     {
-        if (paperGroup == null)
-            yield break;
-
+        GuideSfx.SetCoreBreathing(false);
+        if (context?.DreamRun != null && !context.DreamRun.LetterIsFallback) GuideSfx.PlayHint();
+        paperBackdrop.SetActive(true);
         paperGroup.gameObject.SetActive(true);
-        if (waitingCore != null)
-            waitingCore.gameObject.SetActive(true);
-        if (waitingCaption != null)
-        {
-            waitingCaption.gameObject.SetActive(true);
-            waitingCaption.text = DreamNoteWriter.WaitingLine();
-        }
-        if (noteText != null)
-            noteText.gameObject.SetActive(false);
-        if (readHint != null)
-            readHint.gameObject.SetActive(false);
-        if (continuePanel != null)
-            continuePanel.gameObject.SetActive(false);
-
-        breathTime = 0f;
-        breathingWait = true;
-        yield return FadeGroup(paperGroup, 0f, 1f, 0.4f);
-
-        float minHold = 1.05f;
+        RefreshLetterContent();
+        paperGroup.interactable = false;
+        paperGroup.blocksRaycasts = true;
         float elapsed = 0f;
-        while (elapsed < minHold)
+        while (elapsed < 0.65f)
         {
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / 0.65f);
+            paperGroup.alpha = t;
+            paperRect.localScale = Vector3.Lerp(new Vector3(0.97f, 0.86f, 1f), Vector3.one, t);
             elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
-
-        if (context != null)
-            yield return DreamLetterClient.ComposeLetter(context);
-
-        breathingWait = false;
-        if (waitingCore != null)
-            waitingCore.transform.localScale = Vector3.one;
+        paperRect.localScale = Vector3.one;
+        paperGroup.alpha = 1f;
+        paperGroup.interactable = true;
     }
 
-    private IEnumerator ShowLetter()
+    private void RefreshLetterContent()
     {
-        string body = context?.DreamRun != null && !string.IsNullOrWhiteSpace(context.DreamRun.LetterBody)
-            ? context.DreamRun.LetterBody
-            : DreamNoteWriter.Compose(context != null ? context.PlayerDreamInput : null, context != null ? context.TarotResult : null);
+        readableSince = -1;
+        ClearContinueSelection();
+        noteText.gameObject.SetActive(true);
+        displayedSource = context?.DreamRun?.LetterSource;
+        displayedBody = context?.DreamRun?.LetterBody;
+        noteText.richText = false;
+        bool valid = !string.IsNullOrWhiteSpace(displayedBody) && DreamLetterClient.PresentationIssue(displayedBody) == null;
+        letterDisplayFailed = !valid && context?.DreamRun?.LetterStarted != true;
+        renderedBody = valid ? displayedBody : context?.DreamRun?.LetterStarted == true
+            ? "正在整理这场梦，请稍候…" : "这次没能把梦笺整理好。\n\n你可以重试，或先收好这段旅程。";
+        noteText.text = renderedBody;
+        noteText.maxVisibleCharacters = int.MaxValue;
+        noteScroll.enabled = true;
+        noteScroll.StopMovement();
+        Canvas.ForceUpdateCanvases();
+        noteText.ForceMeshUpdate();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(noteScroll.content);
+        noteScroll.verticalNormalizedPosition = 1f;
+        readHint.gameObject.SetActive(true);
+        continuePanel.gameObject.SetActive(true);
+        RefreshLetterActions();
+    }
 
-        if (waitingCore != null)
-            waitingCore.gameObject.SetActive(false);
-        if (waitingCaption != null)
-            waitingCaption.gameObject.SetActive(false);
-        if (noteText != null)
+    private void RetryLetter()
+    {
+        if (context?.DreamRun == null) return;
+        if (context.DreamRun.LetterSource == "model" && displayedSource != "model")
         {
-            noteText.gameObject.SetActive(true);
-            if (noteScroll != null)
-            {
-                noteScroll.enabled = true;
-                LayoutRebuilder.ForceRebuildLayoutImmediate(noteScroll.content);
-                noteScroll.verticalNormalizedPosition = 1f;
-            }
-            yield return RevealText(noteText, body, 0.028f);
+            RefreshLetterContent();
+            return;
         }
-        if (readHint != null)
-            readHint.gameObject.SetActive(true);
+        if (context.DreamRun.LetterStarted || (!context.DreamRun.LetterIsFallback && !letterDisplayFailed)) return;
+        context.DreamRun.PrepareLetterRetry();
+        MonoBehaviour host = GameLoop.Instance != null ? GameLoop.Instance : this;
+        host.StartCoroutine(DreamLetterClient.ComposeLetter(context));
+        RefreshLetterActions();
+    }
 
-        yield return new WaitForSecondsRealtime(0.25f);
+    private void RefreshLetterActions()
+    {
+        if (retryButton == null || context?.DreamRun == null) return;
+        bool pending = context.DreamRun.LetterStarted;
+        bool local = displayedSource == "local";
+        retryButton.gameObject.SetActive(!pending && (context.DreamRun.LetterIsFallback || letterDisplayFailed));
+        retryButton.interactable = !pending;
+        var label = retryButton.GetComponentInChildren<TMP_Text>();
+        string text = "重试生成";
+        if (label != null && label.text != text) label.text = text;
+        readHint.text = pending ? "梦笺正在写成…" : letterDisplayFailed ? "暂未写成，可以重试" : local ? "暂存解读 · 滚动阅读" : "滚动阅读";
+        if (noteContinueButton != null && waitingForNoteAdvance)
+            noteContinueButton.interactable = CanCollectLetter();
+    }
+
+    private bool CanCollectLetter()
+    {
+        // A response in memory is not yet a letter the player has seen. Start the brief
+        // accidental-click guard only after the current completed text is fully visible.
+        bool visible = context?.DreamRun != null && !context.DreamRun.LetterStarted
+            && paperGroup != null && paperGroup.gameObject.activeInHierarchy && paperGroup.alpha >= 0.99f
+            && rootGroup != null && rootGroup.alpha >= 0.99f
+            && !string.IsNullOrWhiteSpace(renderedBody)
+            && displayedBody == context.DreamRun.LetterBody && noteText.text == renderedBody;
+        if (!visible) { readableSince = -1; return false; }
+        if (readableSince < 0) readableSince = Time.realtimeSinceStartupAsDouble;
+        return Time.realtimeSinceStartupAsDouble - readableSince >= MinimumReadingSeconds;
+    }
+
+    private void ClearContinueSelection()
+    {
+        if (EventSystem.current != null && noteContinueButton != null
+            && EventSystem.current.currentSelectedGameObject == noteContinueButton.gameObject)
+            EventSystem.current.SetSelectedGameObject(null);
+    }
+
+    // Read-only display entry used by the editor preview and visual verification.
+    public void PreviewLetter(GameContext previewContext)
+    {
+        StopFlow();
+        context = previewContext;
+        EnsureEventSystem();
+        BuildUiIfNeeded();
+        gameObject.SetActive(true);
+        ResetVisuals();
+        rootGroup.alpha = 1f;
+        rootGroup.interactable = rootGroup.blocksRaycasts = true;
+        stageGroup.alpha = coreGroup.alpha = 0f;
+        paperBackdrop.SetActive(true);
+        paperGroup.gameObject.SetActive(true);
+        paperGroup.alpha = 1f;
+        paperGroup.interactable = paperGroup.blocksRaycasts = true;
+        paperRect.localScale = Vector3.one;
+        RefreshLetterContent();
+        waitingForNoteAdvance = true;
+        noteClicked = false;
+        IsFinished = false;
+        noteContinueButton.interactable = CanCollectLetter();
     }
 
     private bool WasAdvancePressed()
@@ -497,7 +557,10 @@ public class EchoSpaceController : MonoBehaviour
         bool pressed = WasKeyboardAdvancePressed()
             || (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame);
         if (pressed)
+        {
             lastAdvanceFrame = Time.frameCount;
+            GuideSfx.PlayClick();
+        }
         return pressed;
     }
 
@@ -515,14 +578,14 @@ public class EchoSpaceController : MonoBehaviour
 
     private void Update()
     {
-        if (breathingWait && waitingCore != null)
+        if (paperGroup != null && paperGroup.gameObject.activeSelf)
         {
-            breathTime += Time.unscaledDeltaTime;
-            float wave = 0.5f + 0.5f * Mathf.Sin(breathTime * 1.65f);
-            waitingCore.transform.localScale = Vector3.one * (1f + 0.07f * wave);
-            waitingCore.color = new Color(1f, 1f, 1f, 0.55f + 0.3f * wave);
+            // Publish the completed text automatically, including retry results; never ask the player
+            // to choose between transport-specific versions of the same letter.
+            if (displayedBody != context?.DreamRun?.LetterBody || displayedSource != context?.DreamRun?.LetterSource)
+                RefreshLetterContent();
+            else RefreshLetterActions();
         }
-
         if (acceptingCoreClick && haloImage != null)
         {
             float wave = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 2.1f);
@@ -533,8 +596,8 @@ public class EchoSpaceController : MonoBehaviour
 
         if (waitingForCoreClick && Time.frameCount > coreWaitStartedFrame && ConsumeKeyboardAdvance())
             AcceptCoreClick();
-        else if (waitingForNoteAdvance && Time.frameCount > noteWaitStartedFrame && ConsumeKeyboardAdvance())
-            AcceptNoteContinue();
+        // Space/Enter/Interact advance the preceding dialogue, never dismiss the letter.
+        // Collecting it requires a deliberate click on the visible button.
     }
 
     private bool ConsumeKeyboardAdvance()
@@ -557,7 +620,7 @@ public class EchoSpaceController : MonoBehaviour
 
     private void AcceptNoteContinue()
     {
-        if (!waitingForNoteAdvance || noteClicked)
+        if (!waitingForNoteAdvance || noteClicked || !CanCollectLetter())
             return;
         noteClicked = true;
         waitingForNoteAdvance = false;
@@ -684,21 +747,35 @@ public class EchoSpaceController : MonoBehaviour
         expandHalo.raycastTarget = false;
         expandGo.gameObject.SetActive(false);
 
-        var paper = CreatePanel(root, "DreamNote", new Vector2(0.18f, 0.1f), new Vector2(0.82f, 0.9f), new Color(0.97f, 0.95f, 0.91f, 1f));
+        paperBackdrop = CreatePanel(root, "LetterBackdrop", Vector2.zero, Vector2.one, new Color(0.035f, 0.035f, 0.065f, 0.62f)).gameObject;
+        paperBackdrop.SetActive(false);
+        var paperArea = CreateStretch(root, "LetterArea");
+        Stretch(paperArea, new Vector2(0.13f, 0.035f), new Vector2(0.87f, 0.965f));
+        var paper = CreatePanel(paperArea, "DreamNote", Vector2.zero, Vector2.one, Color.white);
+        paperRect = paper;
+        var paperImage = paper.GetComponent<Image>();
+        paperImage.sprite = Resources.Load<Sprite>("UI/dream_letter_paper");
+        paperImage.type = Image.Type.Simple;
+        var aspect = paper.gameObject.AddComponent<AspectRatioFitter>();
+        aspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+        aspect.aspectRatio = paperImage.sprite != null ? paperImage.sprite.rect.width / paperImage.sprite.rect.height : 1.338f;
         paperGroup = paper.gameObject.AddComponent<CanvasGroup>();
         paperGroup.alpha = 0f;
         paper.gameObject.SetActive(false);
-        var paperImage = paper.GetComponent<Image>();
-        paperImage.sprite = RoundedRectSprite();
-        paperImage.type = Image.Type.Sliced;
-        paperImage.pixelsPerUnitMultiplier = 10f;
+
+        var ink = new Color(0.15f, 0.16f, 0.23f, 1f);
+        var title = CreateText(paper, "LetterTitle", "梦 笺", 48, TextAlignmentOptions.Center);
+        title.color = ink;
+        Stretch(title.rectTransform, new Vector2(0.2f, 0.84f), new Vector2(0.8f, 0.925f));
+        var rule = CreatePanel(paper, "TitleRule", new Vector2(0.16f, 0.814f), new Vector2(0.84f, 0.8155f), new Color(0.59f, 0.46f, 0.26f, 0.55f));
+        rule.GetComponent<Image>().raycastTarget = false;
 
         noteScroll = paper.gameObject.AddComponent<ScrollRect>();
         noteScroll.horizontal = false;
         noteScroll.movementType = ScrollRect.MovementType.Clamped;
-        noteScroll.scrollSensitivity = 32f;
+        noteScroll.scrollSensitivity = 42f;
         var viewport = CreateStretch(paper, "Viewport");
-        Stretch(viewport, new Vector2(0.08f, 0.16f), new Vector2(0.92f, 0.9f));
+        Stretch(viewport, new Vector2(0.15f, 0.205f), new Vector2(0.845f, 0.78f));
         viewport.gameObject.AddComponent<RectMask2D>();
         noteText = CreateText(viewport, "NoteText", string.Empty, 30, TextAlignmentOptions.TopLeft);
         Stretch(noteText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f));
@@ -706,35 +783,42 @@ public class EchoSpaceController : MonoBehaviour
         noteText.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         noteScroll.viewport = viewport;
         noteScroll.content = noteText.rectTransform;
-        noteText.color = new Color(0.2f, 0.18f, 0.16f, 1f);
+        noteText.color = ink;
+        noteText.lineSpacing = 9f;
+        noteText.paragraphSpacing = 4f;
         noteText.textWrappingMode = TextWrappingModes.Normal;
         noteText.richText = false;
         noteText.gameObject.SetActive(false);
 
-        waitingCore = CreateCharacter(paper, "WaitingCore", GuideArt.DreamCore, Vector2.zero, new Vector2(168f, 198f), false)
-            .GetComponent<Image>();
-        waitingCore.rectTransform.anchorMin = waitingCore.rectTransform.anchorMax = new Vector2(0.5f, 0.58f);
-        waitingCore.color = new Color(1f, 1f, 1f, 0.82f);
+        var track = CreatePanel(paper, "ReadingScrollbar", new Vector2(0.864f, 0.22f), new Vector2(0.868f, 0.77f), new Color(0.38f, 0.31f, 0.30f, 0.16f));
+        var handle = CreatePanel(track, "Handle", Vector2.zero, Vector2.one, new Color(0.49f, 0.38f, 0.29f, 0.8f));
+        var scrollbar = track.gameObject.AddComponent<Scrollbar>();
+        scrollbar.direction = Scrollbar.Direction.BottomToTop;
+        scrollbar.handleRect = handle;
+        scrollbar.targetGraphic = handle.GetComponent<Image>();
+        noteScroll.verticalScrollbar = scrollbar;
+        noteScroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
 
-        waitingCaption = CreateText(paper, "WaitingCaption", DreamNoteWriter.WaitingLine(), 28, TextAlignmentOptions.Center);
-        Stretch(waitingCaption.rectTransform, new Vector2(0.12f, 0.22f), new Vector2(0.88f, 0.38f));
-        waitingCaption.color = new Color(0.32f, 0.3f, 0.28f, 1f);
-        waitingCaption.textWrappingMode = TextWrappingModes.Normal;
-
-        continuePanel = CreatePanel(paper, "Continue", new Vector2(0.78f, 0.035f), new Vector2(0.94f, 0.13f), new Color(0.2f, 0.18f, 0.16f, 1f));
-        var continueImage = continuePanel.GetComponent<Image>();
-        continueImage.sprite = RoundedRectSprite();
-        continueImage.type = Image.Type.Sliced;
-        continueImage.pixelsPerUnitMultiplier = 16f;
+        continuePanel = CreatePanel(paper, "Continue", new Vector2(0.68f, 0.108f), new Vector2(0.845f, 0.171f), ink);
         noteContinueButton = continuePanel.gameObject.AddComponent<Button>();
+        noteContinueButton.navigation = new Navigation { mode = Navigation.Mode.None };
         noteContinueButton.onClick.AddListener(AcceptNoteContinue);
-        var continueText = CreateText(continuePanel, "Label", "继续", 26f, TextAlignmentOptions.Center);
+        var continueText = CreateText(continuePanel, "Label", "收好梦笺", 25f, TextAlignmentOptions.Center);
+        continueText.color = new Color(0.98f, 0.93f, 0.82f, 1f);
         Stretch(continueText.rectTransform, Vector2.zero, Vector2.one);
         continuePanel.gameObject.SetActive(false);
 
-        readHint = CreateText(paper, "ReadHint", "滚动阅读", 24f, TextAlignmentOptions.MidlineLeft);
-        Stretch(readHint.rectTransform, new Vector2(0.08f, 0.035f), new Vector2(0.7f, 0.13f));
-        readHint.color = new Color(0.3f, 0.28f, 0.25f, 1f);
+        var retry = CreatePanel(paper, "Retry", new Vector2(0.475f, 0.108f), new Vector2(0.65f, 0.171f), new Color(0.88f, 0.83f, 0.73f, 0.92f));
+        retryButton = retry.gameObject.AddComponent<Button>();
+        retryButton.onClick.AddListener(RetryLetter);
+        var retryText = CreateText(retry, "Label", "重试生成", 23f, TextAlignmentOptions.Center);
+        retryText.color = ink;
+        Stretch(retryText.rectTransform, Vector2.zero, Vector2.one);
+        retry.gameObject.SetActive(false);
+
+        readHint = CreateText(paper, "ReadHint", "滚动阅读", 23f, TextAlignmentOptions.MidlineLeft);
+        Stretch(readHint.rectTransform, new Vector2(0.15f, 0.108f), new Vector2(0.465f, 0.171f));
+        readHint.color = new Color(0.36f, 0.32f, 0.33f, 1f);
         readHint.gameObject.SetActive(false);
     }
 
@@ -752,8 +836,8 @@ public class EchoSpaceController : MonoBehaviour
             return;
 
         var go = new GameObject("EchoSpaceEventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
-        go.GetComponent<InputSystemUIInputModule>().AssignDefaultActions();
-        Object.DontDestroyOnLoad(go);
+        // InputSystemUIInputModule assigns actions in OnEnable. Assigning again can reuse disposed scene actions.
+        if (Application.isPlaying) Object.DontDestroyOnLoad(go);
     }
 
     private static Sprite SoftHaloSprite()

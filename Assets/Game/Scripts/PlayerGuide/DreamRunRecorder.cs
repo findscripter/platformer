@@ -10,6 +10,38 @@ public sealed class DreamRunRecorder
     public string LetterBody { get; set; }
     public bool AnalyzeStarted { get; set; }
     public bool LetterStarted { get; set; }
+    public bool AnalyzeFinished { get; set; }
+    public bool LetterIsFallback { get; set; }
+    public string LetterSource { get; set; }
+    public string LetterJson { get; set; }
+    // Kept in memory for local diagnostics only; never displayed as a completed letter.
+    public string LastLetterCandidateJson { get; set; }
+    public string LetterValidationFailure { get; set; }
+    public string LocalLetterBody { get; set; }
+    public string LocalLetterJson { get; set; }
+    public string AnalysisFailureReason { get; set; }
+    public string LetterFailureReason { get; set; }
+    public double AnalysisStartedAt { get; set; }
+    public double LetterStartedAt { get; set; }
+    public int LetterRequestVersion { get; set; }
+    public double PrimaryUnavailableUntil { get; set; }
+    public string AnalysisProvider { get; set; }
+    public string LetterProvider { get; set; }
+    internal System.Threading.CancellationTokenSource PendingLetterCancellation { get; set; }
+
+    public void PrepareLetterRetry()
+    {
+        if (LetterStarted) return;
+        LetterBody = null;
+        LetterJson = null;
+        LetterFailureReason = null;
+        LetterIsFallback = false;
+        if (!string.IsNullOrEmpty(AnalysisFailureReason))
+        {
+            AnalyzeStarted = false;
+            AnalyzeFinished = false;
+        }
+    }
 
     private readonly List<Entry> events = new List<Entry>();
     private int nextId = 1;
@@ -92,7 +124,8 @@ public sealed class DreamRunRecorder
     {
         if (string.IsNullOrEmpty(value))
             return string.Empty;
-        return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "");
+        string json = Newtonsoft.Json.JsonConvert.SerializeObject(value);
+        return json.Substring(1, json.Length - 2);
     }
 
     public static string CurrentStage()

@@ -2,19 +2,16 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Frame 7-8：同一问话框写梦与必要补问。
-/// Figma：状态 A 写下梦境；仅当意象/情绪不足时原位切到状态 B 补问一次，不销毁 UI。
+/// Frame 7-8：自由写梦后直接继续，不强制字数或补问。
 /// </summary>
 public class Frame7And8Controller
 {
     private readonly PlayerGuideView view;
     private readonly DreamInputView dreamInputView;
-    private readonly DialogueView dialogueView;
     private readonly GameContext gameContext;
     private readonly InputState inputState;
 
     private bool isWaitingForSubmit;
-    private bool isWaitingForReInput;
 
     public Frame7And8Controller(
         PlayerGuideView view,
@@ -25,7 +22,6 @@ public class Frame7And8Controller
     {
         this.view = view;
         this.dreamInputView = dreamInputView;
-        this.dialogueView = dialogueView;
         this.gameContext = gameContext;
         this.inputState = inputState;
     }
@@ -34,6 +30,7 @@ public class Frame7And8Controller
     {
         dreamInputView.SetPanelActive(true);
         dreamInputView.ShowWriteState();
+        GuideSfx.PlaySoftTransition();
 
         if (view.InputCanvasGroup != null)
         {
@@ -66,25 +63,9 @@ public class Frame7And8Controller
 
     public IEnumerator Frame8_WriteDreamAndFollowUp()
     {
-        string userInput = gameContext?.PlayerDreamInput ?? "";
-
-        if (!dreamInputView.UsedSampleDream && DreamInputValidator.NeedsFollowUp(userInput))
-        {
-            inputState.IsInFollowUpState = true;
-
-            dreamInputView.EnsureVisible();
-            dreamInputView.ShowFollowUpState(userInput);
-            dreamInputView.ClearAndActivate();
-
-            isWaitingForReInput = true;
-            dreamInputView.UnbindSubmit();
-            dreamInputView.OnSubmit += HandleReInputSubmit;
-            dreamInputView.BindSubmit();
-
-            yield return new WaitUntil(() => !isWaitingForReInput);
-
-            dreamInputView.OnSubmit -= HandleReInputSubmit;
-        }
+        // Any amount of dream text is accepted. Sparse input must not trap the
+        // player in a mandatory second question or replace their own words.
+        inputState.IsInFollowUpState = false;
 
         if (view.InputCanvasGroup != null)
         {
@@ -96,16 +77,4 @@ public class Frame7And8Controller
             GameLoop.Instance.StartCoroutine(DreamLetterClient.Analyze(gameContext));
     }
 
-    private void HandleReInputSubmit()
-    {
-        string newInput = dreamInputView.GetInputText();
-        if (gameContext != null)
-        {
-            string original = gameContext.PlayerDreamInput ?? string.Empty;
-            gameContext.PlayerDreamInput = string.IsNullOrWhiteSpace(original)
-                ? newInput
-                : original + " / " + newInput;
-        }
-        isWaitingForReInput = false;
-    }
 }
