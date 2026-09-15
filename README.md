@@ -24,7 +24,7 @@ Unity `6000.5.0f1` · URP · Input System · Cinemachine
 
 ### 关卡
 
-白盒关卡按施工图生成：场景 A → 传送门 → 场景 B → END。
+关卡在 Gameplay 场景里程序生成：区域 A → 传送门 → 区域 B → END。
 
 ![Gameplay](docs/screenshots/05_gameplay.png)
 
