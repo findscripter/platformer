@@ -49,5 +49,20 @@ Unity `6000.5.0f1` · URP · Input System · Cinemachine
 ## 打开工程
 
 1. 用 Unity Hub 打开本仓库，编辑器版本 **6000.5.0f1**
-2. 从 `Boot` 场景进入 Play Mode（编辑器会自动先加载 Boot）
-3. 主菜单点「开始游戏」
+2. 配置梦笺用的 LLM Key（见下一节）
+3. 从 `Boot` 场景进入 Play Mode（编辑器会自动先加载 Boot）
+4. 主菜单点「开始游戏」
+
+## 配置 LLM Key
+
+通关后的梦笺会请求大模型。仓库里**没有** API Key，需要自己填一次。
+
+1. 复制 `Assets/Game/Resources/DreamLetter/connection.json.example`  
+   为同目录下的 `connection.json`（不要提交这个文件）
+2. 把 `apiKey` 填成你的 **DeepSeek** Key  
+   或在 Unity 菜单 `Tools → 梦墟 → 梦笺连接设置` 里填写并保存
+3. 备用 `backup` 段可选；不填则只走 DeepSeek，失败时用本地兜底信
+
+主模型是 DeepSeek `deepseek-flash`（`https://api.deepseek.com`）。Key 可在 [DeepSeek 开放平台](https://platform.deepseek.com) 申请。
+
+没配 Key 时游戏仍能玩完，回响里会显示本地兜底梦笺，而不是联网生成。
