@@ -130,38 +130,29 @@ Assets/Screenshots.meta
 # 误把环境变量当目录写进仓库
 /%ALLUSERSPROFILE%/
 
-# Agent 一次性脚本
 __pycache__/
-
-# 本地梦笺代理密钥，不得入库
-Tools/DreamLetterProxy/.env
+*.pyc
 .env
+
+# 梦笺内置 Key，不得入库
 Assets/Game/Resources/DreamLetter/connection.json
 
-*.pyc
-/_unity_mcp.py
-/_walk_a.py
-/CAMERA_FIX_SUMMARY.md
-
-# 美术原始压缩包（解压后的内容才入库）
+# 压缩包与本地草稿
 *.rar
 *.zip
-
-# 素材清点时 agent 生成的深底合成预览图
-/美术资源/extracted/元件/_inspect/
-/美术资源/extracted/元件/*/\_preview/
-
-/production/screenshots/
-
-# 会话草稿
-/production/
-
-# 需求/设计文档仅本地保留，远端用 README
 /design/
+/production/
+/docs/engine-reference/
+/Assets/docs/
 /项目需求文档.md
 /Dreamremains_*.md
 /Dreamremains_*.html
 /塔罗牌机制组合*.xlsx
-/Assets/docs/
-/docs/engine-reference/
+/美术资源/
+/QA/
+/Tools/
+/.claude/
+/CLAUDE.md
+/.mcp.json
+
 
