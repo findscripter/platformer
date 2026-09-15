@@ -58,6 +58,7 @@ public class GameLoop : MonoBehaviour
     {
         Transform managersRoot = transform.parent != null ? transform.parent : transform;
         BgmPlayer.EnsureOn(managersRoot);
+        _ = GameAudioDirector.Instance;
     }
 
     private void EnsureSceneTransitionManager()
@@ -200,6 +201,7 @@ public class GameLoop : MonoBehaviour
             return;
         }
 
+        ResetDreamSession(false);
         StartCoroutine(LoadPlayerGuideRoutine());
     }
 
@@ -218,17 +220,22 @@ public class GameLoop : MonoBehaviour
         if (isSceneTransitioning || isReturningToMainMenu)
             return;
 
-        context.TarotResult = null;
-        if (!keepDream)
-            context.PlayerDreamInput = null;
+        ResetDreamSession(keepDream);
         context.ReplaySameDream = keepDream && !string.IsNullOrWhiteSpace(context.PlayerDreamInput);
         context.ReplayNewDream = !context.ReplaySameDream;
-        context.DreamRun = new DreamRunRecorder();
+        Time.timeScale = 1f;
+        StartCoroutine(LoadPlayerGuideRoutine());
+    }
+
+    private void ResetDreamSession(bool keepDream)
+    {
+        string dream = keepDream ? context.PlayerDreamInput : null;
+        DreamLetterClient.CancelPendingLetter(context);
+        context.ClearPlayerGuideData();
+        context.PlayerDreamInput = dream;
         context.ResetRuntimeFlags();
         context.PlayerSpawnPoint = null;
         context.IsLevelLoaded = false;
-        Time.timeScale = 1f;
-        StartCoroutine(LoadPlayerGuideRoutine());
     }
 
     public void ResumeGame()

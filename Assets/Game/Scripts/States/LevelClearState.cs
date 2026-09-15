@@ -12,6 +12,7 @@ public class LevelClearState : IGameState
 
     public void Enter()
     {
+        GuideSfx.PlayPickup();
         context.InputManager.DisableAllInput();
         if (context.Player != null)
             context.Player.FreezePhysics();

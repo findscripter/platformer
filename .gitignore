@@ -136,6 +136,8 @@ __pycache__/
 # 本地梦笺代理密钥，不得入库
 Tools/DreamLetterProxy/.env
 .env
+Assets/Game/Resources/DreamLetter/connection.json
+
 *.pyc
 /_unity_mcp.py
 /_walk_a.py

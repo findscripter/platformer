@@ -17,6 +17,16 @@ public static class DreamInputValidator
     private static readonly Regex SymbolsOnlyPattern = new(@"^[\d\s\p{P}\p{S}]+$", RegexOptions.Compiled);
     private static readonly Regex RepeatedCharPattern = new(@"^(.)\1*$", RegexOptions.Compiled);
 
+    public static bool ShouldSuggestSample(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return true;
+        string value = input.Trim();
+        if (SymbolsOnlyPattern.IsMatch(value))
+            return true;
+        return value.Length >= 4 && RepeatedCharPattern.IsMatch(value);
+    }
+
     public static bool NeedsFollowUp(string input)
     {
         if (string.IsNullOrWhiteSpace(input))

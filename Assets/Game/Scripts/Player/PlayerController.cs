@@ -238,7 +238,10 @@ public class PlayerController : MonoBehaviour
 
         UpdateCombatTimers(fixedDeltaTime);
 
+        bool wasGrounded = IsGrounded;
         CheckGround();
+        if (!wasGrounded && IsGrounded && rb.linearVelocity.y < -0.8f)
+            GameAudioDirector.Instance.Play("land", 0.4f, 0.15f);
         if (IsAirWalking)
         {
             IsGrounded = true;
@@ -418,6 +421,7 @@ public class PlayerController : MonoBehaviour
 
         bool airJump = !IsGrounded && coyoteTimeRemaining <= 0f;
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+        GameAudioDirector.Instance.Play("jump", 0.5f);
         jumpBufferTimeRemaining = 0f;
         coyoteTimeRemaining = 0f;
         jumpConsumed = true;
@@ -442,6 +446,7 @@ public class PlayerController : MonoBehaviour
             return false;
 
         currentHealth = Mathf.Max(0, currentHealth - amount);
+        GameAudioDirector.Instance.Play("hurt", 0.6f);
         invulnerabilityRemaining = invulnerabilityDuration;
 
         Debug.Log($"Player took {amount} damage, health: {currentHealth}/{maxHealth}");
@@ -469,8 +474,9 @@ public class PlayerController : MonoBehaviour
         if (currentHealth > 0)
             currentHealth = Mathf.Max(0, currentHealth - 1);
         IsDead = true;
+        GameAudioDirector.Instance.Play("death", 0.65f);
         animationController.UpdateAnimation(0f);
-        GameLoop.Instance?.Context?.DreamRun?.Log("death", "中途停下后重新开始");
+        GameLoop.Instance?.Context?.DreamRun?.Log("death", "途中受阻倒下");
         Debug.Log("player killed");
         return true;
     }
@@ -550,6 +556,7 @@ public class PlayerController : MonoBehaviour
     {
         Vector2 center = GetAttackHitboxCenter();
         int count = Physics2D.OverlapBox(center, GetAttackHitboxSize(), 0f, attackFilter, attackHits);
+        bool hitEnemy = false;
 
         for (int i = 0; i < count; i++)
         {
@@ -566,9 +573,11 @@ public class PlayerController : MonoBehaviour
             PatrolEnemy enemy = hit.GetComponentInParent<PatrolEnemy>();
             if (enemy != null)
             {
-                enemy.TakeDamage(ResolveAttackDamage());
+                hitEnemy |= enemy.TakeDamage(ResolveAttackDamage());
             }
         }
+        if (!hitEnemy)
+            GameAudioDirector.Instance.Play("swing", 0.5f);
     }
 
     private int ResolveAttackDamage()
